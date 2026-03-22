@@ -6,9 +6,11 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.deadline import Deadline
+from app.models.document import Document, DocumentStatus
 from app.models.event import Event
 from app.models.party import Party, PartyRole
 from app.models.transaction import PropertyType, Transaction
+from app.services.checklist import generate_checklist
 from app.services.extractor import extract_contract_data
 from app.services.parser import extract_text
 from app.services.timeline import generate_timeline
@@ -164,7 +166,25 @@ async def process_contract(
             due_date=item["due_date"],
         ))
 
-    # 7. Log event
+    # 7. Generate document checklist and (re)populate the documents table
+    checklist = generate_checklist(transaction_id, extracted)
+
+    await db.execute(
+        delete(Document).where(Document.transaction_id == transaction_id)
+    )
+    for doc_data in checklist:
+        db.add(
+            Document(
+                transaction_id=doc_data["transaction_id"],
+                phase=doc_data["phase"],
+                name=doc_data["name"],
+                status=DocumentStatus.pending,
+                responsible_party_role=doc_data["responsible_party_role"],
+                due_date=doc_data["due_date"],
+            )
+        )
+
+    # 8. Log event
     compliance = extracted.get("compliance_flags", {})
     active_flags = [k for k, v in compliance.items() if v]
     flags_summary = ", ".join(active_flags) if active_flags else "none"
@@ -175,6 +195,7 @@ async def process_contract(
         description=(
             f"Contract parsed successfully. "
             f"{len(timeline_items)} deadline(s) generated. "
+            f"{len(checklist)} document(s) added to checklist. "
             f"Compliance flags: {flags_summary}."
         ),
     ))

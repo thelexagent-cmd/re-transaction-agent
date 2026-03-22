@@ -27,5 +27,8 @@ class Settings(BaseSettings):
     # Anthropic API
     anthropic_api_key: str = ""
 
+    # Redis (Celery broker + result backend)
+    redis_url: str = "redis://localhost:6379/0"
+
 
 settings = Settings()

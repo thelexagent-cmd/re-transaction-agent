@@ -12,7 +12,7 @@ from app.models.party import Party
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.schemas.transaction import TransactionCreate, TransactionDetail, TransactionListItem
-from app.services.intake import process_contract
+from app.services import storage
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -86,23 +86,27 @@ async def list_transactions(
     return list(result.scalars().all())
 
 
-@router.post("/{transaction_id}/parse-contract")
+@router.post(
+    "/{transaction_id}/parse-contract",
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def parse_contract(
     transaction_id: int,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Parse a contract PDF and extract structured data into the transaction record.
+    """Enqueue a contract PDF for async background parsing.
 
-    Accepts a multipart PDF upload, runs the full extraction pipeline (PDF → Claude
-    → structured JSON), and updates the transaction with parties, financial terms,
-    dates, and deadlines.
+    Stores the uploaded PDF immediately, then enqueues the extraction pipeline
+    as a Celery task. Returns 202 Accepted with a task_id that can be polled
+    via GET /transactions/{id}/parse-status/{task_id}.
 
-    Returns the extracted JSON data plus a generated deadline timeline.
-    Raises 422 with error detail if the file is not a PDF or parsing fails.
+    Raises:
+        404 if the transaction does not exist or belongs to a different broker.
+        422 if the uploaded file is not a PDF or is empty.
     """
-    # Verify transaction exists and belongs to the authenticated user
+    # Verify transaction ownership
     result = await db.execute(
         select(Transaction).where(
             Transaction.id == transaction_id,
@@ -128,15 +132,69 @@ async def parse_contract(
             detail="Uploaded file is empty",
         )
 
-    try:
-        extracted = await process_contract(pdf_bytes, transaction_id, db)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Contract parsing failed: {exc}",
-        ) from exc
+    # Store PDF so the Celery worker can retrieve it
+    storage_key = await storage.upload_document(transaction_id, file.filename or "contract.pdf", pdf_bytes)
 
-    return extracted
+    # Enqueue background parsing task
+    from app.worker import process_contract_async  # noqa: PLC0415
+
+    task = process_contract_async.delay(transaction_id, storage_key)
+
+    return {
+        "status": "accepted",
+        "task_id": task.id,
+        "message": "Contract queued for parsing. Poll parse-status/{task_id} for results.",
+    }
+
+
+@router.get("/{transaction_id}/parse-status/{task_id}")
+async def get_parse_status(
+    transaction_id: int,
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Poll the status of a background contract-parsing task.
+
+    Returns:
+        - status: pending | processing | complete | failed
+        - result: extracted data dict (only when status == complete)
+        - error:  error message (only when status == failed)
+
+    Raises:
+        404 if the transaction does not exist or belongs to a different broker.
+    """
+    # Verify transaction ownership
+    result = await db.execute(
+        select(Transaction).where(
+            Transaction.id == transaction_id,
+            Transaction.user_id == current_user.id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+    from celery.result import AsyncResult  # noqa: PLC0415
+    from celery_app import celery_app  # noqa: PLC0415
+
+    task_result = AsyncResult(task_id, app=celery_app)
+
+    state = task_result.state  # PENDING, STARTED, SUCCESS, FAILURE, RETRY
+
+    if state == "PENDING":
+        return {"task_id": task_id, "status": "pending"}
+    if state == "STARTED":
+        return {"task_id": task_id, "status": "processing"}
+    if state == "SUCCESS":
+        return {"task_id": task_id, "status": "complete", "result": task_result.result}
+    if state == "FAILURE":
+        return {
+            "task_id": task_id,
+            "status": "failed",
+            "error": str(task_result.result),
+        }
+    # RETRY or unknown
+    return {"task_id": task_id, "status": "processing"}
 
 
 @router.get("/{transaction_id}", response_model=TransactionDetail)

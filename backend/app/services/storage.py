@@ -78,6 +78,49 @@ async def _upload_to_local(storage_key: str, content: bytes) -> None:
     dest.write_bytes(content)
 
 
+async def download_document(storage_key: str) -> bytes:
+    """Download a document and return its raw bytes.
+
+    Uses S3/R2 when credentials are configured, otherwise reads from the local
+    filesystem fallback used in development.
+
+    Args:
+        storage_key: The key returned by upload_document().
+
+    Returns:
+        Raw file bytes.
+
+    Raises:
+        FileNotFoundError: If the file does not exist in local storage.
+    """
+    if settings.aws_access_key_id and settings.aws_secret_access_key:
+        return await _download_from_s3(storage_key)
+    return await _download_from_local(storage_key)
+
+
+async def _download_from_s3(storage_key: str) -> bytes:
+    import boto3  # noqa: PLC0415
+
+    kwargs: dict = {
+        "aws_access_key_id": settings.aws_access_key_id,
+        "aws_secret_access_key": settings.aws_secret_access_key,
+        "region_name": settings.aws_region,
+    }
+    if settings.aws_endpoint_url:
+        kwargs["endpoint_url"] = settings.aws_endpoint_url
+
+    s3 = boto3.client("s3", **kwargs)
+    response = s3.get_object(Bucket=settings.aws_bucket_name, Key=storage_key)
+    return response["Body"].read()
+
+
+async def _download_from_local(storage_key: str) -> bytes:
+    src = Path(settings.local_storage_path) / storage_key
+    if not src.exists():
+        raise FileNotFoundError(f"Local file not found: {src}")
+    return src.read_bytes()
+
+
 async def get_presigned_url(storage_key: str, expires_in: int = 3600) -> str:
     """Generate a pre-signed URL for temporary download access.
 
