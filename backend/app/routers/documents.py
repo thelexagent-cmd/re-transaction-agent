@@ -183,6 +183,12 @@ async def upload_document(
             detail="File exceeds the 50 MB limit",
         )
 
+    if content[:4] != b"%PDF":
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only PDF files are accepted (file does not appear to be a valid PDF)",
+        )
+
     filename = file.filename or "upload"
     name = document_name.strip() or filename
 

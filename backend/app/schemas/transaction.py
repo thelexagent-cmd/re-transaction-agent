@@ -1,21 +1,43 @@
 """Transaction and Party schemas."""
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, EmailStr, field_validator
 
 from app.models.party import PartyRole
 from app.models.transaction import PropertyType, TransactionStatus
 
 
-# --- Party schemas ---
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _normalize_phone(raw: str) -> str:
+    """Strip non-digits and validate US 10-digit format. Returns digits only."""
+    digits = re.sub(r"\D", "", raw)
+    if len(digits) == 11 and digits.startswith("1"):
+        digits = digits[1:]  # Strip leading country code
+    if len(digits) != 10:
+        raise ValueError(
+            f"Phone number must be a 10-digit US number (got {len(digits)} digits after stripping)"
+        )
+    return digits
+
+
+# ── Party schemas ─────────────────────────────────────────────────────────────
 
 class PartyCreate(BaseModel):
     role: PartyRole
     full_name: str
-    email: str | None = None
+    email: EmailStr | None = None
     phone: str | None = None
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        if v is None or v.strip() == "":
+            return None
+        return _normalize_phone(v)
 
 
 class PartyResponse(BaseModel):
@@ -30,7 +52,7 @@ class PartyResponse(BaseModel):
     created_at: datetime
 
 
-# --- Deadline schemas ---
+# ── Deadline schemas ──────────────────────────────────────────────────────────
 
 class DeadlineResponse(BaseModel):
     model_config = {"from_attributes": True}
@@ -45,7 +67,7 @@ class DeadlineResponse(BaseModel):
     created_at: datetime
 
 
-# --- Event schemas ---
+# ── Event schemas ─────────────────────────────────────────────────────────────
 
 class EventResponse(BaseModel):
     model_config = {"from_attributes": True}
@@ -58,7 +80,7 @@ class EventResponse(BaseModel):
     created_at: datetime
 
 
-# --- Transaction schemas ---
+# ── Transaction schemas ───────────────────────────────────────────────────────
 
 class TransactionCreate(BaseModel):
     address: str
@@ -73,6 +95,13 @@ class TransactionCreate(BaseModel):
     def purchase_price_positive(cls, v: Decimal | None) -> Decimal | None:
         if v is not None and v <= 0:
             raise ValueError("Purchase price must be positive")
+        return v
+
+    @field_validator("closing_date")
+    @classmethod
+    def closing_date_future(cls, v: date | None) -> date | None:
+        if v is not None and v < date.today():
+            raise ValueError("Closing date must be today or in the future")
         return v
 
 
@@ -96,13 +125,13 @@ class TransactionDetail(TransactionListItem):
     events: list[EventResponse] = []
 
 
-# --- HOA workflow schemas ---
+# ── HOA workflow schemas ──────────────────────────────────────────────────────
 
 class HoaDocsDeliveredRequest(BaseModel):
     delivery_date: date
 
 
-# --- Alert / deadline list schemas ---
+# ── Alert / deadline list schemas ─────────────────────────────────────────────
 
 class AlertListResponse(BaseModel):
     alerts: list[EventResponse]

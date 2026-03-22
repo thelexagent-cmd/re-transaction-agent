@@ -1,11 +1,11 @@
-"""Authentication endpoints — register, login, and current-user lookup."""
+"""Authentication endpoints — register, login, current-user lookup, and first-time setup."""
 
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
 from passlib.context import CryptContext
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -78,3 +78,40 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict:
 async def me(current_user: User = Depends(get_current_user)) -> User:
     """Return the currently authenticated broker's profile."""
     return current_user
+
+
+@router.post("/setup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def setup(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    """First-time broker setup: creates the initial account and returns a JWT.
+
+    This endpoint only works when no users exist in the database. It is designed
+    for first-deploy onboarding — run once to create the broker account, then use
+    /auth/login for all subsequent authentication.
+
+    Raises:
+        409 if any broker account already exists (setup already completed).
+    """
+    count_result = await db.execute(select(func.count()).select_from(User))
+    user_count = count_result.scalar_one()
+
+    if user_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Setup already completed — a broker account already exists. "
+                "Use POST /auth/login to sign in."
+            ),
+        )
+
+    user = User(
+        email=body.email,
+        hashed_password=_hash_password(body.password),
+        full_name=body.full_name,
+        brokerage_name=body.brokerage_name,
+    )
+    db.add(user)
+    await db.flush()
+    await db.refresh(user)
+
+    token = _create_access_token(user.id)
+    return {"access_token": token, "token_type": "bearer"}

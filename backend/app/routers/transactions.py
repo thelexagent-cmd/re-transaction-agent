@@ -140,6 +140,12 @@ async def parse_contract(
             detail="Uploaded file is empty",
         )
 
+    if pdf_bytes[:4] != b"%PDF":
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="File does not appear to be a valid PDF (magic bytes check failed)",
+        )
+
     # Store PDF so the Celery worker can retrieve it
     storage_key = await storage.upload_document(transaction_id, file.filename or "contract.pdf", pdf_bytes)
 
@@ -196,10 +202,13 @@ async def get_parse_status(
     if state == "SUCCESS":
         return {"task_id": task_id, "status": "complete", "result": task_result.result}
     if state == "FAILURE":
+        exc = task_result.result
+        reason = str(exc) if exc else "Unknown error during contract parsing"
         return {
             "task_id": task_id,
             "status": "failed",
-            "error": str(task_result.result),
+            "detail": "Contract parsing failed",
+            "reason": reason,
         }
     # RETRY or unknown
     return {"task_id": task_id, "status": "processing"}
