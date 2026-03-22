@@ -45,6 +45,81 @@ async def _run_followup_check_async() -> int:
             raise
 
 
+# ── Periodic task: deadline check ────────────────────────────────────────────
+
+@shared_task(name="app.worker.run_deadline_check", bind=True, max_retries=3)
+def run_deadline_check(self) -> int:
+    """Hourly task: scan all deadlines and fire T-3/T-1/T=0 broker alerts."""
+    try:
+        return asyncio.run(_run_deadline_check_async())
+    except Exception as exc:
+        logger.exception("run_deadline_check failed: %s", exc)
+        raise self.retry(exc=exc, countdown=60) from exc
+
+
+async def _run_deadline_check_async() -> int:
+    from app.database import AsyncSessionLocal
+    from app.services.deadline_alerts import check_deadlines
+
+    async with AsyncSessionLocal() as db:
+        try:
+            count = await check_deadlines(db)
+            return count
+        except Exception:
+            await db.rollback()
+            raise
+
+
+# ── Periodic task: insurance gap check ───────────────────────────────────────
+
+@shared_task(name="app.worker.run_insurance_check", bind=True, max_retries=3)
+def run_insurance_check(self) -> int:
+    """Hourly task: alert broker when insurance binder is missing near closing."""
+    try:
+        return asyncio.run(_run_insurance_check_async())
+    except Exception as exc:
+        logger.exception("run_insurance_check failed: %s", exc)
+        raise self.retry(exc=exc, countdown=60) from exc
+
+
+async def _run_insurance_check_async() -> int:
+    from app.database import AsyncSessionLocal
+    from app.services.insurance_alerts import check_insurance_gaps
+
+    async with AsyncSessionLocal() as db:
+        try:
+            count = await check_insurance_gaps(db)
+            return count
+        except Exception:
+            await db.rollback()
+            raise
+
+
+# ── Periodic task: CTC gap check ─────────────────────────────────────────────
+
+@shared_task(name="app.worker.run_ctc_check", bind=True, max_retries=3)
+def run_ctc_check(self) -> int:
+    """Hourly task: alert broker when Clear to Close is missing near closing."""
+    try:
+        return asyncio.run(_run_ctc_check_async())
+    except Exception as exc:
+        logger.exception("run_ctc_check failed: %s", exc)
+        raise self.retry(exc=exc, countdown=60) from exc
+
+
+async def _run_ctc_check_async() -> int:
+    from app.database import AsyncSessionLocal
+    from app.services.closing_alerts import check_ctc_gap
+
+    async with AsyncSessionLocal() as db:
+        try:
+            count = await check_ctc_gap(db)
+            return count
+        except Exception:
+            await db.rollback()
+            raise
+
+
 # ── One-off task: async contract parsing ─────────────────────────────────────
 
 @shared_task(name="app.worker.process_contract_async", bind=True, max_retries=3)

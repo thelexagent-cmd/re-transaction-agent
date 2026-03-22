@@ -7,11 +7,19 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
+from app.models.deadline import Deadline
 from app.models.event import Event
 from app.models.party import Party
 from app.models.transaction import Transaction
 from app.models.user import User
-from app.schemas.transaction import TransactionCreate, TransactionDetail, TransactionListItem
+from app.schemas.transaction import (
+    AlertListResponse,
+    DeadlineListResponse,
+    HoaDocsDeliveredRequest,
+    TransactionCreate,
+    TransactionDetail,
+    TransactionListItem,
+)
 from app.services import storage
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -219,4 +227,179 @@ async def get_transaction(
     transaction = result.scalar_one_or_none()
     if transaction is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    return transaction
+
+
+# ── Alert endpoints ───────────────────────────────────────────────────────────
+
+
+@router.get("/{transaction_id}/alerts", response_model=AlertListResponse)
+async def list_alerts(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return all unresolved (not dismissed) broker_alert events for a transaction.
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    result = await db.execute(
+        select(Event)
+        .where(
+            Event.transaction_id == transaction_id,
+            Event.event_type == "broker_alert",
+            Event.dismissed.is_(False),
+        )
+        .order_by(Event.created_at.desc())
+    )
+    alerts = list(result.scalars().all())
+    return {"alerts": alerts, "total": len(alerts)}
+
+
+@router.post("/{transaction_id}/alerts/{event_id}/dismiss", response_model=dict)
+async def dismiss_alert(
+    transaction_id: int,
+    event_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Dismiss a broker alert event.
+
+    Raises 404 if the transaction or event is not found / accessible.
+    """
+    await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    result = await db.execute(
+        select(Event).where(
+            Event.id == event_id,
+            Event.transaction_id == transaction_id,
+            Event.event_type == "broker_alert",
+        )
+    )
+    event = result.scalar_one_or_none()
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert event not found",
+        )
+
+    event.dismissed = True
+    db.add(event)
+    return {"status": "dismissed", "event_id": event_id}
+
+
+# ── Deadline list endpoint ────────────────────────────────────────────────────
+
+
+@router.get("/{transaction_id}/deadlines", response_model=DeadlineListResponse)
+async def list_deadlines(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return all deadlines for a transaction sorted by due_date ascending.
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    result = await db.execute(
+        select(Deadline)
+        .where(Deadline.transaction_id == transaction_id)
+        .order_by(Deadline.due_date.asc())
+    )
+    deadlines = list(result.scalars().all())
+    return {"deadlines": deadlines, "total": len(deadlines)}
+
+
+# ── HOA workflow endpoints ────────────────────────────────────────────────────
+
+
+@router.post("/{transaction_id}/hoa/docs-delivered", status_code=status.HTTP_201_CREATED)
+async def hoa_docs_delivered(
+    transaction_id: int,
+    body: HoaDocsDeliveredRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Start the HOA rescission clock after HOA documents are delivered to the buyer.
+
+    Creates a new deadline (delivery_date + 3 business days) and fires broker
+    alert events.
+
+    Body:
+        delivery_date: ISO 8601 date string (YYYY-MM-DD)
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    from app.services.hoa_workflow import start_hoa_rescission_clock  # noqa: PLC0415
+
+    await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    deadline = await start_hoa_rescission_clock(
+        transaction_id=transaction_id,
+        delivery_date=body.delivery_date,
+        db=db,
+    )
+    return {
+        "status": "rescission_clock_started",
+        "rescission_deadline": deadline.due_date.isoformat(),
+        "deadline_id": deadline.id,
+    }
+
+
+@router.post("/{transaction_id}/hoa/rescission-cleared", response_model=dict)
+async def hoa_rescission_cleared(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Confirm that the HOA rescission period passed without buyer cancellation.
+
+    Marks the rescission deadline as completed and records a clearance event.
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    Raises 422 if no active HOA rescission deadline exists.
+    """
+    from app.services.hoa_workflow import confirm_hoa_rescission_cleared  # noqa: PLC0415
+
+    await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    try:
+        deadline = await confirm_hoa_rescission_cleared(transaction_id, db)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "status": "rescission_cleared",
+        "deadline_id": deadline.id,
+    }
+
+
+# ── Ownership helper ──────────────────────────────────────────────────────────
+
+
+async def _require_transaction_ownership(
+    transaction_id: int,
+    user_id: int,
+    db: AsyncSession,
+) -> Transaction:
+    """Return the transaction if it belongs to user_id; raise 404 otherwise."""
+    result = await db.execute(
+        select(Transaction).where(
+            Transaction.id == transaction_id,
+            Transaction.user_id == user_id,
+        )
+    )
+    transaction = result.scalar_one_or_none()
+    if transaction is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transaction not found",
+        )
     return transaction

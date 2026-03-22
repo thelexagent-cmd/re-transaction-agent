@@ -54,6 +54,7 @@ class EventResponse(BaseModel):
     transaction_id: int
     event_type: str
     description: str
+    dismissed: bool
     created_at: datetime
 
 
@@ -93,3 +94,21 @@ class TransactionDetail(TransactionListItem):
     parties: list[PartyResponse] = []
     deadlines: list[DeadlineResponse] = []
     events: list[EventResponse] = []
+
+
+# --- HOA workflow schemas ---
+
+class HoaDocsDeliveredRequest(BaseModel):
+    delivery_date: date
+
+
+# --- Alert / deadline list schemas ---
+
+class AlertListResponse(BaseModel):
+    alerts: list[EventResponse]
+    total: int
+
+
+class DeadlineListResponse(BaseModel):
+    deadlines: list[DeadlineResponse]
+    total: int
