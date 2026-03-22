@@ -6,8 +6,12 @@ Follow-up schedule relative to each document's due_date:
   T-1 day:                           third follow-up + broker alert
   T=0 or past:                       mark document overdue + broker alert
 
-All follow-ups are logged as Event records (email/SMS delivery is Phase 4).
-The function is idempotent: a 12-hour cooldown on last_followup_at prevents
+All follow-ups are logged as Event records.  Phase 4 wires each tier to
+EmailService.send_template() and — for T-1 and overdue — SMSService.send().
+Broker-alert events are also dispatched via notify_broker().
+
+Communication dispatch is best-effort: failures are logged but never crash
+the follow-up tracking loop.  A 12-hour cooldown on last_followup_at prevents
 duplicate sends when the scheduler runs multiple times per day.
 """
 
@@ -23,6 +27,18 @@ from app.models.event import Event
 logger = logging.getLogger(__name__)
 
 _FOLLOWUP_COOLDOWN_HOURS = 12
+
+# Map document responsible_party_role strings → PartyRole enum values
+_ROLE_STR_TO_ENUM: dict[str, str] = {
+    "buyer": "buyer",
+    "seller": "seller",
+    "buyers_agent": "buyers_agent",
+    "listing_agent": "listing_agent",
+    "lender": "lender",
+    "title": "title",
+    "escrow": "escrow",
+    "hoa": "hoa",
+}
 
 
 async def check_and_send_followups(db: AsyncSession) -> int:
@@ -70,6 +86,7 @@ async def check_and_send_followups(db: AsyncSession) -> int:
         party = doc.responsible_party_role or "responsible party"
         txn_ref = f"transaction {doc.transaction_id}"
         events_to_add: list[Event] = []
+        followup_tier: str | None = None
 
         if days_until_due <= 0:
             # ── T=0 or past: mark overdue + immediate broker alert ────────────
@@ -105,6 +122,7 @@ async def check_and_send_followups(db: AsyncSession) -> int:
             )
             doc.last_followup_at = now
             sent_count += 1
+            followup_tier = "overdue"
 
         elif days_until_due == 1:
             # ── T-1: third follow-up + broker alert ──────────────────────────
@@ -131,6 +149,7 @@ async def check_and_send_followups(db: AsyncSession) -> int:
             )
             doc.last_followup_at = now
             sent_count += 1
+            followup_tier = "t1"
 
         elif days_until_due <= 3:
             # ── T-3 window (2–3 days): second follow-up (escalated) ───────────
@@ -147,6 +166,7 @@ async def check_and_send_followups(db: AsyncSession) -> int:
             )
             doc.last_followup_at = now
             sent_count += 1
+            followup_tier = "t3"
 
         elif days_until_due <= 5:
             # ── T-5 window (4–5 days): first follow-up ────────────────────────
@@ -163,11 +183,27 @@ async def check_and_send_followups(db: AsyncSession) -> int:
             )
             doc.last_followup_at = now
             sent_count += 1
+            followup_tier = "t5"
 
         for event in events_to_add:
             db.add(event)
         if events_to_add:
             db.add(doc)
+
+        # ── Dispatch email / SMS (best-effort, after DB adds) ─────────────────
+        if followup_tier is not None:
+            broker_alert_desc = next(
+                (e.description for e in events_to_add if e.event_type == "broker_alert"),
+                None,
+            )
+            await _dispatch_followup_comms(
+                doc=doc,
+                tier=followup_tier,
+                days_until_due=days_until_due,
+                due_date=due_date,
+                broker_alert_desc=broker_alert_desc,
+                db=db,
+            )
 
     if sent_count > 0:
         await db.commit()
@@ -176,3 +212,138 @@ async def check_and_send_followups(db: AsyncSession) -> int:
         logger.debug("Follow-up check complete: no actions needed.")
 
     return sent_count
+
+
+# ---------------------------------------------------------------------------
+# Communication dispatch helpers
+# ---------------------------------------------------------------------------
+
+async def _dispatch_followup_comms(
+    doc: Document,
+    tier: str,
+    days_until_due: int,
+    due_date: date,
+    broker_alert_desc: str | None,
+    db: AsyncSession,
+) -> None:
+    """Send email (and optionally SMS) for a follow-up action.
+
+    All exceptions are caught — communication failures do not affect tracking.
+    """
+    from app.models.party import Party, PartyRole
+    from app.models.transaction import Transaction
+    from app.models.user import User
+    from app.services.email_service import EmailService, notify_broker
+    from app.services.sms_service import SMSService
+
+    try:
+        # Load transaction for property address + broker info
+        txn_result = await db.execute(
+            select(Transaction).where(Transaction.id == doc.transaction_id)
+        )
+        txn = txn_result.scalar_one_or_none()
+        if txn is None:
+            return
+
+        # Load broker (user)
+        user_result = await db.execute(
+            select(User).where(User.id == txn.user_id)
+        )
+        broker = user_result.scalar_one_or_none()
+        broker_name = broker.full_name if broker else ""
+        brokerage_name = (broker.brokerage_name or "") if broker else ""
+
+        # Resolve responsible party record (may not exist for all role strings)
+        party_record = None
+        role_str = doc.responsible_party_role or ""
+        if role_str in _ROLE_STR_TO_ENUM:
+            try:
+                party_role = PartyRole(_ROLE_STR_TO_ENUM[role_str])
+                p_result = await db.execute(
+                    select(Party).where(
+                        Party.transaction_id == doc.transaction_id,
+                        Party.role == party_role,
+                    )
+                )
+                party_record = p_result.scalar_one_or_none()
+            except Exception:
+                pass
+
+        party_name = party_record.full_name if party_record else role_str
+        party_email = party_record.email if party_record else None
+        party_phone = party_record.phone if party_record else None
+
+        # Build template vars
+        if tier == "overdue":
+            days_label = "OVERDUE"
+            template_name = "document_followup_t1"
+        elif tier == "t1":
+            days_label = "Due Tomorrow"
+            template_name = "document_followup_t1"
+        elif tier == "t3":
+            days_label = str(days_until_due)
+            template_name = "document_followup_t3"
+        else:  # t5
+            days_label = str(days_until_due)
+            template_name = "document_followup_t5"
+
+        template_vars = {
+            "party_name": party_name,
+            "document_name": doc.name,
+            "deadline_date": due_date.isoformat(),
+            "days_until_due": days_label,
+            "property_address": txn.address,
+            "broker_name": broker_name,
+            "brokerage_name": brokerage_name,
+            "broker_email": broker.email if broker else "",
+        }
+
+        # Send email to responsible party
+        if party_email:
+            svc = EmailService()
+            await svc.send_template(
+                to_email=party_email,
+                to_name=party_name,
+                template_name=template_name,
+                template_vars=template_vars,
+            )
+            logger.info(
+                "Follow-up email (%s) sent to %s for doc '%s' [txn %d].",
+                tier,
+                party_email,
+                doc.name,
+                doc.transaction_id,
+            )
+
+        # Send SMS for T-1 and overdue if phone is available
+        if tier in ("t1", "overdue") and party_phone:
+            sms_svc = SMSService()
+            sms_msg = (
+                f"URGENT: '{doc.name}' is {days_label} for {txn.address}. "
+                f"Please submit immediately. — {broker_name}"
+            )
+            await sms_svc.send(to_phone=party_phone, message=sms_msg)
+            logger.info(
+                "Follow-up SMS (%s) sent to %s for doc '%s' [txn %d].",
+                tier,
+                party_phone,
+                doc.name,
+                doc.transaction_id,
+            )
+
+        # Notify broker for T-1 and overdue alert events
+        if tier in ("t1", "overdue") and broker_alert_desc:
+            await notify_broker(
+                transaction_id=doc.transaction_id,
+                subject=f"Document {days_label}: {doc.name}",
+                message=broker_alert_desc,
+                db=db,
+            )
+
+    except Exception as exc:
+        logger.error(
+            "Failed to dispatch follow-up comms for doc '%s' [txn %d]: %s",
+            doc.name,
+            doc.transaction_id,
+            exc,
+        )

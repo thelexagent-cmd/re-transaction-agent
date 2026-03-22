@@ -2,6 +2,7 @@
 Clear to Close document has been received.
 
 Idempotent: uses Transaction.ctc_alert_sent flag so the alert fires once.
+Phase 4: broker_alert events also trigger notify_broker() email dispatch.
 """
 
 import logging
@@ -68,17 +69,21 @@ async def check_ctc_gap(db: AsyncSession) -> int:
 
         days_label = max(days_to_close, 0)
         txn.ctc_alert_sent = True
+        alert_desc = (
+            f"Clear to Close not received. "
+            f"Closing in {days_label} day(s) ({closing_date.isoformat()}). "
+            "Contact lender immediately."
+        )
         db.add(Event(
             transaction_id=txn.id,
             event_type="broker_alert",
-            description=(
-                f"Clear to Close not received. "
-                f"Closing in {days_label} day(s) ({closing_date.isoformat()}). "
-                "Contact lender immediately."
-            ),
+            description=alert_desc,
         ))
         db.add(txn)
         fired += 1
+
+        # Notify broker via email (best-effort)
+        await _notify_broker_safe(txn.id, "Clear to Close Missing", alert_desc, db)
 
     if fired > 0:
         await db.commit()
@@ -87,3 +92,23 @@ async def check_ctc_gap(db: AsyncSession) -> int:
         logger.debug("CTC gap check: no alerts needed.")
 
     return fired
+
+
+async def _notify_broker_safe(
+    transaction_id: int, subject: str, message: str, db
+) -> None:
+    try:
+        from app.services.email_service import notify_broker
+
+        await notify_broker(
+            transaction_id=transaction_id,
+            subject=subject,
+            message=message,
+            db=db,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to email broker for CTC alert [txn %d]: %s",
+            transaction_id,
+            exc,
+        )

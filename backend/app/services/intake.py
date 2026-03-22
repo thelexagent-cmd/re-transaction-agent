@@ -1,4 +1,10 @@
-"""Contract intake orchestrator: PDF → Claude extraction → database records."""
+"""Contract intake orchestrator: PDF → Claude extraction → database records.
+
+Phase 4 additions: after checklist is generated and the transaction is committed,
+intro emails are sent to every party that has an email address.  Each send is
+logged as an Event.  Failures are caught per-party — one bad address does not
+prevent other parties from receiving their intro.
+"""
 
 from datetime import date
 
@@ -24,6 +30,17 @@ _PARTY_ROLE_MAP: dict[str, PartyRole] = {
     "lender": PartyRole.lender,
     "title_company": PartyRole.title,
     "escrow_agent": PartyRole.escrow,
+}
+
+# Map PartyRole → intro email template name
+_INTRO_TEMPLATE_MAP: dict[PartyRole, str] = {
+    PartyRole.buyer: "intro_buyer",
+    PartyRole.seller: "intro_seller",
+    PartyRole.buyers_agent: "intro_agent",
+    PartyRole.listing_agent: "intro_agent",
+    PartyRole.lender: "intro_lender",
+    PartyRole.title: "intro_title",
+    PartyRole.escrow: "intro_title",  # same template as title
 }
 
 # Map extracted property type strings → PropertyType enum
@@ -72,6 +89,7 @@ async def process_contract(
         4. Upsert party records (buyer, seller, agents, lender, title, escrow).
         5. Regenerate all deadline records from the calculated timeline.
         6. Log a contract_parsed event.
+        7. Send intro emails to all parties that have an email address.
 
     Args:
         pdf_bytes: Raw bytes of the contract PDF.
@@ -202,6 +220,9 @@ async def process_contract(
 
     await db.commit()
 
+    # 9. Send intro emails to all parties with email addresses (Phase 4)
+    await _send_intro_emails(transaction_id, db)
+
     # Serialize timeline dates for JSON response
     serialized_timeline = [
         {
@@ -213,3 +234,129 @@ async def process_contract(
     ]
 
     return {**extracted, "timeline": serialized_timeline}
+
+
+# ---------------------------------------------------------------------------
+# Intro email sequence
+# ---------------------------------------------------------------------------
+
+async def _send_intro_emails(transaction_id: int, db: AsyncSession) -> None:
+    """Send intro emails to all parties that have an email address.
+
+    Each successful send is logged as an intro_sent Event.
+    Each failure is logged as an email_failed Event.
+    Neither success nor failure interrupts the overall intake flow.
+    """
+    import logging
+
+    from app.models.user import User
+    from app.services.email_service import EmailService
+
+    log = logging.getLogger(__name__)
+
+    try:
+        # Fresh load of transaction + broker after commit
+        txn_result = await db.execute(
+            select(Transaction).where(Transaction.id == transaction_id)
+        )
+        txn = txn_result.scalar_one_or_none()
+        if txn is None:
+            return
+
+        user_result = await db.execute(
+            select(User).where(User.id == txn.user_id)
+        )
+        broker = user_result.scalar_one_or_none()
+        broker_name = broker.full_name if broker else ""
+        brokerage_name = (broker.brokerage_name or "") if broker else ""
+        broker_email = broker.email if broker else ""
+
+        # Load all parties
+        parties_result = await db.execute(
+            select(Party).where(Party.transaction_id == transaction_id)
+        )
+        parties = parties_result.scalars().all()
+
+        # Build lookup maps for template vars
+        party_by_role: dict[PartyRole, Party] = {p.role: p for p in parties}
+        buyer = party_by_role.get(PartyRole.buyer)
+        seller = party_by_role.get(PartyRole.seller)
+        buyers_agent = party_by_role.get(PartyRole.buyers_agent)
+        title_party = party_by_role.get(PartyRole.title)
+
+        buyer_name = buyer.full_name if buyer else ""
+        seller_name = seller.full_name if seller else ""
+        buyers_agent_name = buyers_agent.full_name if buyers_agent else ""
+        title_company = title_party.full_name if title_party else "the title company"
+
+        base_vars = {
+            "property_address": txn.address,
+            "broker_name": broker_name,
+            "brokerage_name": brokerage_name,
+            "broker_email": broker_email,
+            "buyer_name": buyer_name,
+            "seller_name": seller_name,
+            "agent_name": buyers_agent_name,
+            "title_company": title_company,
+        }
+
+        svc = EmailService()
+
+        for party in parties:
+            template_name = _INTRO_TEMPLATE_MAP.get(party.role)
+            if template_name is None or not party.email:
+                continue
+
+            # Build role-specific extra vars
+            extra: dict[str, str] = {}
+            if party.role == PartyRole.lender:
+                extra["lender_name"] = party.full_name
+            elif party.role in (PartyRole.title, PartyRole.escrow):
+                extra["title_name"] = party.full_name
+            elif party.role in (PartyRole.buyers_agent, PartyRole.listing_agent):
+                extra["agent_name"] = party.full_name  # override with this specific agent
+
+            template_vars = {**base_vars, **extra}
+
+            try:
+                await svc.send_template(
+                    to_email=party.email,
+                    to_name=party.full_name,
+                    template_name=template_name,
+                    template_vars=template_vars,
+                )
+                db.add(Event(
+                    transaction_id=transaction_id,
+                    event_type="intro_sent",
+                    description=(
+                        f"Intro email sent to {party.role.value} {party.full_name} "
+                        f"({party.email})."
+                    ),
+                ))
+                log.info(
+                    "Intro email sent to %s %s (%s) [txn %d].",
+                    party.role.value,
+                    party.full_name,
+                    party.email,
+                    transaction_id,
+                )
+            except Exception as exc:
+                db.add(Event(
+                    transaction_id=transaction_id,
+                    event_type="email_failed",
+                    description=(
+                        f"Intro email failed for {party.role.value} {party.full_name} "
+                        f"({party.email}): {exc}"
+                    ),
+                ))
+                log.error(
+                    "Intro email failed for %s %s: %s",
+                    party.role.value,
+                    party.full_name,
+                    exc,
+                )
+
+        await db.commit()
+
+    except Exception as exc:
+        log.error("_send_intro_emails failed for transaction %d: %s", transaction_id, exc)

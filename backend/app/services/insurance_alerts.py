@@ -2,6 +2,7 @@
 insurance binder has been received.
 
 Idempotent: uses Transaction.insurance_alert_sent flag so the alert fires once.
+Phase 4: broker_alert events also trigger notify_broker() email dispatch.
 """
 
 import logging
@@ -69,17 +70,21 @@ async def check_insurance_gaps(db: AsyncSession) -> int:
 
         days_label = max(days_to_close, 0)
         txn.insurance_alert_sent = True
+        alert_desc = (
+            f"Insurance binder not received. "
+            f"Closing in {days_label} day(s) ({closing_date.isoformat()}). "
+            "Obtain homeowner's insurance binder immediately."
+        )
         db.add(Event(
             transaction_id=txn.id,
             event_type="broker_alert",
-            description=(
-                f"Insurance binder not received. "
-                f"Closing in {days_label} day(s) ({closing_date.isoformat()}). "
-                "Obtain homeowner's insurance binder immediately."
-            ),
+            description=alert_desc,
         ))
         db.add(txn)
         fired += 1
+
+        # Notify broker via email (best-effort)
+        await _notify_broker_safe(txn.id, "Insurance Binder Missing", alert_desc, db)
 
     if fired > 0:
         await db.commit()
@@ -88,3 +93,23 @@ async def check_insurance_gaps(db: AsyncSession) -> int:
         logger.debug("Insurance gap check: no alerts needed.")
 
     return fired
+
+
+async def _notify_broker_safe(
+    transaction_id: int, subject: str, message: str, db
+) -> None:
+    try:
+        from app.services.email_service import notify_broker
+
+        await notify_broker(
+            transaction_id=transaction_id,
+            subject=subject,
+            message=message,
+            db=db,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to email broker for insurance alert [txn %d]: %s",
+            transaction_id,
+            exc,
+        )

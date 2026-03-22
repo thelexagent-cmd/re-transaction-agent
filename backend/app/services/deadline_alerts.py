@@ -4,6 +4,8 @@ All logic is idempotent — safe to run multiple times per day:
   - alert_t3_sent flag prevents duplicate T-3 alerts
   - alert_t1_sent flag prevents duplicate T-1 alerts
   - status == "missed" prevents re-triggering T=0 alerts
+
+Phase 4: broker_alert events also trigger notify_broker() email dispatch.
 """
 
 import logging
@@ -117,6 +119,11 @@ async def check_deadlines(db: AsyncSession) -> int:
             db.add(dl)
             fired += len(events_to_add)
 
+        # Dispatch broker alert emails (best-effort)
+        for ev in events_to_add:
+            if ev.event_type == "broker_alert":
+                await _notify_broker_safe(dl.transaction_id, dl.name, ev.description, db)
+
     if fired > 0:
         await db.commit()
         logger.info("Deadline check complete: %d alert event(s) fired.", fired)
@@ -124,3 +131,23 @@ async def check_deadlines(db: AsyncSession) -> int:
         logger.debug("Deadline check complete: no alerts needed.")
 
     return fired
+
+
+async def _notify_broker_safe(
+    transaction_id: int, deadline_name: str, message: str, db
+) -> None:
+    try:
+        from app.services.email_service import notify_broker
+
+        await notify_broker(
+            transaction_id=transaction_id,
+            subject=f"Deadline Alert: {deadline_name}",
+            message=message,
+            db=db,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to email broker for deadline alert [txn %d]: %s",
+            transaction_id,
+            exc,
+        )
