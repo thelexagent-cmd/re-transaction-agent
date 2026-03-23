@@ -17,11 +17,11 @@ from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserR
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(plain.encode("utf-8")[:72], bcrypt.gensalt()).decode("utf-8")
 
 
 def _verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    return bcrypt.checkpw(plain.encode("utf-8")[:72], hashed.encode("utf-8"))
 
 
 def _create_access_token(user_id: int) -> str:
