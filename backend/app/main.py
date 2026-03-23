@@ -67,10 +67,12 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError):
 @app.exception_handler(Exception)
 async def generic_error_handler(request: Request, exc: Exception):
     """Catch-all for unexpected server errors; log full traceback, return 500."""
+    import traceback
+    tb = traceback.format_exc()
     logger.exception("Unexpected error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "An unexpected error occurred. Please try again or contact support."},
+        content={"detail": str(exc), "traceback": tb},
     )
 
 
