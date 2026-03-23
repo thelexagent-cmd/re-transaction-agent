@@ -100,15 +100,19 @@ async def setup(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> di
             ),
         )
 
-    user = User(
-        email=body.email,
-        hashed_password=_hash_password(body.password),
-        full_name=body.full_name,
-        brokerage_name=body.brokerage_name,
-    )
-    db.add(user)
-    await db.flush()
-    await db.refresh(user)
+    try:
+        user = User(
+            email=body.email,
+            hashed_password=_hash_password(body.password),
+            full_name=body.full_name,
+            brokerage_name=body.brokerage_name,
+        )
+        db.add(user)
+        await db.flush()
+        await db.refresh(user)
+    except Exception as exc:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"DEBUG: {traceback.format_exc()}")
 
     token = _create_access_token(user.id)
     return {"access_token": token, "token_type": "bearer"}
