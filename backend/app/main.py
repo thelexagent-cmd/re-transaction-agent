@@ -25,7 +25,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://*.vercel.app", "https://*.up.railway.app"],
+    allow_origins=["http://localhost:3000"],
+    allow_origin_regex=r"https://.*\.(vercel\.app|up\.railway\.app)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -118,7 +119,10 @@ async def health() -> dict:
 
     response_body = {"status": overall, "db": db_status, "redis": redis_status}
 
-    if overall != "ok":
+    # Only fail the health check when the database is unreachable — the app cannot
+    # serve any requests without it.  Redis being unavailable degrades background
+    # task processing but should not prevent Railway from routing traffic here.
+    if db_status != "ok":
         return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=response_body)
 
     return response_body
