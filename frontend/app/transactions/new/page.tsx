@@ -14,8 +14,24 @@ type Party = {
   phone: string;
 };
 
-const PROPERTY_TYPES = ['SFH', 'Condo', 'Townhouse', 'Multi-family', 'Other'];
-const PARTY_ROLES = ['Buyer', 'Seller', 'Buyer Agent', 'Seller Agent', 'Lender', 'Title Officer', 'Attorney', 'Other'];
+const PROPERTY_TYPES: { label: string; value: string }[] = [
+  { label: 'SFH', value: 'sfh' },
+  { label: 'Condo', value: 'condo' },
+  { label: 'Townhouse', value: 'townhouse' },
+  { label: 'Multi-family', value: 'multi_family' },
+  { label: 'Other', value: 'other' },
+];
+
+const PARTY_ROLES: { label: string; value: string }[] = [
+  { label: 'Buyer', value: 'buyer' },
+  { label: 'Seller', value: 'seller' },
+  { label: 'Buyer Agent', value: 'buyers_agent' },
+  { label: 'Seller Agent', value: 'listing_agent' },
+  { label: 'Lender', value: 'lender' },
+  { label: 'Title Officer', value: 'title' },
+  { label: 'Escrow', value: 'escrow' },
+  { label: 'HOA', value: 'hoa' },
+];
 
 type ParseStatus = 'idle' | 'uploading' | 'parsing' | 'done' | 'error';
 
@@ -27,13 +43,13 @@ export default function NewTransactionPage() {
   const [createdTx, setCreatedTx] = useState<TransactionListItem | null>(null);
 
   const [address, setAddress] = useState('');
-  const [propertyType, setPropertyType] = useState('SFH');
+  const [propertyType, setPropertyType] = useState('sfh');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [closingDate, setClosingDate] = useState('');
   const [executionDate, setExecutionDate] = useState('');
   const [parties, setParties] = useState<Party[]>([
-    { role: 'Buyer', full_name: '', email: '', phone: '' },
-    { role: 'Seller', full_name: '', email: '', phone: '' },
+    { role: 'buyer', full_name: '', email: '', phone: '' },
+    { role: 'seller', full_name: '', email: '', phone: '' },
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -46,7 +62,7 @@ export default function NewTransactionPage() {
   const [dragOver, setDragOver] = useState(false);
 
   function addParty() {
-    setParties((prev) => [...prev, { role: 'Buyer', full_name: '', email: '', phone: '' }]);
+    setParties((prev) => [...prev, { role: 'buyer', full_name: '', email: '', phone: '' }]);
   }
 
   function removeParty(index: number) {
@@ -203,7 +219,7 @@ export default function NewTransactionPage() {
                     className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                   >
                     {PROPERTY_TYPES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
+                      <option key={t.value} value={t.value}>{t.label}</option>
                     ))}
                   </select>
                 </div>
@@ -281,7 +297,7 @@ export default function NewTransactionPage() {
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                       >
                         {PARTY_ROLES.map((r) => (
-                          <option key={r} value={r}>{r}</option>
+                          <option key={r.value} value={r.value}>{r.label}</option>
                         ))}
                       </select>
                     </div>
