@@ -30,9 +30,10 @@ class Settings(BaseSettings):
     # Redis (Celery broker + result backend)
     redis_url: str = "redis://localhost:6379/0"
 
-    # SendGrid (outbound email)
-    sendgrid_api_key: str = ""
-    from_email: str = "transactions@lexagent.ai"
+    # Email (Gmail SMTP)
+    gmail_user: str = ""
+    gmail_app_password: str = ""
+    from_email: str = "the.lex.agent@gmail.com"
     from_name: str = "Lex Transaction Agent"
 
     # Twilio (outbound SMS)

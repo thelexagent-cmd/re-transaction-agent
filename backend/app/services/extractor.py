@@ -108,12 +108,10 @@ async def extract_contract_data(contract_text: str) -> dict:
     response = await client.messages.create(
         model="claude-opus-4-6",
         max_tokens=16000,
-        thinking={"type": "adaptive"},
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )
 
-    # Find the text block (thinking blocks precede it; skip them)
     text_content = next(
         (block.text for block in response.content if block.type == "text"),
         None,

@@ -1,4 +1,4 @@
-"""SendGrid email service.
+"""Gmail SMTP email service.
 
 Usage:
     svc = EmailService()
@@ -8,26 +8,30 @@ Usage:
     # Broker-alert helper (module-level):
     await notify_broker(transaction_id, subject="...", message="...", db=db)
 
-If SENDGRID_API_KEY is not configured, all sends log a warning and silently skip.
-Send failures are logged as errors but never propagate — callers are not interrupted.
+If GMAIL_USER / GMAIL_APP_PASSWORD are not configured, all sends log a warning and
+silently skip. Send failures are logged as errors but never propagate.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from functools import partial
 
 logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Thin async wrapper around the synchronous SendGrid Python SDK."""
+    """Thin async wrapper around smtplib for Gmail SMTP."""
 
     def __init__(self) -> None:
         from app.config import settings
 
-        self._api_key: str = settings.sendgrid_api_key
+        self._gmail_user: str = settings.gmail_user
+        self._gmail_app_password: str = settings.gmail_app_password
         self._from_email: str = settings.from_email
         self._from_name: str = settings.from_name
 
@@ -39,18 +43,9 @@ class EmailService:
         html_body: str,
         text_body: str | None = None,
     ) -> None:
-        """Send a single email via SendGrid.
-
-        Args:
-            to_email:  Recipient email address.
-            to_name:   Recipient display name.
-            subject:   Email subject line.
-            html_body: HTML content.
-            text_body: Optional plain-text fallback.
-        """
-        if not self._api_key:
+        if not self._gmail_user or not self._gmail_app_password:
             logger.warning(
-                "SENDGRID_API_KEY not configured — skipping email to %s.", to_email
+                "GMAIL_USER/GMAIL_APP_PASSWORD not configured — skipping email to %s.", to_email
             )
             return
 
@@ -68,9 +63,7 @@ class EmailService:
                 ),
             )
         except Exception as exc:
-            logger.error(
-                "Email to %s ('%s') failed: %s", to_email, subject, exc
-            )
+            logger.error("Email to %s ('%s') failed: %s", to_email, subject, exc)
 
     def _send_sync(
         self,
@@ -80,26 +73,22 @@ class EmailService:
         html_body: str,
         text_body: str | None,
     ) -> None:
-        from sendgrid import SendGridAPIClient  # type: ignore[import]
-        from sendgrid.helpers.mail import Mail  # type: ignore[import]
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{self._from_name} <{self._from_email}>"
+        msg["To"] = f"{to_name} <{to_email}>" if to_name else to_email
 
-        message = Mail(
-            from_email=(self._from_email, self._from_name),
-            to_emails=(to_email, to_name),
-            subject=subject,
-            html_content=html_body,
-        )
         if text_body:
-            message.plain_text_content = text_body
+            msg.attach(MIMEText(text_body, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
 
-        sg = SendGridAPIClient(self._api_key)
-        response = sg.send(message)
-        logger.info(
-            "Email sent to %s — subject: '%s' (HTTP %s)",
-            to_email,
-            subject,
-            response.status_code,
-        )
+        with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(self._gmail_user, self._gmail_app_password)
+            smtp.sendmail(self._from_email, to_email, msg.as_string())
+
+        logger.info("Email sent to %s — subject: '%s'", to_email, subject)
 
     async def send_template(
         self,
@@ -108,14 +97,6 @@ class EmailService:
         template_name: str,
         template_vars: dict[str, str],
     ) -> None:
-        """Render a named template and send the resulting email.
-
-        Args:
-            to_email:      Recipient email address.
-            to_name:       Recipient display name.
-            template_name: Key in TEMPLATES dict.
-            template_vars: Variables to substitute into the template.
-        """
         from app.services.templates import render_template
 
         try:
@@ -137,17 +118,7 @@ async def notify_broker(
     message: str,
     db,  # AsyncSession — imported lazily to avoid circular deps
 ) -> None:
-    """Fetch the broker for a transaction and send a broker_alert_email.
-
-    Silently no-ops if the transaction or broker record cannot be found,
-    or if email credentials are not configured.
-
-    Args:
-        transaction_id: ID of the transaction that triggered the alert.
-        subject:        Short alert subject (used in email subject line).
-        message:        Full alert message / description.
-        db:             Async SQLAlchemy session (caller manages lifecycle).
-    """
+    """Fetch the broker for a transaction and send a broker_alert_email."""
     from sqlalchemy import select
 
     from app.models.transaction import Transaction
@@ -159,9 +130,7 @@ async def notify_broker(
         )
         txn = txn_result.scalar_one_or_none()
         if txn is None:
-            logger.warning(
-                "notify_broker: transaction %d not found.", transaction_id
-            )
+            logger.warning("notify_broker: transaction %d not found.", transaction_id)
             return
 
         user_result = await db.execute(
@@ -170,8 +139,7 @@ async def notify_broker(
         broker = user_result.scalar_one_or_none()
         if broker is None or not broker.email:
             logger.warning(
-                "notify_broker: broker not found for transaction %d.",
-                transaction_id,
+                "notify_broker: broker not found for transaction %d.", transaction_id
             )
             return
 
@@ -189,6 +157,4 @@ async def notify_broker(
             },
         )
     except Exception as exc:
-        logger.error(
-            "notify_broker failed for transaction %d: %s", transaction_id, exc
-        )
+        logger.error("notify_broker failed for transaction %d: %s", transaction_id, exc)

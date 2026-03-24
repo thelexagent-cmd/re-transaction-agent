@@ -20,11 +20,23 @@ celery_app.conf.update(
     # Timezone
     timezone="UTC",
     enable_utc=True,
-    # Beat schedule: follow-up check every hour
+    # Beat schedule
     beat_schedule={
         "run-followup-check-hourly": {
             "task": "app.worker.run_followup_check",
-            "schedule": 3600.0,  # seconds
+            "schedule": 3600.0,
+        },
+        "run-deadline-check-hourly": {
+            "task": "app.worker.run_deadline_check",
+            "schedule": 3600.0,
+        },
+        "run-insurance-check-daily": {
+            "task": "app.worker.run_insurance_check",
+            "schedule": 86400.0,
+        },
+        "run-ctc-check-daily": {
+            "task": "app.worker.run_ctc_check",
+            "schedule": 86400.0,
         },
     },
     # Retry policy defaults
