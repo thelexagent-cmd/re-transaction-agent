@@ -2,6 +2,25 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { TransactionListItem, DeadlineResponse, EventResponse } from './api';
 
+export const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  sfh: 'SFH',
+  condo: 'Condo',
+  townhouse: 'Townhouse',
+  multi_family: 'Multi-family',
+  other: 'Other',
+};
+
+export const PARTY_ROLE_LABELS: Record<string, string> = {
+  buyer: 'Buyer',
+  seller: 'Seller',
+  buyers_agent: 'Buyer Agent',
+  listing_agent: 'Seller Agent',
+  lender: 'Lender',
+  title: 'Title Officer',
+  escrow: 'Escrow',
+  hoa: 'HOA',
+};
+
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }

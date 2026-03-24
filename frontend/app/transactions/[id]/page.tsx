@@ -21,7 +21,7 @@ import type {
   AlertListResponse,
   EventResponse,
 } from '@/lib/api';
-import { formatDate, formatDateTime, formatCurrency, daysUntil, getDealStatus } from '@/lib/utils';
+import { formatDate, formatDateTime, formatCurrency, daysUntil, getDealStatus, PROPERTY_TYPE_LABELS, PARTY_ROLE_LABELS } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -93,7 +93,7 @@ function OverviewTab({ tx }: { tx: TransactionDetail }) {
           </div>
           <div>
             <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Property Type</div>
-            <div className="text-sm text-slate-900">{tx.property_type}</div>
+            <div className="text-sm text-slate-900">{PROPERTY_TYPE_LABELS[tx.property_type] ?? tx.property_type}</div>
           </div>
           <div>
             <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Purchase Price</div>
@@ -150,7 +150,7 @@ function OverviewTab({ tx }: { tx: TransactionDetail }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {tx.parties.map((party) => (
               <div key={party.id} className="rounded-lg border border-slate-200 p-4">
-                <div className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">{party.role}</div>
+                <div className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">{PARTY_ROLE_LABELS[party.role] ?? party.role}</div>
                 <div className="text-sm font-semibold text-slate-900 mb-1">{party.full_name}</div>
                 {party.email && <div className="text-xs text-slate-500">{party.email}</div>}
                 {party.phone && <div className="text-xs text-slate-500">{party.phone}</div>}
@@ -498,7 +498,7 @@ export default function TransactionDetailPage({
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{tx.address}</h1>
           <div className="flex items-center gap-3 mt-2">
-            <span className="text-sm text-slate-500">{tx.property_type}</span>
+            <span className="text-sm text-slate-500">{PROPERTY_TYPE_LABELS[tx.property_type] ?? tx.property_type}</span>
             {tx.closing_date && (
               <span className="text-sm text-slate-500">
                 Closes {formatDate(tx.closing_date)}
