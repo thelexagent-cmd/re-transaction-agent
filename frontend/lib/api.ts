@@ -284,3 +284,62 @@ export async function getParseStatus(
   const res = await authFetch(`/transactions/${txId}/parse-status/${taskId}`);
   return res.json();
 }
+
+// ── FIRPTA ─────────────────────────────────────────────────────────────────
+
+export type FirptaAnalysis = {
+  is_firpta_applicable: boolean;
+  withholding_amount: number;
+  withholding_rate: number;
+  gross_sales_price: number;
+  notes: string[];
+  action_items: string[];
+};
+
+export async function getFirptaAnalysis(
+  txId: number | string,
+  buyerPrimaryResidence = false
+): Promise<FirptaAnalysis> {
+  const res = await authFetch(`/transactions/${txId}/firpta?buyer_primary_residence=${buyerPrimaryResidence}`);
+  return res.json();
+}
+
+// ── Portal token ────────────────────────────────────────────────────────────
+
+export async function createPortalToken(
+  txId: number | string
+): Promise<{ token: string; expires_at: string; transaction_id: number }> {
+  const res = await authFetch(`/transactions/${txId}/portal-token`, { method: 'POST' });
+  return res.json();
+}
+
+// ── Party update ────────────────────────────────────────────────────────────
+
+export async function updateParty(
+  txId: number | string,
+  partyId: number | string,
+  data: { preferred_language?: string; is_foreign_national?: boolean }
+): Promise<{ id: number; preferred_language: string; is_foreign_national: boolean }> {
+  const res = await authFetch(`/transactions/${txId}/parties/${partyId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+// ── Reports ─────────────────────────────────────────────────────────────────
+
+export type ReportSummary = {
+  total_transactions: number;
+  active: number;
+  closed: number;
+  cancelled: number;
+  avg_days_to_close: number | null;
+  total_volume: number;
+  monthly_data: Array<{ month: string; created: number; closed: number; volume: number }>;
+};
+
+export async function getReportSummary(): Promise<ReportSummary> {
+  const res = await authFetch('/reports/summary');
+  return res.json();
+}

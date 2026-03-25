@@ -504,6 +504,87 @@ async def recent_events(
     return {"events": events, "total": len(events)}
 
 
+# ── FIRPTA analysis endpoint ──────────────────────────────────────────────────
+
+
+@router.get("/{transaction_id}/firpta")
+async def get_firpta_analysis(
+    transaction_id: int,
+    buyer_primary_residence: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Run FIRPTA compliance analysis for a transaction.
+
+    Returns withholding amounts, applicable rates, and action items.
+    """
+    from app.services.firpta import analyze  # noqa: PLC0415
+
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.id == transaction_id, Transaction.user_id == current_user.id)
+        .options(selectinload(Transaction.parties))
+    )
+    txn = result.scalar_one_or_none()
+    if txn is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+    has_foreign_seller = any(
+        getattr(p, "is_foreign_national", False)
+        for p in txn.parties
+        if p.role.value == "seller"
+    )
+
+    firpta = analyze(
+        purchase_price=txn.purchase_price or 0.0,
+        has_foreign_seller=has_foreign_seller,
+        buyer_intends_primary_residence=buyer_primary_residence,
+    )
+
+    return {
+        "is_firpta_applicable": firpta.is_firpta_applicable,
+        "withholding_amount": firpta.withholding_amount,
+        "withholding_rate": firpta.withholding_rate,
+        "gross_sales_price": firpta.gross_sales_price,
+        "notes": firpta.notes,
+        "action_items": firpta.action_items,
+    }
+
+
+# ── Update party endpoint ─────────────────────────────────────────────────────
+
+
+@router.patch("/{transaction_id}/parties/{party_id}")
+async def update_party(
+    transaction_id: int,
+    party_id: int,
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Update party fields (preferred_language, is_foreign_national)."""
+    await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    result = await db.execute(
+        select(Party).where(Party.id == party_id, Party.transaction_id == transaction_id)
+    )
+    party = result.scalar_one_or_none()
+    if party is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Party not found")
+
+    if "preferred_language" in body:
+        party.preferred_language = body["preferred_language"]
+    if "is_foreign_national" in body:
+        party.is_foreign_national = body["is_foreign_national"]
+
+    db.add(party)
+    return {
+        "id": party.id,
+        "preferred_language": party.preferred_language,
+        "is_foreign_national": party.is_foreign_national,
+    }
+
+
 # ── Ownership helper ──────────────────────────────────────────────────────────
 
 

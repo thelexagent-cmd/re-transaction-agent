@@ -66,3 +66,6 @@ class Transaction(Base):
     events: Mapped[list["Event"]] = relationship(  # noqa: F821
         "Event", back_populates="transaction", cascade="all, delete-orphan", lazy="select"
     )
+    portal_tokens: Mapped[list["PortalToken"]] = relationship(  # noqa: F821
+        "PortalToken", back_populates="transaction", cascade="all, delete-orphan"
+    )

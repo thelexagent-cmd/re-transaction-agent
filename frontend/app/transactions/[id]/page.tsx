@@ -13,6 +13,9 @@ import {
   dismissAlert,
   markDocumentCollected,
   deleteTransaction,
+  getFirptaAnalysis,
+  createPortalToken,
+  updateParty,
 } from '@/lib/api';
 import type {
   TransactionDetail,
@@ -21,6 +24,7 @@ import type {
   DeadlineListResponse,
   AlertListResponse,
   EventResponse,
+  FirptaAnalysis,
 } from '@/lib/api';
 import { formatDate, formatDateTime, formatCurrency, daysUntil, getDealStatus, PROPERTY_TYPE_LABELS, PARTY_ROLE_LABELS } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +41,9 @@ import {
   XCircle,
   Circle,
   Trash2,
+  Link2,
+  Shield,
+  Globe,
 } from 'lucide-react';
 
 const PHASE_NAMES: Record<string, string> = {
@@ -48,7 +55,7 @@ const PHASE_NAMES: Record<string, string> = {
   '6': 'Closing',
 };
 
-const TABS = ['Overview', 'Documents', 'Timeline', 'Activity', 'Alerts'] as const;
+const TABS = ['Overview', 'Documents', 'Timeline', 'Activity', 'Alerts', 'FIRPTA'] as const;
 type Tab = typeof TABS[number];
 
 // ── Sub-components ──────────────────────────────────────────────────────────
@@ -82,7 +89,49 @@ function ActivityIcon({ eventType }: { eventType: string }) {
 
 // ── Overview Tab ────────────────────────────────────────────────────────────
 
-function OverviewTab({ tx }: { tx: TransactionDetail }) {
+function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
+  const [partyState, setPartyState] = useState<Record<number, { preferred_language: string; is_foreign_national: boolean }>>({});
+  const [savingParty, setSavingParty] = useState<number | null>(null);
+  const [portalLink, setPortalLink] = useState<string | null>(null);
+  const [generatingLink, setGeneratingLink] = useState(false);
+
+  function getPartyField<K extends 'preferred_language' | 'is_foreign_national'>(
+    party: TransactionDetail['parties'][0],
+    field: K
+  ) {
+    if (partyState[party.id]?.[field] !== undefined) return partyState[party.id][field];
+    if (field === 'preferred_language') return (party as any).preferred_language ?? 'en';
+    if (field === 'is_foreign_national') return (party as any).is_foreign_national ?? false;
+  }
+
+  async function handlePartyUpdate(partyId: number, field: 'preferred_language' | 'is_foreign_national', value: string | boolean) {
+    setPartyState((prev) => ({
+      ...prev,
+      [partyId]: { ...prev[partyId], [field]: value },
+    }));
+    setSavingParty(partyId);
+    try {
+      await updateParty(txId, partyId, { [field]: value });
+    } catch {
+      // ignore
+    } finally {
+      setSavingParty(null);
+    }
+  }
+
+  async function handleGeneratePortalLink() {
+    setGeneratingLink(true);
+    try {
+      const result = await createPortalToken(txId);
+      const baseUrl = window.location.origin;
+      setPortalLink(`${baseUrl}/portal/${result.token}`);
+    } catch {
+      // ignore
+    } finally {
+      setGeneratingLink(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Property Info */}
@@ -156,11 +205,187 @@ function OverviewTab({ tx }: { tx: TransactionDetail }) {
                 <div className="text-sm font-semibold text-slate-900 mb-1">{party.full_name}</div>
                 {party.email && <div className="text-xs text-slate-500">{party.email}</div>}
                 {party.phone && <div className="text-xs text-slate-500">{party.phone}</div>}
+
+                {/* Language preference */}
+                <div className="mt-3 flex items-center gap-2">
+                  <Globe className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  <select
+                    value={getPartyField(party, 'preferred_language') as string}
+                    onChange={(e) => handlePartyUpdate(party.id, 'preferred_language', e.target.value)}
+                    disabled={savingParty === party.id}
+                    className="text-xs border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 bg-white disabled:opacity-50"
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="pt">Portuguese</option>
+                  </select>
+                </div>
+
+                {/* Foreign national toggle */}
+                {(party.role === 'seller') && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Shield className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={getPartyField(party, 'is_foreign_national') as boolean}
+                        onChange={(e) => handlePartyUpdate(party.id, 'is_foreign_national', e.target.checked)}
+                        disabled={savingParty === party.id}
+                        className="rounded border-slate-300 disabled:opacity-50"
+                      />
+                      <span className="text-xs text-slate-600">Foreign national (FIRPTA)</span>
+                    </label>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* Share Portal Link */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-slate-900">Client Portal</h3>
+          <button
+            onClick={handleGeneratePortalLink}
+            disabled={generatingLink}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            {generatingLink ? 'Generating...' : 'Generate Portal Link'}
+          </button>
+        </div>
+        <p className="text-xs text-slate-500 mb-3">
+          Share a magic link with buyers or sellers so they can view transaction status without logging in. Links expire after 30 days.
+        </p>
+        {portalLink && (
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={portalLink}
+              className="flex-1 text-xs font-mono border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 text-slate-700"
+              onFocus={(e) => e.target.select()}
+            />
+            <button
+              onClick={() => { navigator.clipboard.writeText(portalLink); }}
+              className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── FIRPTA Tab ───────────────────────────────────────────────────────────────
+
+function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
+  const [buyerPrimary, setBuyerPrimary] = useState(false);
+  const { data, error, isLoading, mutate } = useSWR<FirptaAnalysis>(
+    `/transactions/${txId}/firpta?buyer_primary_residence=${buyerPrimary}`,
+    () => getFirptaAnalysis(txId, buyerPrimary),
+    { revalidateOnFocus: false }
+  );
+
+  const hasForeignSeller = tx.parties.some(
+    (p) => p.role === 'seller' && (p as any).is_foreign_national
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-4">
+          <Shield className="h-5 w-5 text-blue-600" />
+          <h3 className="text-base font-semibold text-slate-900">FIRPTA Compliance Analysis</h3>
+        </div>
+
+        <div className="flex items-center gap-3 mb-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={buyerPrimary}
+              onChange={(e) => { setBuyerPrimary(e.target.checked); mutate(); }}
+              className="rounded border-slate-300"
+            />
+            <span className="text-sm text-slate-700">Buyer intends primary residence</span>
+          </label>
+        </div>
+
+        {!hasForeignSeller && (
+          <div className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 mb-4">
+            No sellers are marked as foreign nationals. To trigger FIRPTA analysis, mark a seller as a foreign national in the Overview tab.
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="text-sm text-slate-500">Analyzing...</div>
+        )}
+        {error && (
+          <div className="text-sm text-red-600">Failed to load FIRPTA analysis.</div>
+        )}
+
+        {data && (
+          <div className="space-y-4">
+            {/* Status */}
+            <div className={`flex items-center gap-3 rounded-lg px-4 py-3 ${data.is_firpta_applicable ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
+              <div className={`h-3 w-3 rounded-full ${data.is_firpta_applicable ? 'bg-amber-500' : 'bg-green-500'}`} />
+              <span className={`text-sm font-semibold ${data.is_firpta_applicable ? 'text-amber-800' : 'text-green-800'}`}>
+                {data.is_firpta_applicable ? 'FIRPTA Withholding Required' : 'FIRPTA Not Applicable'}
+              </span>
+            </div>
+
+            {data.is_firpta_applicable && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-lg border border-slate-200 p-4 text-center">
+                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Withholding Rate</div>
+                  <div className="text-2xl font-bold text-slate-900">{(data.withholding_rate * 100).toFixed(0)}%</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4 text-center">
+                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Withholding Amount</div>
+                  <div className="text-2xl font-bold text-red-600">${data.withholding_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 p-4 text-center">
+                  <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Gross Sales Price</div>
+                  <div className="text-2xl font-bold text-slate-900">${data.gross_sales_price.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            {data.notes.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Analysis Notes</h4>
+                <ul className="space-y-1">
+                  {data.notes.map((note, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-slate-600">
+                      <span className="text-blue-400 shrink-0 mt-0.5">•</span>
+                      <span>{note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Action Items */}
+            {data.action_items.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Required Action Items</h4>
+                <ul className="space-y-2">
+                  {data.action_items.map((item, i) => (
+                    <li key={i} className="flex gap-2 text-sm">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold mt-0.5">{i + 1}</span>
+                      <span className="text-slate-700">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -587,11 +812,12 @@ export default function TransactionDetailPage({
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'Overview' && <OverviewTab tx={tx} />}
+      {activeTab === 'Overview' && <OverviewTab tx={tx} txId={txId} />}
       {activeTab === 'Documents' && <DocumentsTab txId={txId} />}
       {activeTab === 'Timeline' && <TimelineTab txId={txId} />}
       {activeTab === 'Activity' && <ActivityTab events={tx.events} />}
       {activeTab === 'Alerts' && <AlertsTab txId={txId} />}
+      {activeTab === 'FIRPTA' && <FirptaTab tx={tx} txId={txId} />}
     </div>
   );
 }

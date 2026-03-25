@@ -158,3 +158,51 @@ class RecentEventItem(BaseModel):
 class RecentEventsResponse(BaseModel):
     events: list[RecentEventItem]
     total: int
+
+
+# ── Party update schema ───────────────────────────────────────────────────────
+
+class PartyUpdate(BaseModel):
+    preferred_language: str | None = None
+    is_foreign_national: bool | None = None
+
+
+# ── Portal token schema ───────────────────────────────────────────────────────
+
+class PortalTokenResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    token: str
+    transaction_id: int
+    expires_at: datetime
+
+
+# ── FIRPTA analysis schema ────────────────────────────────────────────────────
+
+class FirptaAnalysis(BaseModel):
+    is_firpta_applicable: bool
+    withholding_amount: float
+    withholding_rate: float
+    gross_sales_price: float
+    notes: list[str]
+    action_items: list[str]
+
+
+# ── Report summary schema ─────────────────────────────────────────────────────
+
+class MonthlyDataPoint(BaseModel):
+    month: str
+    created: int
+    closed: int
+    volume: float
+
+
+class ReportSummary(BaseModel):
+    total_transactions: int
+    active: int
+    closed: int
+    cancelled: int
+    avg_days_to_close: float | None
+    total_volume: float
+    monthly_data: list[MonthlyDataPoint]

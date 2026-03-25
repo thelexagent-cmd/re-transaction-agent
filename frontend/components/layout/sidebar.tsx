@@ -2,21 +2,24 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import useSWR from 'swr';
 import { clearToken } from '@/lib/auth';
 import { getMe } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, LogOut, Building2, CalendarClock, FileText, Plus } from 'lucide-react';
+import { LayoutDashboard, LogOut, Building2, CalendarClock, FileText, Plus, BarChart3, Menu, X } from 'lucide-react';
 
 const navItems = [
   { href: '/transactions',  label: 'Dashboard',          icon: LayoutDashboard },
   { href: '/deadlines',     label: 'Upcoming Deadlines',  icon: CalendarClock },
   { href: '/documents',     label: 'Pending Documents',   icon: FileText },
+  { href: '/reports',       label: 'Reports',             icon: BarChart3 },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const { data: user } = useSWR('/auth/me', getMe, { revalidateOnFocus: false }) as {
     data: { full_name?: string; brokerage_name?: string } | undefined;
@@ -27,8 +30,8 @@ export function Sidebar() {
     router.replace('/login');
   }
 
-  return (
-    <aside className="flex h-screen w-64 flex-col bg-slate-900 text-white fixed left-0 top-0 z-10">
+  const sidebarContent = (
+    <aside className="flex h-full w-64 flex-col bg-slate-900 text-white">
       {/* Logo */}
       <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-700">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
@@ -38,12 +41,21 @@ export function Sidebar() {
           <div className="text-sm font-semibold leading-tight">Lex Transaction</div>
           <div className="text-xs text-slate-400 leading-tight">Agent</div>
         </div>
+        {/* Mobile close button */}
+        <button
+          onClick={() => setIsMobileOpen(false)}
+          className="ml-auto md:hidden text-slate-400 hover:text-white"
+          aria-label="Close menu"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Quick Action */}
       <div className="px-3 pt-4 pb-2">
         <Link
           href="/transactions/new"
+          onClick={() => setIsMobileOpen(false)}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
         >
           <Plus className="h-4 w-4" />
@@ -61,6 +73,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setIsMobileOpen(false)}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
@@ -99,5 +112,41 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setIsMobileOpen(true)}
+        className="fixed top-4 left-4 z-40 flex items-center justify-center h-9 w-9 rounded-lg bg-slate-900 text-white shadow-md md:hidden"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Mobile overlay */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile slide-in sidebar */}
+      <div
+        className={cn(
+          'fixed left-0 top-0 z-50 h-screen transition-transform duration-300 md:hidden',
+          isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        {sidebarContent}
+      </div>
+
+      {/* Desktop fixed sidebar */}
+      <div className="hidden md:flex fixed left-0 top-0 h-screen z-10">
+        {sidebarContent}
+      </div>
+    </>
   );
 }
