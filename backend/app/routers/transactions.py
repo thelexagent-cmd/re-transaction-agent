@@ -82,6 +82,20 @@ async def create_transaction(
     return result.scalar_one()
 
 
+@router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_transaction(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Permanently delete a transaction and all related records.
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    txn = await _require_transaction_ownership(transaction_id, current_user.id, db)
+    await db.delete(txn)
+
+
 @router.get("", response_model=list[TransactionListItem])
 async def list_transactions(
     current_user: User = Depends(get_current_user),

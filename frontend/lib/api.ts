@@ -258,6 +258,10 @@ export type GlobalDocumentItem = {
   created_at: string;
 };
 
+export async function deleteTransaction(id: number | string): Promise<void> {
+  await authFetch(`/transactions/${id}`, { method: 'DELETE' });
+}
+
 export async function getAllDeadlines(): Promise<GlobalDeadlineItem[]> {
   const res = await authFetch('/transactions/deadlines/all');
   return res.json();

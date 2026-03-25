@@ -1,9 +1,9 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   getTransaction,
   getDocuments,
@@ -12,6 +12,7 @@ import {
   getAlerts,
   dismissAlert,
   markDocumentCollected,
+  deleteTransaction,
 } from '@/lib/api';
 import type {
   TransactionDetail,
@@ -35,6 +36,7 @@ import {
   CheckCircle2,
   XCircle,
   Circle,
+  Trash2,
 } from 'lucide-react';
 
 const PHASE_NAMES: Record<string, string> = {
@@ -442,9 +444,23 @@ export default function TransactionDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const router = useRouter();
   const { id } = use(params);
   const txId = parseInt(id, 10);
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await deleteTransaction(txId);
+      router.replace('/transactions');
+    } catch {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  }
 
   const { data: tx, error, isLoading } = useSWR<TransactionDetail>(
     `/transactions/${txId}`,
@@ -506,8 +522,45 @@ export default function TransactionDetailPage({
             )}
           </div>
         </div>
-        <StatusBadge status={dealStatus} />
+        <div className="flex items-center gap-3">
+          <StatusBadge status={dealStatus} />
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </button>
+        </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 className="text-base font-semibold text-slate-900 mb-2">Delete transaction?</h3>
+            <p className="text-sm text-slate-500 mb-6">
+              This will permanently delete <span className="font-medium text-slate-700">{tx.address}</span> and all its documents, deadlines, and activity. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="border-b border-slate-200 mb-6">
