@@ -81,6 +81,16 @@ export type DocumentSummary = {
 export type AlertListResponse = { alerts: EventResponse[]; total: number };
 export type DeadlineListResponse = { deadlines: DeadlineResponse[]; total: number };
 
+export type RecentEventItem = {
+  id: number;
+  transaction_id: number;
+  transaction_address: string;
+  event_type: string;
+  description: string;
+  dismissed: boolean;
+  created_at: string;
+};
+
 export type CreateTransactionData = {
   address: string;
   property_type: string;
@@ -221,6 +231,11 @@ export async function parseContract(
     const text = await res.text().catch(() => res.statusText);
     throw new Error(text || `HTTP ${res.status}`);
   }
+  return res.json();
+}
+
+export async function getRecentEvents(limit = 15): Promise<{ events: RecentEventItem[]; total: number }> {
+  const res = await authFetch(`/transactions/events/recent?limit=${limit}`);
   return res.json();
 }
 

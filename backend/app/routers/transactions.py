@@ -16,6 +16,7 @@ from app.schemas.transaction import (
     AlertListResponse,
     DeadlineListResponse,
     HoaDocsDeliveredRequest,
+    RecentEventsResponse,
     TransactionCreate,
     TransactionDetail,
     TransactionListItem,
@@ -388,6 +389,38 @@ async def hoa_rescission_cleared(
         "status": "rescission_cleared",
         "deadline_id": deadline.id,
     }
+
+
+# ── Recent activity feed ─────────────────────────────────────────────────────
+
+
+@router.get("/events/recent", response_model=RecentEventsResponse)
+async def recent_events(
+    limit: int = 15,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return the most recent activity events across all of the broker's transactions."""
+    result = await db.execute(
+        select(Event, Transaction.address)
+        .join(Transaction, Event.transaction_id == Transaction.id)
+        .where(Transaction.user_id == current_user.id)
+        .order_by(Event.created_at.desc())
+        .limit(limit)
+    )
+    rows = result.all()
+    events = []
+    for event, address in rows:
+        events.append({
+            "id": event.id,
+            "transaction_id": event.transaction_id,
+            "transaction_address": address,
+            "event_type": event.event_type,
+            "description": event.description,
+            "dismissed": event.dismissed,
+            "created_at": event.created_at,
+        })
+    return {"events": events, "total": len(events)}
 
 
 # ── Ownership helper ──────────────────────────────────────────────────────────

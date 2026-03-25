@@ -2,11 +2,13 @@
 
 import useSWR from 'swr';
 import Link from 'next/link';
-import { getTransactions } from '@/lib/api';
+import { getTransactions, getRecentEvents } from '@/lib/api';
 import { daysUntil } from '@/lib/utils';
 import { DealCard } from '@/components/deal-card';
+import { UrgentPanel } from '@/components/urgent-panel';
+import { ActivityFeed } from '@/components/activity-feed';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, AlertCircle, TrendingUp, Calendar } from 'lucide-react';
+import { Plus, AlertCircle, TrendingUp, Calendar, FileCheck } from 'lucide-react';
 import type { TransactionListItem } from '@/lib/api';
 
 function countClosingThisWeek(transactions: TransactionListItem[]): number {
@@ -21,6 +23,12 @@ export default function TransactionsPage() {
     '/transactions',
     getTransactions,
     { refreshInterval: 30000 }
+  );
+
+  const { data: activityData, isLoading: activityLoading } = useSWR(
+    '/events/recent',
+    () => getRecentEvents(15),
+    { refreshInterval: 60000 }
   );
 
   const totalDeals = transactions?.length ?? 0;
@@ -45,7 +53,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
@@ -60,7 +68,7 @@ export default function TransactionsPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
-              <TrendingUp className="h-5 w-5 text-green-600" />
+              <FileCheck className="h-5 w-5 text-green-600" />
             </div>
             <div>
               <div className="text-2xl font-bold text-slate-900">{isLoading ? '—' : activeDeals}</div>
@@ -79,6 +87,12 @@ export default function TransactionsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Urgent + Activity panels */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <UrgentPanel transactions={transactions ?? []} isLoading={isLoading} />
+        <ActivityFeed events={activityData?.events ?? []} isLoading={activityLoading} />
       </div>
 
       {/* Error State */}
@@ -119,7 +133,10 @@ export default function TransactionsPage() {
                 <TrendingUp className="h-8 w-8 text-slate-400" />
               </div>
               <h3 className="text-base font-semibold text-slate-900 mb-1">No transactions yet</h3>
-              <p className="text-sm text-slate-500 mb-6">Create your first transaction to get started</p>
+              <p className="text-sm text-slate-500 mb-2">Add your first transaction to get started.</p>
+              <p className="text-xs text-slate-400 mb-6 max-w-sm mx-auto">
+                Once added, the app will automatically email all parties, track document deadlines, and send reminders so you don&apos;t have to.
+              </p>
               <Link
                 href="/transactions/new"
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"

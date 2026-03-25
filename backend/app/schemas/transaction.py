@@ -141,3 +141,20 @@ class AlertListResponse(BaseModel):
 class DeadlineListResponse(BaseModel):
     deadlines: list[DeadlineResponse]
     total: int
+
+
+class RecentEventItem(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    transaction_id: int
+    transaction_address: str
+    event_type: str
+    description: str
+    dismissed: bool
+    created_at: datetime
+
+
+class RecentEventsResponse(BaseModel):
+    events: list[RecentEventItem]
+    total: int
