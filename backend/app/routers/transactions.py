@@ -7,7 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.models.deadline import Deadline
+from app.models.deadline import Deadline, DeadlineStatus
+from app.models.document import Document, DocumentStatus
 from app.models.event import Event
 from app.models.party import Party
 from app.models.transaction import Transaction
@@ -389,6 +390,72 @@ async def hoa_rescission_cleared(
         "status": "rescission_cleared",
         "deadline_id": deadline.id,
     }
+
+
+# ── Global deadlines + documents views ───────────────────────────────────────
+
+
+@router.get("/deadlines/all", response_model=list)
+async def all_deadlines(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list:
+    """Return all non-completed deadlines across the broker's transactions, sorted by due_date."""
+    result = await db.execute(
+        select(Deadline, Transaction.address)
+        .join(Transaction, Deadline.transaction_id == Transaction.id)
+        .where(
+            Transaction.user_id == current_user.id,
+            Deadline.status != DeadlineStatus.completed,
+        )
+        .order_by(Deadline.due_date.asc())
+    )
+    return [
+        {
+            "id": d.id,
+            "transaction_id": d.transaction_id,
+            "transaction_address": address,
+            "name": d.name,
+            "due_date": d.due_date.isoformat(),
+            "status": d.status,
+            "alert_t3_sent": d.alert_t3_sent,
+            "alert_t1_sent": d.alert_t1_sent,
+            "created_at": d.created_at.isoformat(),
+        }
+        for d, address in result.all()
+    ]
+
+
+@router.get("/documents/all", response_model=list)
+async def all_documents(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list:
+    """Return all pending/overdue documents across the broker's transactions, sorted by due_date."""
+    result = await db.execute(
+        select(Document, Transaction.address)
+        .join(Transaction, Document.transaction_id == Transaction.id)
+        .where(
+            Transaction.user_id == current_user.id,
+            Document.status != DocumentStatus.collected,
+        )
+        .order_by(Document.due_date.asc().nullslast())
+    )
+    return [
+        {
+            "id": doc.id,
+            "transaction_id": doc.transaction_id,
+            "transaction_address": address,
+            "phase": doc.phase,
+            "name": doc.name,
+            "status": doc.status,
+            "responsible_party_role": doc.responsible_party_role,
+            "due_date": doc.due_date.isoformat() if doc.due_date else None,
+            "collected_at": None,
+            "created_at": doc.created_at.isoformat(),
+        }
+        for doc, address in result.all()
+    ]
 
 
 # ── Recent activity feed ─────────────────────────────────────────────────────

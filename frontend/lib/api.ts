@@ -234,6 +234,40 @@ export async function parseContract(
   return res.json();
 }
 
+export type GlobalDeadlineItem = {
+  id: number;
+  transaction_id: number;
+  transaction_address: string;
+  name: string;
+  due_date: string;
+  status: 'upcoming' | 'warning' | 'missed' | 'completed';
+  alert_t3_sent: boolean;
+  alert_t1_sent: boolean;
+  created_at: string;
+};
+
+export type GlobalDocumentItem = {
+  id: number;
+  transaction_id: number;
+  transaction_address: string;
+  phase: number;
+  name: string;
+  status: 'pending' | 'collected' | 'overdue';
+  responsible_party_role: string | null;
+  due_date: string | null;
+  created_at: string;
+};
+
+export async function getAllDeadlines(): Promise<GlobalDeadlineItem[]> {
+  const res = await authFetch('/transactions/deadlines/all');
+  return res.json();
+}
+
+export async function getAllDocuments(): Promise<GlobalDocumentItem[]> {
+  const res = await authFetch('/transactions/documents/all');
+  return res.json();
+}
+
 export async function getRecentEvents(limit = 15): Promise<{ events: RecentEventItem[]; total: number }> {
   const res = await authFetch(`/transactions/events/recent?limit=${limit}`);
   return res.json();

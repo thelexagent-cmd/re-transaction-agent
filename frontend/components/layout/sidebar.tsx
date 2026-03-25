@@ -2,17 +2,25 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { clearToken } from '@/lib/auth';
+import { getMe } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, LogOut, Building2 } from 'lucide-react';
+import { LayoutDashboard, LogOut, Building2, CalendarClock, FileText, Plus } from 'lucide-react';
 
 const navItems = [
-  { href: '/transactions', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/transactions',  label: 'Dashboard',          icon: LayoutDashboard },
+  { href: '/deadlines',     label: 'Upcoming Deadlines',  icon: CalendarClock },
+  { href: '/documents',     label: 'Pending Documents',   icon: FileText },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+
+  const { data: user } = useSWR('/auth/me', getMe, { revalidateOnFocus: false }) as {
+    data: { full_name?: string; brokerage_name?: string } | undefined;
+  };
 
   function handleLogout() {
     clearToken();
@@ -32,8 +40,20 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Quick Action */}
+      <div className="px-3 pt-4 pb-2">
+        <Link
+          href="/transactions/new"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          New Transaction
+        </Link>
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-2 space-y-1">
+        <p className="px-3 pt-2 pb-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">Menu</p>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -48,15 +68,28 @@ export function Sidebar() {
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4 w-4 shrink-0" />
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="px-3 py-4 border-t border-slate-700">
+      {/* User profile + logout */}
+      <div className="px-3 py-4 border-t border-slate-700 space-y-1">
+        {user?.full_name && (
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+              {user.full_name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-white truncate">{user.full_name}</p>
+              {user.brokerage_name && (
+                <p className="text-xs text-slate-400 truncate">{user.brokerage_name}</p>
+              )}
+            </div>
+          </div>
+        )}
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
