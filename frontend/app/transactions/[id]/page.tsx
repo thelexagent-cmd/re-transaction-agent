@@ -204,28 +204,28 @@ function QuickNotes({ txId }: { txId: number }) {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 no-print">
+    <div className="fixed bottom-6 right-6 z-40 no-print">
       {isOpen ? (
-        <div className="w-80 rounded-xl border border-yellow-300 bg-yellow-50 shadow-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2 bg-yellow-200">
-            <div className="flex items-center gap-2">
-              <StickyNote className="h-4 w-4 text-yellow-800" />
+        <div className="w-64 rounded-xl border border-yellow-300 bg-yellow-50 shadow-xl overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-yellow-200">
+            <div className="flex items-center gap-1.5">
+              <StickyNote className="h-3.5 w-3.5 text-yellow-800" />
               <span className="text-xs font-semibold text-yellow-800">Quick Notes</span>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-yellow-700 hover:text-yellow-900">
-              <XCircle className="h-4 w-4" />
+              <XCircle className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="p-3">
+          <div className="p-2.5">
             <textarea
               value={notes}
               onChange={(e) => handleChange(e.target.value)}
-              rows={8}
-              placeholder="Jot down quick notes for this transaction..."
-              className="w-full text-sm bg-yellow-50 border-0 resize-none focus:outline-none text-slate-800 placeholder-yellow-600/60"
+              rows={5}
+              placeholder="Jot down notes..."
+              className="w-full text-xs bg-yellow-50 border-0 resize-none focus:outline-none text-slate-800 placeholder-yellow-600/60"
             />
-            <div className="text-xs text-yellow-700 mt-1">
-              {lastSaved ? `Auto-saved ${formatDateTime(lastSaved)}` : 'Not saved yet'}
+            <div className="text-xs text-yellow-700 mt-0.5">
+              {lastSaved ? `Saved ${formatDateTime(lastSaved)}` : 'Not saved yet'}
             </div>
           </div>
         </div>
