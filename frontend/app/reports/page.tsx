@@ -1,21 +1,10 @@
 'use client';
 
 import useSWR from 'swr';
-
-async function fetchReports() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
-  const res = await fetch(`${API_URL}/reports/summary`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-  if (!res.ok) throw new Error('Failed to load reports');
-  return res.json();
-}
+import { getReportSummary } from '@/lib/api';
 
 export default function ReportsPage() {
-  const { data, error, isLoading } = useSWR('/reports/summary', fetchReports, { revalidateOnFocus: false });
+  const { data, error, isLoading } = useSWR('/reports/summary', getReportSummary, { revalidateOnFocus: false });
 
   if (isLoading) return (
     <div className="p-8 text-slate-500">Loading reports...</div>

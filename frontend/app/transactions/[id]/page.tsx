@@ -94,6 +94,7 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
   const [savingParty, setSavingParty] = useState<number | null>(null);
   const [portalLink, setPortalLink] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   function getPartyField<K extends 'preferred_language' | 'is_foreign_national'>(
     party: TransactionDetail['parties'][0],
@@ -121,12 +122,13 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
 
   async function handleGeneratePortalLink() {
     setGeneratingLink(true);
+    setPortalError(null);
     try {
       const result = await createPortalToken(txId);
       const baseUrl = window.location.origin;
       setPortalLink(`${baseUrl}/portal/${result.token}`);
-    } catch {
-      // ignore
+    } catch (err) {
+      setPortalError(err instanceof Error ? err.message : 'Failed to generate link. Please try again.');
     } finally {
       setGeneratingLink(false);
     }
@@ -259,6 +261,11 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
         <p className="text-xs text-slate-500 mb-3">
           Share a magic link with buyers or sellers so they can view transaction status without logging in. Links expire after 30 days.
         </p>
+        {portalError && (
+          <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">
+            {portalError}
+          </div>
+        )}
         {portalLink && (
           <div className="flex items-center gap-2">
             <input
