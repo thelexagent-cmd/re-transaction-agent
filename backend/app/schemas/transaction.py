@@ -115,6 +115,7 @@ class TransactionListItem(BaseModel):
     purchase_price: Decimal | None
     closing_date: date | None
     contract_execution_date: date | None
+    notes: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -123,6 +124,72 @@ class TransactionDetail(TransactionListItem):
     parties: list[PartyResponse] = []
     deadlines: list[DeadlineResponse] = []
     events: list[EventResponse] = []
+
+
+# ── Transaction notes schemas ─────────────────────────────────────────────────
+
+class NotesResponse(BaseModel):
+    notes: str | None
+
+
+class NotesUpdate(BaseModel):
+    content: str
+
+
+# ── Transaction status update schema ──────────────────────────────────────────
+
+class TransactionUpdate(BaseModel):
+    status: TransactionStatus | None = None
+    closing_date: date | None = None
+    purchase_price: Decimal | None = None
+    contract_execution_date: date | None = None
+
+    @field_validator("purchase_price")
+    @classmethod
+    def purchase_price_positive(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v <= 0:
+            raise ValueError("Purchase price must be positive")
+        return v
+
+
+# ── Dashboard stats schema ─────────────────────────────────────────────────────
+
+class DashboardStats(BaseModel):
+    total_active: int
+    closing_this_month: int
+    overdue_documents: int
+    missed_deadlines: int
+
+
+# ── Global contacts schema ────────────────────────────────────────────────────
+
+class ContactItem(BaseModel):
+    id: int
+    full_name: str
+    email: str | None
+    phone: str | None
+    role: str
+    transaction_count: int
+    transaction_ids: list[int]
+
+
+class ContactsResponse(BaseModel):
+    contacts: list[ContactItem]
+    total: int
+
+
+# ── Health score schema ───────────────────────────────────────────────────────
+
+class HealthFactor(BaseModel):
+    name: str
+    impact: int
+    detail: str
+
+
+class HealthScoreResponse(BaseModel):
+    score: int
+    level: str
+    factors: list[HealthFactor]
 
 
 # ── HOA workflow schemas ──────────────────────────────────────────────────────

@@ -23,3 +23,6 @@ class User(Base):
     transactions: Mapped[list["Transaction"]] = relationship(  # noqa: F821
         "Transaction", back_populates="user", lazy="select"
     )
+    email_templates: Mapped[list["EmailTemplate"]] = relationship(  # noqa: F821
+        "EmailTemplate", back_populates="user", cascade="all, delete-orphan", lazy="select"
+    )

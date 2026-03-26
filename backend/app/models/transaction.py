@@ -3,7 +3,7 @@
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String, func
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -41,6 +41,7 @@ class Transaction(Base):
     purchase_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     closing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     contract_execution_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     insurance_alert_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     ctc_alert_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(

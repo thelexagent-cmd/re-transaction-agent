@@ -343,3 +343,48 @@ export async function getReportSummary(): Promise<ReportSummary> {
   const res = await authFetch('/reports/summary');
   return res.json();
 }
+
+// ── Notes ────────────────────────────────────────────────────────────────────
+
+export type NotesResponse = {
+  notes: string | null;
+};
+
+export async function getNotes(txId: number | string): Promise<NotesResponse | null> {
+  try {
+    const res = await authFetch(`/transactions/${txId}/notes`);
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function saveNotes(txId: number | string, content: string): Promise<NotesResponse> {
+  const res = await authFetch(`/transactions/${txId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+  return res.json();
+}
+
+// ── Global Contacts ─────────────────────────────────────────────────────────
+
+export type ContactEntry = {
+  id: number;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  transaction_count: number;
+  transaction_ids: number[];
+};
+
+export type ContactsResponse = {
+  contacts: ContactEntry[];
+  total: number;
+};
+
+export async function getAllContacts(): Promise<ContactsResponse> {
+  const res = await authFetch('/transactions/contacts/all');
+  return res.json();
+}

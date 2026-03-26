@@ -1,7 +1,9 @@
 """Transaction endpoints — create, list, retrieve, and contract parsing."""
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,16 +13,24 @@ from app.models.deadline import Deadline, DeadlineStatus
 from app.models.document import Document, DocumentStatus
 from app.models.event import Event
 from app.models.party import Party
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionStatus
 from app.models.user import User
 from app.schemas.transaction import (
     AlertListResponse,
+    ContactItem,
+    ContactsResponse,
+    DashboardStats,
     DeadlineListResponse,
+    HealthFactor,
+    HealthScoreResponse,
     HoaDocsDeliveredRequest,
+    NotesResponse,
+    NotesUpdate,
     RecentEventsResponse,
     TransactionCreate,
     TransactionDetail,
     TransactionListItem,
+    TransactionUpdate,
 )
 from app.services import storage
 
@@ -253,6 +263,194 @@ async def get_transaction(
     if transaction is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     return transaction
+
+
+# ── Transaction status/field update endpoint ──────────────────────────────────
+
+
+@router.patch("/{transaction_id}", response_model=TransactionDetail)
+async def update_transaction(
+    transaction_id: int,
+    body: TransactionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Transaction:
+    """Update one or more top-level transaction fields.
+
+    Allowed fields: status, closing_date, purchase_price, contract_execution_date.
+    Only fields included in the request body are modified.
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    txn = await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    if body.status is not None:
+        txn.status = body.status
+    if body.closing_date is not None:
+        txn.closing_date = body.closing_date
+    if body.purchase_price is not None:
+        txn.purchase_price = float(body.purchase_price)
+    if body.contract_execution_date is not None:
+        txn.contract_execution_date = body.contract_execution_date
+
+    db.add(txn)
+    await db.flush()
+
+    # Reload with relationships for the response
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.id == transaction_id)
+        .options(
+            selectinload(Transaction.parties),
+            selectinload(Transaction.deadlines),
+            selectinload(Transaction.events),
+        )
+    )
+    return result.scalar_one()
+
+
+# ── Notes endpoints ───────────────────────────────────────────────────────────
+
+
+@router.get("/{transaction_id}/notes", response_model=NotesResponse)
+async def get_notes(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return the quick notes for a transaction.
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    txn = await _require_transaction_ownership(transaction_id, current_user.id, db)
+    return {"notes": txn.notes}
+
+
+@router.post("/{transaction_id}/notes", response_model=NotesResponse)
+async def update_notes(
+    transaction_id: int,
+    body: NotesUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Save quick notes for a transaction (replaces existing notes).
+
+    Body: {"content": "..."}
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    txn = await _require_transaction_ownership(transaction_id, current_user.id, db)
+    txn.notes = body.content
+    db.add(txn)
+    await db.flush()
+    return {"notes": txn.notes}
+
+
+# ── Deal health score endpoint ────────────────────────────────────────────────
+
+
+@router.get("/{transaction_id}/health-score", response_model=HealthScoreResponse)
+async def get_health_score(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Calculate and return a deal health score for a transaction.
+
+    Scoring (start at 100):
+      -5  per missed deadline
+      -8  per overdue document
+      -3  if closing within 7 days
+      -5  additional if closing within 3 days (cumulative: -8 total)
+      -10 if no closing date is set
+
+    Level thresholds:
+      >= 80: healthy
+      >= 60: warning
+      < 60:  critical
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.id == transaction_id, Transaction.user_id == current_user.id)
+        .options(
+            selectinload(Transaction.deadlines),
+            selectinload(Transaction.documents),
+        )
+    )
+    txn = result.scalar_one_or_none()
+    if txn is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+    score = 100
+    factors: list[HealthFactor] = []
+    today = date.today()
+
+    # Missed deadlines
+    missed = [d for d in txn.deadlines if d.status == DeadlineStatus.missed]
+    if missed:
+        impact = -5 * len(missed)
+        score += impact
+        factors.append(HealthFactor(
+            name="Missed deadlines",
+            impact=impact,
+            detail=f"{len(missed)} missed deadline{'s' if len(missed) != 1 else ''}",
+        ))
+
+    # Overdue documents
+    overdue_docs = [d for d in txn.documents if d.status == DocumentStatus.overdue]
+    if overdue_docs:
+        impact = -8 * len(overdue_docs)
+        score += impact
+        factors.append(HealthFactor(
+            name="Overdue documents",
+            impact=impact,
+            detail=f"{len(overdue_docs)} overdue doc{'s' if len(overdue_docs) != 1 else ''}",
+        ))
+
+    # Closing date proximity
+    if txn.closing_date is None:
+        score -= 10
+        factors.append(HealthFactor(
+            name="No closing date",
+            impact=-10,
+            detail="Closing date has not been set",
+        ))
+    else:
+        days_until_close = (txn.closing_date - today).days
+        if days_until_close <= 3:
+            score -= 8  # -3 for within 7 days + -5 more for within 3 days
+            factors.append(HealthFactor(
+                name="Days until close",
+                impact=-8,
+                detail=f"{max(days_until_close, 0)} days remaining (critical)",
+            ))
+        elif days_until_close <= 7:
+            score -= 3
+            factors.append(HealthFactor(
+                name="Days until close",
+                impact=-3,
+                detail=f"{days_until_close} days remaining",
+            ))
+        else:
+            factors.append(HealthFactor(
+                name="Days until close",
+                impact=0,
+                detail=f"{days_until_close} days remaining",
+            ))
+
+    # Clamp score to [0, 100]
+    score = max(0, min(100, score))
+
+    # Determine level
+    if score >= 80:
+        level = "healthy"
+    elif score >= 60:
+        level = "warning"
+    else:
+        level = "critical"
+
+    return {"score": score, "level": level, "factors": factors}
 
 
 # ── Alert endpoints ───────────────────────────────────────────────────────────
@@ -502,6 +700,123 @@ async def recent_events(
             "created_at": event.created_at,
         })
     return {"events": events, "total": len(events)}
+
+
+# ── Global contacts endpoint ──────────────────────────────────────────────────
+
+
+@router.get("/contacts/all", response_model=ContactsResponse)
+async def all_contacts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return all unique parties across the broker's transactions, deduplicated by email or name+role.
+
+    Each contact includes transaction_count and the list of transaction_ids they appear in.
+    """
+    result = await db.execute(
+        select(Party)
+        .join(Transaction, Party.transaction_id == Transaction.id)
+        .where(Transaction.user_id == current_user.id)
+        .order_by(Party.full_name.asc())
+    )
+    all_parties = list(result.scalars().all())
+
+    # Deduplicate: key is email (if present) else "{full_name}|{role}"
+    seen: dict[str, ContactItem] = {}
+    for party in all_parties:
+        key = party.email.lower().strip() if party.email else f"{party.full_name.lower().strip()}|{party.role.value}"
+        if key in seen:
+            existing = seen[key]
+            if party.transaction_id not in existing.transaction_ids:
+                existing.transaction_ids.append(party.transaction_id)
+                existing.transaction_count = len(existing.transaction_ids)
+        else:
+            seen[key] = ContactItem(
+                id=party.id,
+                full_name=party.full_name,
+                email=party.email,
+                phone=party.phone,
+                role=party.role.value,
+                transaction_count=1,
+                transaction_ids=[party.transaction_id],
+            )
+
+    contacts = list(seen.values())
+    return {"contacts": contacts, "total": len(contacts)}
+
+
+# ── Dashboard stats endpoint ──────────────────────────────────────────────────
+
+
+@router.get("/stats", response_model=DashboardStats)
+async def dashboard_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return dashboard summary statistics for the authenticated broker.
+
+    Returns total active transactions, how many close this calendar month,
+    count of overdue documents, and count of missed deadlines.
+    """
+    today = date.today()
+    month_start = today.replace(day=1)
+    # Last day of current month: first day of next month minus one day
+    if today.month == 12:
+        month_end = today.replace(year=today.year + 1, month=1, day=1)
+    else:
+        month_end = today.replace(month=today.month + 1, day=1)
+
+    # Total active transactions
+    active_result = await db.execute(
+        select(func.count(Transaction.id)).where(
+            Transaction.user_id == current_user.id,
+            Transaction.status == TransactionStatus.active,
+        )
+    )
+    total_active = active_result.scalar_one() or 0
+
+    # Closing this month: active transactions with closing_date in current month
+    closing_result = await db.execute(
+        select(func.count(Transaction.id)).where(
+            Transaction.user_id == current_user.id,
+            Transaction.status == TransactionStatus.active,
+            Transaction.closing_date >= month_start,
+            Transaction.closing_date < month_end,
+        )
+    )
+    closing_this_month = closing_result.scalar_one() or 0
+
+    # Overdue documents: across active transactions
+    overdue_docs_result = await db.execute(
+        select(func.count(Document.id))
+        .join(Transaction, Document.transaction_id == Transaction.id)
+        .where(
+            Transaction.user_id == current_user.id,
+            Transaction.status == TransactionStatus.active,
+            Document.status == DocumentStatus.overdue,
+        )
+    )
+    overdue_documents = overdue_docs_result.scalar_one() or 0
+
+    # Missed deadlines: across active transactions
+    missed_dl_result = await db.execute(
+        select(func.count(Deadline.id))
+        .join(Transaction, Deadline.transaction_id == Transaction.id)
+        .where(
+            Transaction.user_id == current_user.id,
+            Transaction.status == TransactionStatus.active,
+            Deadline.status == DeadlineStatus.missed,
+        )
+    )
+    missed_deadlines = missed_dl_result.scalar_one() or 0
+
+    return {
+        "total_active": total_active,
+        "closing_this_month": closing_this_month,
+        "overdue_documents": overdue_documents,
+        "missed_deadlines": missed_deadlines,
+    }
 
 
 # ── FIRPTA analysis endpoint ──────────────────────────────────────────────────

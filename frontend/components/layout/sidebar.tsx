@@ -2,28 +2,71 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { clearToken } from '@/lib/auth';
 import { getMe } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, LogOut, Building2, CalendarClock, FileText, Plus, BarChart3, Menu, X } from 'lucide-react';
+import {
+  LayoutDashboard,
+  LogOut,
+  Building2,
+  CalendarClock,
+  FileText,
+  Plus,
+  BarChart3,
+  Menu,
+  X,
+  Users,
+  Mail,
+  DollarSign,
+  Sun,
+  Moon,
+  Bell,
+} from 'lucide-react';
+import { NotificationCenter } from '@/components/notification-center';
 
 const navItems = [
   { href: '/transactions',  label: 'Dashboard',          icon: LayoutDashboard },
   { href: '/deadlines',     label: 'Upcoming Deadlines',  icon: CalendarClock },
   { href: '/documents',     label: 'Pending Documents',   icon: FileText },
+  { href: '/contacts',      label: 'Contacts',            icon: Users },
   { href: '/reports',       label: 'Reports',             icon: BarChart3 },
+  { href: '/commission',    label: 'Commission',          icon: DollarSign },
+  { href: '/templates',     label: 'Email Templates',     icon: Mail },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const { data: user } = useSWR('/auth/me', getMe, { revalidateOnFocus: false }) as {
     data: { full_name?: string; brokerage_name?: string } | undefined;
   };
+
+  // Dark mode: toggle class on <html>
+  useEffect(() => {
+    const saved = localStorage.getItem('lex_dark_mode');
+    if (saved === '1') {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  function toggleDark() {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('lex_dark_mode', '1');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('lex_dark_mode', '0');
+    }
+  }
 
   function handleLogout() {
     clearToken();
@@ -64,7 +107,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-2 space-y-1">
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
         <p className="px-3 pt-2 pb-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">Menu</p>
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -103,6 +146,32 @@ export function Sidebar() {
             </div>
           </div>
         )}
+
+        {/* Dark mode toggle */}
+        <button
+          onClick={toggleDark}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {isDark ? 'Light Mode' : 'Dark Mode'}
+        </button>
+
+        {/* Notification bell */}
+        <div className="relative">
+          <button
+            onClick={() => setNotifOpen((v) => !v)}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <Bell className="h-4 w-4" />
+            Notifications
+          </button>
+          {notifOpen && (
+            <div className="absolute bottom-full left-0 mb-2 z-50 w-80">
+              <NotificationCenter onClose={() => setNotifOpen(false)} />
+            </div>
+          )}
+        </div>
+
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"

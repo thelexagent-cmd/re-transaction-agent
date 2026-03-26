@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect, useRef, useCallback } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -20,8 +20,6 @@ import {
 import type {
   TransactionDetail,
   DocumentListResponse,
-  DocumentSummary,
-  DeadlineListResponse,
   AlertListResponse,
   EventResponse,
   FirptaAnalysis,
@@ -29,6 +27,7 @@ import type {
 import { formatDate, formatDateTime, formatCurrency, daysUntil, getDealStatus, PROPERTY_TYPE_LABELS, PARTY_ROLE_LABELS } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { HealthGauge, computeHealthScore } from '@/components/deal-health-score';
 import {
   ChevronLeft,
   AlertCircle,
@@ -44,6 +43,11 @@ import {
   Link2,
   Shield,
   Globe,
+  MessageCircle,
+  Printer,
+  StickyNote,
+  ChevronRight,
+  DollarSign,
 } from 'lucide-react';
 
 const PHASE_NAMES: Record<string, string> = {
@@ -55,10 +59,19 @@ const PHASE_NAMES: Record<string, string> = {
   '6': 'Closing',
 };
 
-const TABS = ['Overview', 'Documents', 'Timeline', 'Activity', 'Alerts', 'FIRPTA'] as const;
+const PIPELINE_STEPS = [
+  { key: 'contract',   label: 'Contract',   phase: '1' },
+  { key: 'inspection', label: 'Inspection', phase: '2' },
+  { key: 'financing',  label: 'Financing',  phase: '3' },
+  { key: 'title',      label: 'Title',      phase: '4' },
+  { key: 'preclose',   label: 'Pre-Close',  phase: '5' },
+  { key: 'closed',     label: 'Closed',     phase: '6' },
+];
+
+const TABS = ['Overview', 'Documents', 'Timeline', 'Activity', 'Alerts', 'Commission', 'FIRPTA'] as const;
 type Tab = typeof TABS[number];
 
-// ── Sub-components ──────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'needs_attention') return <Badge variant="danger">Needs Attention</Badge>;
@@ -87,9 +100,151 @@ function ActivityIcon({ eventType }: { eventType: string }) {
   return <Info className="h-4 w-4" />;
 }
 
-// ── Overview Tab ────────────────────────────────────────────────────────────
+function WhatsAppBtn({ phone, name }: { phone: string; name: string }) {
+  const clean = phone.replace(/\D/g, '');
+  const msg = encodeURIComponent(`Hello ${name}, I'm reaching out regarding your real estate transaction. Please let me know if you have any questions.`);
+  return (
+    <a
+      href={`https://wa.me/${clean}?text=${msg}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 rounded bg-green-600 px-2 py-1 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+      title="Open WhatsApp"
+    >
+      <MessageCircle className="h-3 w-3" />
+      WhatsApp
+    </a>
+  );
+}
 
-function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
+// ── Transaction Progress Bar ─────────────────────────────────────────────────
+
+function TransactionProgressBar({ docs }: { docs: DocumentListResponse | undefined }) {
+  // Determine current phase based on which phases have any collected docs
+  let currentPhase = 1;
+  if (docs) {
+    for (let p = 1; p <= 6; p++) {
+      const phaseDocs = docs[String(p)] ?? [];
+      const anyCollected = phaseDocs.some((d) => d.status === 'collected');
+      if (anyCollected) currentPhase = p;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm mb-6 print-block">
+      <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Transaction Progress</h3>
+      <div className="relative">
+        {/* Connector line */}
+        <div className="absolute top-5 left-0 right-0 h-0.5 bg-slate-200" style={{ zIndex: 0 }} />
+        <div className="flex justify-between relative" style={{ zIndex: 1 }}>
+          {PIPELINE_STEPS.map((step, idx) => {
+            const phaseNum = parseInt(step.phase, 10);
+            const isCompleted = phaseNum < currentPhase;
+            const isCurrent = phaseNum === currentPhase;
+            return (
+              <div key={step.key} className="flex flex-col items-center" style={{ flex: 1 }}>
+                <div
+                  className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
+                    isCompleted
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : isCurrent
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200'
+                      : 'bg-white border-slate-300 text-slate-400'
+                  }`}
+                >
+                  {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : idx + 1}
+                </div>
+                <div className={`mt-2 text-center text-xs font-medium ${
+                  isCurrent ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-slate-400'
+                }`}>
+                  {step.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Quick Notes Widget ────────────────────────────────────────────────────────
+
+function QuickNotes({ txId }: { txId: number }) {
+  const STORAGE_KEY = `lex_notes_tx_${txId}`;
+  const [notes, setNotes] = useState('');
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setNotes(parsed.content ?? '');
+        setLastSaved(parsed.savedAt ?? null);
+      } catch {
+        setNotes(saved);
+      }
+    }
+  }, [STORAGE_KEY]);
+
+  const saveNotes = useCallback((content: string) => {
+    const payload = { content, savedAt: new Date().toISOString() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    setLastSaved(payload.savedAt);
+    // TODO: POST /transactions/{txId}/notes when backend ready
+  }, [STORAGE_KEY]);
+
+  function handleChange(value: string) {
+    setNotes(value);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => saveNotes(value), 800);
+  }
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 no-print">
+      {isOpen ? (
+        <div className="w-80 rounded-xl border border-yellow-300 bg-yellow-50 shadow-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2 bg-yellow-200">
+            <div className="flex items-center gap-2">
+              <StickyNote className="h-4 w-4 text-yellow-800" />
+              <span className="text-xs font-semibold text-yellow-800">Quick Notes</span>
+            </div>
+            <button onClick={() => setIsOpen(false)} className="text-yellow-700 hover:text-yellow-900">
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="p-3">
+            <textarea
+              value={notes}
+              onChange={(e) => handleChange(e.target.value)}
+              rows={8}
+              placeholder="Jot down quick notes for this transaction..."
+              className="w-full text-sm bg-yellow-50 border-0 resize-none focus:outline-none text-slate-800 placeholder-yellow-600/60"
+            />
+            <div className="text-xs text-yellow-700 mt-1">
+              {lastSaved ? `Auto-saved ${formatDateTime(lastSaved)}` : 'Not saved yet'}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 rounded-xl border border-yellow-300 bg-yellow-100 px-4 py-3 text-sm font-medium text-yellow-800 shadow-lg hover:bg-yellow-200 transition-colors"
+        >
+          <StickyNote className="h-4 w-4" />
+          {notes ? 'View Notes' : 'Add Notes'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Overview Tab ─────────────────────────────────────────────────────────────
+
+function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; docs: DocumentListResponse | undefined }) {
   const [partyState, setPartyState] = useState<Record<number, { preferred_language: string; is_foreign_national: boolean }>>({});
   const [savingParty, setSavingParty] = useState<number | null>(null);
   const [portalLink, setPortalLink] = useState<string | null>(null);
@@ -101,8 +256,8 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
     field: K
   ) {
     if (partyState[party.id]?.[field] !== undefined) return partyState[party.id][field];
-    if (field === 'preferred_language') return (party as any).preferred_language ?? 'en';
-    if (field === 'is_foreign_national') return (party as any).is_foreign_national ?? false;
+    if (field === 'preferred_language') return (party as Record<string, unknown>).preferred_language as string ?? 'en';
+    if (field === 'is_foreign_national') return (party as Record<string, unknown>).is_foreign_national as boolean ?? false;
   }
 
   async function handlePartyUpdate(partyId: number, field: 'preferred_language' | 'is_foreign_national', value: string | boolean) {
@@ -136,8 +291,11 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
 
   return (
     <div className="space-y-6">
+      {/* Progress Bar */}
+      <TransactionProgressBar docs={docs} />
+
       {/* Property Info */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-block">
         <h3 className="text-base font-semibold text-slate-900 mb-4">Property Details</h3>
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
           <div>
@@ -169,7 +327,7 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
 
       {/* Key Dates */}
       {tx.closing_date && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-block">
           <h3 className="text-base font-semibold text-slate-900 mb-4">Key Dates</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-slate-100">
@@ -198,7 +356,7 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
 
       {/* Parties */}
       {tx.parties && tx.parties.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm print-block">
           <h3 className="text-base font-semibold text-slate-900 mb-4">Parties</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {tx.parties.map((party) => (
@@ -206,10 +364,15 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
                 <div className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">{PARTY_ROLE_LABELS[party.role] ?? party.role}</div>
                 <div className="text-sm font-semibold text-slate-900 mb-1">{party.full_name}</div>
                 {party.email && <div className="text-xs text-slate-500">{party.email}</div>}
-                {party.phone && <div className="text-xs text-slate-500">{party.phone}</div>}
+                {party.phone && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="text-xs text-slate-500">{party.phone}</div>
+                    <WhatsAppBtn phone={party.phone} name={party.full_name} />
+                  </div>
+                )}
 
                 {/* Language preference */}
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-3 flex items-center gap-2 no-print">
                   <Globe className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   <select
                     value={getPartyField(party, 'preferred_language') as string}
@@ -225,7 +388,7 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
 
                 {/* Foreign national toggle */}
                 {(party.role === 'seller') && (
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2 no-print">
                     <Shield className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
@@ -246,7 +409,7 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
       )}
 
       {/* Share Portal Link */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm no-print">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-semibold text-slate-900">Client Portal</h3>
           <button
@@ -287,6 +450,119 @@ function OverviewTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
   );
 }
 
+// ── Commission Tab ───────────────────────────────────────────────────────────
+
+function CommissionTab({ tx }: { tx: TransactionDetail }) {
+  const [commPct, setCommPct] = useState('3');
+  const [cobrokePct, setCobrokePct] = useState('50');
+  const [agentSplitPct, setAgentSplitPct] = useState('70');
+
+  const salePrice = tx.purchase_price ?? 0;
+  const cp = parseFloat(commPct) || 0;
+  const co = parseFloat(cobrokePct) || 0;
+  const ap = parseFloat(agentSplitPct) || 0;
+  const gross = salePrice * (cp / 100);
+  const cobrokeAmt = gross * (co / 100);
+  const ourSide = gross - cobrokeAmt;
+  const agentNet = ourSide * (ap / 100);
+  const brokerNet = ourSide - agentNet;
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-5">
+          <DollarSign className="h-5 w-5 text-blue-600" />
+          <h3 className="text-base font-semibold text-slate-900">Commission Calculator</h3>
+          <span className="text-xs text-slate-500">for {tx.address}</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">Commission Rate</label>
+            <div className="relative">
+              <input
+                type="number" step="0.25" min="0" max="10"
+                value={commPct}
+                onChange={(e) => setCommPct(e.target.value)}
+                className="w-full pr-8 pl-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">Co-broke Split</label>
+            <div className="relative">
+              <input
+                type="number" step="5" min="0" max="100"
+                value={cobrokePct}
+                onChange={(e) => setCobrokePct(e.target.value)}
+                className="w-full pr-8 pl-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">Your Agent Split</label>
+            <div className="relative">
+              <input
+                type="number" step="5" min="0" max="100"
+                value={agentSplitPct}
+                onChange={(e) => setAgentSplitPct(e.target.value)}
+                className="w-full pr-8 pl-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+            </div>
+          </div>
+        </div>
+
+        {salePrice === 0 ? (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+            No sale price set on this transaction. Add a purchase price to calculate commission.
+          </div>
+        ) : (
+          <div className="space-y-0 border border-slate-200 rounded-xl overflow-hidden">
+            {[
+              { label: 'Sale Price', value: formatCurrency(salePrice), highlight: false },
+              { label: `Gross Commission (${cp}%)`, value: formatCurrency(gross), highlight: false },
+              { label: `Co-broke to Other Side (${co}%)`, value: `– ${formatCurrency(cobrokeAmt)}`, highlight: false },
+              { label: 'Your Side of Commission', value: formatCurrency(ourSide), highlight: false },
+              { label: `Broker Net (${100 - ap}%)`, value: `– ${formatCurrency(brokerNet)}`, highlight: false },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+                <span className="text-sm text-slate-600">{label}</span>
+                <span className="text-sm font-semibold text-slate-900">{value}</span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between px-5 py-4 bg-blue-50">
+              <span className="text-base font-bold text-blue-900">Your Net Commission</span>
+              <span className="text-xl font-bold text-blue-700">{formatCurrency(agentNet)}</span>
+            </div>
+          </div>
+        )}
+
+        {salePrice > 0 && (
+          <div className="mt-4 grid grid-cols-3 gap-4">
+            <div className="rounded-lg bg-slate-50 p-4 text-center">
+              <div className="text-xs text-slate-500 mb-1">Gross Commission</div>
+              <div className="text-lg font-bold text-slate-900">{formatCurrency(gross)}</div>
+            </div>
+            <div className="rounded-lg bg-green-50 p-4 text-center">
+              <div className="text-xs text-slate-500 mb-1">Your Agent Net</div>
+              <div className="text-lg font-bold text-green-700">{formatCurrency(agentNet)}</div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 text-center">
+              <div className="text-xs text-slate-500 mb-1">Effective Rate</div>
+              <div className="text-lg font-bold text-slate-900">
+                {salePrice > 0 ? `${((agentNet / salePrice) * 100).toFixed(2)}%` : '—'}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── FIRPTA Tab ───────────────────────────────────────────────────────────────
 
 function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
@@ -298,7 +574,7 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
   );
 
   const hasForeignSeller = tx.parties.some(
-    (p) => p.role === 'seller' && (p as any).is_foreign_national
+    (p) => p.role === 'seller' && (p as Record<string, unknown>).is_foreign_national
   );
 
   return (
@@ -327,16 +603,11 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
           </div>
         )}
 
-        {isLoading && (
-          <div className="text-sm text-slate-500">Analyzing...</div>
-        )}
-        {error && (
-          <div className="text-sm text-red-600">Failed to load FIRPTA analysis.</div>
-        )}
+        {isLoading && <div className="text-sm text-slate-500">Analyzing...</div>}
+        {error && <div className="text-sm text-red-600">Failed to load FIRPTA analysis.</div>}
 
         {data && (
           <div className="space-y-4">
-            {/* Status */}
             <div className={`flex items-center gap-3 rounded-lg px-4 py-3 ${data.is_firpta_applicable ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
               <div className={`h-3 w-3 rounded-full ${data.is_firpta_applicable ? 'bg-amber-500' : 'bg-green-500'}`} />
               <span className={`text-sm font-semibold ${data.is_firpta_applicable ? 'text-amber-800' : 'text-green-800'}`}>
@@ -361,7 +632,6 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
               </div>
             )}
 
-            {/* Notes */}
             {data.notes.length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold text-slate-700 mb-2">Analysis Notes</h4>
@@ -376,7 +646,6 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
               </div>
             )}
 
-            {/* Action Items */}
             {data.action_items.length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold text-slate-700 mb-2">Required Action Items</h4>
@@ -397,7 +666,7 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
   );
 }
 
-// ── Documents Tab ───────────────────────────────────────────────────────────
+// ── Documents Tab ────────────────────────────────────────────────────────────
 
 function DocumentsTab({ txId }: { txId: number }) {
   const { data: docs, error: docsError, isLoading: docsLoading, mutate: mutateDocs } = useSWR(
@@ -447,7 +716,6 @@ function DocumentsTab({ txId }: { txId: number }) {
 
   return (
     <div className="space-y-6">
-      {/* Summary */}
       {summary && (
         <div className="grid grid-cols-4 gap-4">
           {[
@@ -464,7 +732,6 @@ function DocumentsTab({ txId }: { txId: number }) {
         </div>
       )}
 
-      {/* Docs by phase */}
       {docs && Object.keys(PHASE_NAMES).map((phase) => {
         const phaseDocs = (docs as DocumentListResponse)[phase] || [];
         if (phaseDocs.length === 0) return null;
@@ -514,7 +781,7 @@ function DocumentsTab({ txId }: { txId: number }) {
   );
 }
 
-// ── Timeline Tab ────────────────────────────────────────────────────────────
+// ── Timeline Tab ─────────────────────────────────────────────────────────────
 
 function TimelineTab({ txId }: { txId: number }) {
   const { data, error, isLoading } = useSWR(
@@ -527,42 +794,62 @@ function TimelineTab({ txId }: { txId: number }) {
   if (error) return (
     <div className="rounded-xl border border-red-200 bg-red-50 p-5 flex items-center gap-3">
       <AlertCircle className="h-5 w-5 text-red-600" />
-      <div className="text-sm text-red-700">Failed to load deadlines: {error.message}</div>
+      <div className="text-sm text-red-700">Failed to load timeline: {error.message}</div>
     </div>
   );
 
   const deadlines = data?.deadlines ?? [];
 
-  const dotColor: Record<string, string> = {
-    upcoming: 'bg-blue-500',
-    warning: 'bg-yellow-500',
-    missed: 'bg-red-500',
-    completed: 'bg-green-500',
+  const iconConfig: Record<string, { bg: string; icon: React.ReactNode; ring: string }> = {
+    upcoming: { bg: 'bg-blue-500', icon: <Clock className="h-4 w-4 text-white" />, ring: 'ring-blue-200' },
+    warning: { bg: 'bg-yellow-500', icon: <AlertCircle className="h-4 w-4 text-white" />, ring: 'ring-yellow-200' },
+    missed: { bg: 'bg-red-500', icon: <XCircle className="h-4 w-4 text-white" />, ring: 'ring-red-200' },
+    completed: { bg: 'bg-green-500', icon: <CheckCircle2 className="h-4 w-4 text-white" />, ring: 'ring-green-200' },
   };
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+      <h3 className="text-base font-semibold text-slate-900 mb-6">Transaction Timeline</h3>
       {deadlines.length === 0 ? (
         <div className="text-center py-8 text-slate-500 text-sm">No deadlines found</div>
       ) : (
         <div className="relative">
-          {/* Vertical line */}
-          <div className="absolute left-3.5 top-0 bottom-0 w-px bg-slate-200" />
+          {/* Vertical spine */}
+          <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-300 via-slate-200 to-slate-100" />
           <div className="space-y-0">
-            {deadlines.map((deadline, index) => (
-              <div key={deadline.id} className={`relative flex items-start gap-5 py-4 ${index < deadlines.length - 1 ? 'border-b border-slate-100' : ''}`}>
-                <div className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${dotColor[deadline.status] || 'bg-slate-400'}`}>
-                  <div className="h-2 w-2 rounded-full bg-white" />
-                </div>
-                <div className="flex-1 min-w-0 pt-0.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-slate-900">{deadline.name}</span>
-                    <DeadlineStatusBadge status={deadline.status} />
+            {deadlines.map((deadline, index) => {
+              const cfg = iconConfig[deadline.status] ?? iconConfig.upcoming;
+              const isLast = index === deadlines.length - 1;
+              const d = daysUntil(deadline.due_date);
+              return (
+                <div key={deadline.id} className={`relative flex items-start gap-5 py-5 ${!isLast ? 'border-b border-slate-100' : ''}`}>
+                  {/* Icon */}
+                  <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${cfg.bg} ring-4 ${cfg.ring} shadow-sm`}>
+                    {cfg.icon}
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5">{formatDate(deadline.due_date)}</div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 pt-1">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <span className="text-sm font-semibold text-slate-900">{deadline.name}</span>
+                      <DeadlineStatusBadge status={deadline.status} />
+                    </div>
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      <span className="text-xs text-slate-500 flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {formatDate(deadline.due_date)}
+                      </span>
+                      {d !== null && deadline.status !== 'completed' && (
+                        <span className={`text-xs font-medium ${
+                          d < 0 ? 'text-red-600' : d <= 3 ? 'text-yellow-600' : 'text-slate-500'
+                        }`}>
+                          {d < 0 ? `${Math.abs(d)}d overdue` : d === 0 ? 'Due today' : `${d}d remaining`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -570,7 +857,19 @@ function TimelineTab({ txId }: { txId: number }) {
   );
 }
 
-// ── Activity Tab ────────────────────────────────────────────────────────────
+// Little calendar icon helper (not imported above)
+function Calendar({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+// ── Activity Tab ─────────────────────────────────────────────────────────────
 
 function ActivityTab({ events }: { events: EventResponse[] }) {
   const sorted = [...events].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -598,7 +897,7 @@ function ActivityTab({ events }: { events: EventResponse[] }) {
   );
 }
 
-// ── Alerts Tab ──────────────────────────────────────────────────────────────
+// ── Alerts Tab ───────────────────────────────────────────────────────────────
 
 function AlertsTab({ txId }: { txId: number }) {
   const { data, error, isLoading, mutate } = useSWR<AlertListResponse>(
@@ -669,7 +968,7 @@ function AlertsTab({ txId }: { txId: number }) {
   );
 }
 
-// ── Main Page ───────────────────────────────────────────────────────────────
+// ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function TransactionDetailPage({
   params,
@@ -700,6 +999,27 @@ export default function TransactionDetailPage({
     { refreshInterval: 30000 }
   );
 
+  const { data: docs } = useSWR(
+    `/transactions/${txId}/documents`,
+    () => getDocuments(txId),
+    { revalidateOnFocus: false }
+  );
+
+  const { data: docSummary } = useSWR(
+    `/transactions/${txId}/documents/summary`,
+    () => getDocumentSummary(txId),
+    { revalidateOnFocus: false }
+  );
+
+  const { data: deadlinesData } = useSWR(
+    `/transactions/${txId}/deadlines`,
+    () => getDeadlines(txId),
+    { revalidateOnFocus: false }
+  );
+
+  const missed = deadlinesData?.deadlines?.filter((d) => d.status === 'missed').length ?? 0;
+  const warning = deadlinesData?.deadlines?.filter((d) => d.status === 'warning').length ?? 0;
+
   if (isLoading) {
     return (
       <div className="p-8">
@@ -729,20 +1049,30 @@ export default function TransactionDetailPage({
   }
 
   const dealStatus = getDealStatus(tx, tx.events, tx.deadlines);
+  const healthScore = tx ? computeHealthScore(tx, docSummary ?? null, missed, warning) : 100;
 
   return (
     <div className="p-8">
-      {/* Back */}
-      <Link
-        href="/transactions"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        Back to Transactions
-      </Link>
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-1.5 text-sm text-slate-500 mb-4 no-print">
+        <Link href="/transactions" className="hover:text-slate-700">Dashboard</Link>
+        <ChevronRight className="h-3.5 w-3.5" />
+        <span className="text-slate-900 font-medium truncate max-w-xs">{tx.address}</span>
+      </nav>
+
+      {/* Export PDF button */}
+      <div className="flex items-center justify-end mb-4 no-print">
+        <button
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Export PDF
+        </button>
+      </div>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-8">
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{tx.address}</h1>
           <div className="flex items-center gap-3 mt-2">
@@ -754,11 +1084,12 @@ export default function TransactionDetailPage({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap justify-end">
+          <HealthGauge score={healthScore} />
           <StatusBadge status={dealStatus} />
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors no-print"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Delete
@@ -795,13 +1126,13 @@ export default function TransactionDetailPage({
       )}
 
       {/* Tabs */}
-      <div className="border-b border-slate-200 mb-6">
-        <div className="flex gap-0">
+      <div className="border-b border-slate-200 mb-6 no-print">
+        <div className="flex gap-0 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
@@ -819,12 +1150,16 @@ export default function TransactionDetailPage({
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'Overview' && <OverviewTab tx={tx} txId={txId} />}
+      {activeTab === 'Overview' && <OverviewTab tx={tx} txId={txId} docs={docs} />}
       {activeTab === 'Documents' && <DocumentsTab txId={txId} />}
       {activeTab === 'Timeline' && <TimelineTab txId={txId} />}
       {activeTab === 'Activity' && <ActivityTab events={tx.events} />}
       {activeTab === 'Alerts' && <AlertsTab txId={txId} />}
+      {activeTab === 'Commission' && <CommissionTab tx={tx} />}
       {activeTab === 'FIRPTA' && <FirptaTab tx={tx} txId={txId} />}
+
+      {/* Quick Notes Floating Widget */}
+      <QuickNotes txId={txId} />
     </div>
   );
 }
