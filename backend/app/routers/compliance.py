@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,15 @@ router = APIRouter(prefix="/transactions/{transaction_id}/compliance", tags=["co
 
 class ReviewRequest(BaseModel):
     reviewed_by_name: str
+
+    @field_validator("reviewed_by_name")
+    @classmethod
+    def reviewed_by_name_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Reviewer name is required")
+        if len(v) > 200:
+            raise ValueError("Reviewer name must be at most 200 characters")
+        return v.strip()
 
 
 # ── Default checklist template ───────────────────────────────────────────────

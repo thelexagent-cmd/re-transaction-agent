@@ -2,9 +2,11 @@
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 import bcrypt
 from jose import jwt
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +17,7 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+limiter = Limiter(key_func=get_remote_address)
 
 def _hash_password(plain: str) -> str:
     return bcrypt.hashpw(plain.encode("utf-8")[:72], bcrypt.gensalt()).decode("utf-8")
@@ -31,7 +34,8 @@ def _create_access_token(user_id: int) -> str:
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> User:
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> User:
     """Create a new broker account.
 
     Raises 409 if the email is already registered.
@@ -53,7 +57,8 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict:
+@limiter.limit("5/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)) -> dict:
     """Authenticate a broker and return a JWT access token.
 
     Raises 401 if credentials are invalid.
@@ -78,7 +83,8 @@ async def me(current_user: User = Depends(get_current_user)) -> User:
 
 
 @router.post("/setup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def setup(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> dict:
+@limiter.limit("5/minute")
+async def setup(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> dict:
     """First-time broker setup: creates the initial account and returns a JWT.
 
     This endpoint only works when no users exist in the database. It is designed

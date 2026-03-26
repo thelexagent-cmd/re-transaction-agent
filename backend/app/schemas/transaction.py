@@ -32,6 +32,15 @@ class PartyCreate(BaseModel):
     email: EmailStr | None = None
     phone: str | None = None
 
+    @field_validator("full_name")
+    @classmethod
+    def full_name_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Full name is required")
+        if len(v) > 200:
+            raise ValueError("Full name must be at most 200 characters")
+        return v.strip()
+
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
@@ -90,6 +99,15 @@ class TransactionCreate(BaseModel):
     contract_execution_date: date | None = None
     parties: list[PartyCreate] = []
 
+    @field_validator("address")
+    @classmethod
+    def address_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Address is required")
+        if len(v) > 500:
+            raise ValueError("Address must be at most 500 characters")
+        return v.strip()
+
     @field_validator("purchase_price")
     @classmethod
     def purchase_price_positive(cls, v: Decimal | None) -> Decimal | None:
@@ -139,6 +157,13 @@ class NotesResponse(BaseModel):
 
 class NotesUpdate(BaseModel):
     content: str
+
+    @field_validator("content")
+    @classmethod
+    def content_length(cls, v: str) -> str:
+        if len(v) > 50000:
+            raise ValueError("Notes must be at most 50000 characters")
+        return v
 
 
 # ── Transaction status update schema ──────────────────────────────────────────
@@ -243,6 +268,13 @@ class RecentEventsResponse(BaseModel):
 class PartyUpdate(BaseModel):
     preferred_language: str | None = None
     is_foreign_national: bool | None = None
+
+    @field_validator("preferred_language")
+    @classmethod
+    def preferred_language_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 10:
+            raise ValueError("Preferred language code must be at most 10 characters")
+        return v
 
 
 # ── Portal token schema ───────────────────────────────────────────────────────

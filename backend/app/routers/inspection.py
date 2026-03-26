@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,12 +22,46 @@ router = APIRouter(
 
 # ── Request schemas ──────────────────────────────────────────────────────────
 
+_VALID_SEVERITIES = {"minor", "major", "safety"}
+_VALID_STATUSES = {"open", "negotiating", "repaired", "waived", "credited"}
+
+
 class InspectionItemCreate(BaseModel):
     description: str
-    severity: str = "minor"  # minor, major, safety
-    status: str = "open"  # open, negotiating, repaired, waived, credited
+    severity: str = "minor"
+    status: str = "open"
     repair_cost: Decimal | None = None
     notes: str | None = None
+
+    @field_validator("description")
+    @classmethod
+    def description_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Description is required")
+        if len(v) > 2000:
+            raise ValueError("Description must be at most 2000 characters")
+        return v.strip()
+
+    @field_validator("severity")
+    @classmethod
+    def validate_severity(cls, v: str) -> str:
+        if v not in _VALID_SEVERITIES:
+            raise ValueError(f"Severity must be one of: {', '.join(sorted(_VALID_SEVERITIES))}")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in _VALID_STATUSES:
+            raise ValueError(f"Status must be one of: {', '.join(sorted(_VALID_STATUSES))}")
+        return v
+
+    @field_validator("notes")
+    @classmethod
+    def notes_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 5000:
+            raise ValueError("Notes must be at most 5000 characters")
+        return v
 
 
 class InspectionItemUpdate(BaseModel):
@@ -36,6 +70,34 @@ class InspectionItemUpdate(BaseModel):
     status: str | None = None
     repair_cost: Decimal | None = None
     notes: str | None = None
+
+    @field_validator("description")
+    @classmethod
+    def description_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 2000:
+            raise ValueError("Description must be at most 2000 characters")
+        return v.strip() if v else v
+
+    @field_validator("severity")
+    @classmethod
+    def validate_severity(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_SEVERITIES:
+            raise ValueError(f"Severity must be one of: {', '.join(sorted(_VALID_SEVERITIES))}")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_STATUSES:
+            raise ValueError(f"Status must be one of: {', '.join(sorted(_VALID_STATUSES))}")
+        return v
+
+    @field_validator("notes")
+    @classmethod
+    def notes_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 5000:
+            raise ValueError("Notes must be at most 5000 characters")
+        return v
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

@@ -6,6 +6,9 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -16,18 +19,27 @@ from app.routers import portal, reports, templates
 configure_logging()
 logger = logging.getLogger(__name__)
 
+# ── Rate limiter ──────────────────────────────────────────────────────────────
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+
 app = FastAPI(
     title="Real Estate Transaction Agent API",
     description="Backend API for the Real Estate Transaction Agent.",
     version="1.0.0",
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # ── Middleware ────────────────────────────────────────────────────────────────
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_origin_regex=r"https://.*\.(vercel\.app|up\.railway\.app)",
+    allow_origins=[
+        "http://localhost:3000",
+        "https://frontend-rose-ten-64.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -68,12 +80,10 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError):
 @app.exception_handler(Exception)
 async def generic_error_handler(request: Request, exc: Exception):
     """Catch-all for unexpected server errors; log full traceback, return 500."""
-    import traceback
-    tb = traceback.format_exc()
     logger.exception("Unexpected error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": str(exc), "traceback": tb},
+        content={"detail": "An unexpected error occurred. Please try again or contact support."},
     )
 
 

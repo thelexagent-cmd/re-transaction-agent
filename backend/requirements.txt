@@ -17,3 +17,4 @@ anthropic>=0.50.0
 celery[redis]==5.4.0
 redis==5.2.0
 twilio==9.4.0
+slowapi==0.1.9

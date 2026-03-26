@@ -9,7 +9,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -31,10 +31,35 @@ class LenderTokenRequest(BaseModel):
     lender_name: str
     lender_email: str | None = None
 
+    @field_validator("lender_name")
+    @classmethod
+    def lender_name_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Lender name is required")
+        if len(v) > 200:
+            raise ValueError("Lender name must be at most 200 characters")
+        return v.strip()
+
+    @field_validator("lender_email")
+    @classmethod
+    def lender_email_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 300:
+            raise ValueError("Lender email must be at most 300 characters")
+        return v
+
 
 class LenderDocUpload(BaseModel):
     name: str
     status: str = "pending"
+
+    @field_validator("name")
+    @classmethod
+    def name_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Document name is required")
+        if len(v) > 500:
+            raise ValueError("Document name must be at most 500 characters")
+        return v.strip()
 
 
 @router.post("/transactions/{transaction_id}/portal-token", status_code=status.HTTP_201_CREATED)

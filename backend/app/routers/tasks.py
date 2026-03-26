@@ -3,7 +3,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,12 +23,42 @@ class TaskCreate(BaseModel):
     due_date: date | None = None
     assigned_role: str | None = None
 
+    @field_validator("title")
+    @classmethod
+    def title_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Task title is required")
+        if len(v) > 500:
+            raise ValueError("Task title must be at most 500 characters")
+        return v.strip()
+
+    @field_validator("assigned_role")
+    @classmethod
+    def assigned_role_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 100:
+            raise ValueError("Assigned role must be at most 100 characters")
+        return v
+
 
 class TaskUpdate(BaseModel):
     title: str | None = None
     status: TaskStatus | None = None
     due_date: date | None = None
     assigned_role: str | None = None
+
+    @field_validator("title")
+    @classmethod
+    def title_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("Task title must be at most 500 characters")
+        return v.strip() if v else v
+
+    @field_validator("assigned_role")
+    @classmethod
+    def assigned_role_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 100:
+            raise ValueError("Assigned role must be at most 100 characters")
+        return v
 
 
 class BulkTaskCreate(BaseModel):

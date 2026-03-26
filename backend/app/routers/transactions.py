@@ -27,6 +27,7 @@ from app.schemas.transaction import (
     HoaDocsDeliveredRequest,
     NotesResponse,
     NotesUpdate,
+    PartyUpdate,
     RecentEventsResponse,
     TransactionCreate,
     TransactionDetail,
@@ -1022,7 +1023,7 @@ async def get_firpta_analysis(
 async def update_party(
     transaction_id: int,
     party_id: int,
-    body: dict,
+    body: PartyUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -1036,10 +1037,10 @@ async def update_party(
     if party is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Party not found")
 
-    if "preferred_language" in body:
-        party.preferred_language = body["preferred_language"]
-    if "is_foreign_national" in body:
-        party.is_foreign_national = body["is_foreign_national"]
+    if body.preferred_language is not None:
+        party.preferred_language = body.preferred_language
+    if body.is_foreign_national is not None:
+        party.is_foreign_national = body.is_foreign_national
 
     db.add(party)
     return {
