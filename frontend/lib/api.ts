@@ -468,12 +468,12 @@ export async function toggleComplianceItem(txId: number | string, itemId: number
 export type TaskItem = {
   id: number;
   transaction_id: number;
-  name: string;
-  completed: boolean;
+  title: string;
+  status: 'pending' | 'completed';
   due_date: string | null;
   assigned_role: string | null;
+  sort_order: number;
   created_at: string;
-  updated_at: string;
 };
 
 export async function getTasks(txId: number | string): Promise<TaskItem[]> {
@@ -481,7 +481,7 @@ export async function getTasks(txId: number | string): Promise<TaskItem[]> {
   return res.json();
 }
 
-export async function createTask(txId: number | string, data: { name: string; due_date?: string; assigned_role?: string }): Promise<TaskItem> {
+export async function createTask(txId: number | string, data: { title: string; due_date?: string; assigned_role?: string }): Promise<TaskItem> {
   const res = await authFetch(`/transactions/${txId}/tasks`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -489,7 +489,7 @@ export async function createTask(txId: number | string, data: { name: string; du
   return res.json();
 }
 
-export async function updateTask(txId: number | string, taskId: number | string, data: Partial<{ name: string; completed: boolean; due_date: string; assigned_role: string }>): Promise<TaskItem> {
+export async function updateTask(txId: number | string, taskId: number | string, data: Partial<{ title: string; status: 'pending' | 'completed'; due_date: string; assigned_role: string }>): Promise<TaskItem> {
   const res = await authFetch(`/transactions/${txId}/tasks/${taskId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),

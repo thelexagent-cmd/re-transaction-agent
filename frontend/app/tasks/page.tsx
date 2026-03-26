@@ -38,7 +38,7 @@ function ActiveTasksPanel({
     if (!newTaskName.trim() || !txIdNum) return;
     setSaving(true);
     try {
-      await createTask(txIdNum, { name: newTaskName.trim() });
+      await createTask(txIdNum, { title: newTaskName.trim() });
       await mutate();
       setNewTaskName('');
     } catch {
@@ -51,7 +51,7 @@ function ActiveTasksPanel({
   async function handleToggleTask(task: TaskItem) {
     if (!txIdNum) return;
     try {
-      await updateTask(txIdNum, task.id, { completed: !task.completed });
+      await updateTask(txIdNum, task.id, { status: task.status === 'completed' ? 'pending' : 'completed' });
       await mutate();
     } catch {
       // ignore
@@ -79,7 +79,7 @@ function ActiveTasksPanel({
   }
 
   const taskList = tasks ?? [];
-  const completedCount = taskList.filter((t) => t.completed).length;
+  const completedCount = taskList.filter((t) => t.status === 'completed').length;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm h-full">
@@ -163,7 +163,7 @@ function ActiveTasksPanel({
                       onClick={() => handleToggleTask(task)}
                       className="shrink-0"
                     >
-                      {task.completed ? (
+                      {task.status === 'completed' ? (
                         <CheckSquare className="h-5 w-5 text-green-500" />
                       ) : (
                         <div className="h-5 w-5 rounded border-2 border-slate-300 hover:border-blue-400 transition-colors" />
@@ -171,9 +171,9 @@ function ActiveTasksPanel({
                     </button>
                     <div className="flex-1 min-w-0">
                       <div
-                        className={`text-sm ${task.completed ? 'text-slate-400 line-through' : 'text-slate-900'}`}
+                        className={`text-sm ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-900'}`}
                       >
-                        {task.name}
+                        {task.title}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
                         {editingId === task.id ? (
