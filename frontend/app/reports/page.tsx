@@ -41,10 +41,10 @@ export default function ReportsPage() {
       </div>
 
       {/* Volume */}
-      {data?.total_volume > 0 && (
+      {(data?.total_volume ?? 0) > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 p-5 mb-8">
           <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Closed Volume</div>
-          <div className="text-3xl font-bold text-slate-800">${(data.total_volume / 1_000_000).toFixed(2)}M</div>
+          <div className="text-3xl font-bold text-slate-800">${((data?.total_volume ?? 0) / 1_000_000).toFixed(2)}M</div>
         </div>
       )}
 
