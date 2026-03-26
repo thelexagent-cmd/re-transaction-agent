@@ -98,7 +98,7 @@ export default function TemplatesPage() {
   // Use API templates, or default templates as fallback if API fails or returns empty
   const templates: TemplateView[] = apiTemplates && apiTemplates.length > 0
     ? apiTemplates.map(toView)
-    : error ? DEFAULT_TEMPLATES : [];
+    : (!isLoading ? DEFAULT_TEMPLATES : []);
 
   const filtered = categoryFilter === 'All'
     ? templates

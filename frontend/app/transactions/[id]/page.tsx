@@ -1883,12 +1883,12 @@ export default function TransactionDetailPage({
 
       {/* Tabs */}
       <div className="border-b border-slate-200 mb-6 no-print">
-        <div className="flex gap-0 overflow-x-auto">
+        <div className="flex flex-wrap gap-0">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
