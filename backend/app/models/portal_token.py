@@ -1,6 +1,7 @@
-"""PortalToken model — token-based magic link access for clients."""
+"""PortalToken model — token-based magic link access for clients and lenders."""
 
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,6 +17,9 @@ class PortalToken(Base):
     transaction_id: Mapped[int] = mapped_column(
         ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    token_type: Mapped[str] = mapped_column(String(20), nullable=False, default="client")  # "client" or "lender"
+    lender_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    lender_email: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

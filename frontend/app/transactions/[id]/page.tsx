@@ -16,6 +16,16 @@ import {
   getFirptaAnalysis,
   createPortalToken,
   updateParty,
+  saveNotes,
+  getCompliance,
+  initializeCompliance,
+  toggleComplianceItem,
+  updateEmd,
+  getInspectionItems,
+  createInspectionItem,
+  updateInspectionItem,
+  deleteInspectionItem,
+  createLenderPortalToken,
 } from '@/lib/api';
 import type {
   TransactionDetail,
@@ -23,6 +33,8 @@ import type {
   AlertListResponse,
   EventResponse,
   FirptaAnalysis,
+  ComplianceItem,
+  InspectionItem,
 } from '@/lib/api';
 import { formatDate, formatDateTime, formatCurrency, daysUntil, getDealStatus, PROPERTY_TYPE_LABELS, PARTY_ROLE_LABELS } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +60,7 @@ import {
   StickyNote,
   ChevronRight,
   DollarSign,
+  Plus,
 } from 'lucide-react';
 
 const PHASE_NAMES: Record<string, string> = {
@@ -68,7 +81,7 @@ const PIPELINE_STEPS = [
   { key: 'closed',     label: 'Closed',     phase: '6' },
 ];
 
-const TABS = ['Overview', 'Documents', 'Timeline', 'Activity', 'Alerts', 'Commission', 'Compliance', 'FIRPTA'] as const;
+const TABS = ['Overview', 'Documents', 'Timeline', 'Activity', 'Alerts', 'Commission', 'Compliance', 'FIRPTA', 'EMD', 'Inspection'] as const;
 type Tab = typeof TABS[number];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -170,37 +183,60 @@ function TransactionProgressBar({ docs }: { docs: DocumentListResponse | undefin
 
 // ── Quick Notes Widget ────────────────────────────────────────────────────────
 
-function QuickNotes({ txId }: { txId: number }) {
+function QuickNotes({ txId, txData }: { txId: number; txData: TransactionDetail | undefined }) {
   const STORAGE_KEY = `lex_notes_tx_${txId}`;
   const [notes, setNotes] = useState('');
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [isOpen, setIsOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initializedRef = useRef(false);
 
+  // Initialize from txData (backend) or fall back to localStorage
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    if (initializedRef.current) return;
+    const backendNotes = (txData as Record<string, unknown>)?.notes as string | undefined;
+    if (backendNotes !== undefined && backendNotes !== null) {
+      setNotes(backendNotes);
+      initializedRef.current = true;
+    } else {
+      // Fallback to localStorage
       try {
-        const parsed = JSON.parse(saved);
-        setNotes(parsed.content ?? '');
-        setLastSaved(parsed.savedAt ?? null);
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setNotes(parsed.content ?? '');
+          setLastSaved(parsed.savedAt ?? null);
+        }
       } catch {
-        setNotes(saved);
+        // ignore
       }
+      if (txData) initializedRef.current = true;
     }
-  }, [STORAGE_KEY]);
+  }, [txData, STORAGE_KEY]);
 
-  const saveNotes = useCallback((content: string) => {
+  const persistNotes = useCallback(async (content: string) => {
+    // Save to localStorage as offline cache
     const payload = { content, savedAt: new Date().toISOString() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    setLastSaved(payload.savedAt);
-    // TODO: POST /transactions/{txId}/notes when backend ready
-  }, [STORAGE_KEY]);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch { /* ignore */ }
+
+    // Save to backend
+    setSaveStatus('saving');
+    try {
+      await saveNotes(txId, content);
+      setLastSaved(payload.savedAt);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  }, [STORAGE_KEY, txId]);
 
   function handleChange(value: string) {
     setNotes(value);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => saveNotes(value), 800);
+    timerRef.current = setTimeout(() => persistNotes(value), 1000);
   }
 
   return (
@@ -225,7 +261,10 @@ function QuickNotes({ txId }: { txId: number }) {
               className="w-full text-xs bg-yellow-50 border-0 resize-none focus:outline-none text-slate-800 placeholder-yellow-600/60"
             />
             <div className="text-xs text-yellow-700 mt-0.5">
-              {lastSaved ? `Saved ${formatDateTime(lastSaved)}` : 'Not saved yet'}
+              {saveStatus === 'saving' && 'Saving...'}
+              {saveStatus === 'saved' && 'Saved'}
+              {saveStatus === 'error' && 'Save failed — will retry'}
+              {saveStatus === 'idle' && (lastSaved ? `Saved ${formatDateTime(lastSaved)}` : 'Not saved yet')}
             </div>
           </div>
         </div>
@@ -250,6 +289,11 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
   const [portalLink, setPortalLink] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+  const [lenderPortalLink, setLenderPortalLink] = useState<string | null>(null);
+  const [generatingLenderLink, setGeneratingLenderLink] = useState(false);
+  const [lenderPortalError, setLenderPortalError] = useState<string | null>(null);
+  const [lenderName, setLenderName] = useState('');
+  const [lenderEmail, setLenderEmail] = useState('');
 
   function getPartyField<K extends 'preferred_language' | 'is_foreign_national'>(
     party: TransactionDetail['parties'][0],
@@ -286,6 +330,20 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
       setPortalError(err instanceof Error ? err.message : 'Failed to generate link. Please try again.');
     } finally {
       setGeneratingLink(false);
+    }
+  }
+
+  async function handleGenerateLenderPortalLink() {
+    setGeneratingLenderLink(true);
+    setLenderPortalError(null);
+    try {
+      const result = await createLenderPortalToken(txId, lenderName || 'Loan Officer', lenderEmail || undefined);
+      const baseUrl = window.location.origin;
+      setLenderPortalLink(`${baseUrl}/portal/lender/${result.token}`);
+    } catch (err) {
+      setLenderPortalError(err instanceof Error ? err.message : 'Failed to generate lender link. Please try again.');
+    } finally {
+      setGeneratingLenderLink(false);
     }
   }
 
@@ -439,6 +497,67 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
             />
             <button
               onClick={() => { navigator.clipboard.writeText(portalLink); }}
+              className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Lender Portal Link */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm no-print">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-slate-900">Lender Portal</h3>
+        </div>
+        <p className="text-xs text-slate-500 mb-3">
+          Share a link with the loan officer so they can view transaction details and required documents. Links expire after 30 days.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Lender / LO Name</label>
+            <input
+              type="text"
+              value={lenderName}
+              onChange={(e) => setLenderName(e.target.value)}
+              placeholder="Loan Officer Name"
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Lender Email (optional)</label>
+            <input
+              type="email"
+              value={lenderEmail}
+              onChange={(e) => setLenderEmail(e.target.value)}
+              placeholder="lo@lender.com"
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+        </div>
+        <button
+          onClick={handleGenerateLenderPortalLink}
+          disabled={generatingLenderLink}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50 mb-3"
+        >
+          <Link2 className="h-3.5 w-3.5" />
+          {generatingLenderLink ? 'Generating...' : 'Generate Lender Portal Link'}
+        </button>
+        {lenderPortalError && (
+          <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">
+            {lenderPortalError}
+          </div>
+        )}
+        {lenderPortalLink && (
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={lenderPortalLink}
+              className="flex-1 text-xs font-mono border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 text-slate-700"
+              onFocus={(e) => e.target.select()}
+            />
+            <button
+              onClick={() => { navigator.clipboard.writeText(lenderPortalLink); }}
               className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
             >
               Copy
@@ -1059,112 +1178,78 @@ function AlertsTab({ txId }: { txId: number }) {
 
 // ── Compliance Tab ──────────────────────────────────────────────────────────
 
-type ComplianceSection = {
-  title: string;
-  items: string[];
-};
-
-const COMPLIANCE_SECTIONS: ComplianceSection[] = [
-  {
-    title: 'Contract',
-    items: [
-      'Executed contract uploaded',
-      'All addenda collected',
-      'Commission agreement signed',
-      'MLS listing updated',
-    ],
-  },
-  {
-    title: 'Inspection',
-    items: [
-      'Inspection report received',
-      'Inspection response deadline noted',
-      'Repairs agreed upon documented',
-    ],
-  },
-  {
-    title: 'Financing',
-    items: [
-      'Pre-approval letter on file',
-      'Loan commitment received',
-      'Appraisal ordered',
-      'Appraisal received',
-    ],
-  },
-  {
-    title: 'Title',
-    items: [
-      'Title search ordered',
-      'Title commitment reviewed',
-      'Title insurance confirmed',
-      'Lien search completed',
-    ],
-  },
-  {
-    title: 'Closing',
-    items: [
-      'Closing disclosure reviewed',
-      'Final walkthrough scheduled',
-      'Wire instructions verified',
-      'Closing confirmed with all parties',
-    ],
-  },
-];
-
-const ALL_COMPLIANCE_ITEMS = COMPLIANCE_SECTIONS.flatMap((s) => s.items);
-
-type ComplianceState = Record<string, boolean>;
-
 function ComplianceTab({ txId }: { txId: number }) {
-  const storageKey = `lex_compliance_${txId}`;
-  const [checked, setChecked] = useState<ComplianceState>({});
-  const [brokerReviewDate, setBrokerReviewDate] = useState<string | null>(null);
+  const { data: items, error, isLoading, mutate } = useSWR<ComplianceItem[]>(
+    `/transactions/${txId}/compliance`,
+    () => getCompliance(txId),
+    { revalidateOnFocus: false }
+  );
+  const [initializing, setInitializing] = useState(false);
+  const [toggling, setToggling] = useState<number | null>(null);
 
-  useEffect(() => {
+  async function handleInitialize() {
+    setInitializing(true);
     try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setChecked(parsed.checked ?? {});
-        setBrokerReviewDate(parsed.brokerReviewDate ?? null);
-      }
+      await initializeCompliance(txId);
+      await mutate();
     } catch {
       // ignore
+    } finally {
+      setInitializing(false);
     }
-  }, [storageKey]);
-
-  function persist(newChecked: ComplianceState, reviewDate: string | null) {
-    setChecked(newChecked);
-    setBrokerReviewDate(reviewDate);
-    localStorage.setItem(storageKey, JSON.stringify({ checked: newChecked, brokerReviewDate: reviewDate }));
   }
 
-  function handleToggle(item: string) {
-    const updated = { ...checked, [item]: !checked[item] };
-    persist(updated, brokerReviewDate);
+  async function handleToggle(item: ComplianceItem) {
+    setToggling(item.id);
+    try {
+      await toggleComplianceItem(txId, item.id, !item.checked);
+      await mutate();
+    } catch {
+      // ignore
+    } finally {
+      setToggling(null);
+    }
   }
 
-  function handleBrokerReview() {
-    const date = new Date().toISOString();
-    persist(checked, date);
+  if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
+
+  // If no items exist yet (empty array or error), show initialize button + fallback
+  const hasItems = items && items.length > 0;
+
+  if (!hasItems) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
+          <Shield className="h-8 w-8 text-amber-600 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-amber-800 mb-2">Compliance Checklist Not Initialized</h3>
+          <p className="text-sm text-amber-700 mb-4">Click below to create the compliance checklist for this transaction.</p>
+          <button
+            onClick={handleInitialize}
+            disabled={initializing}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            <Shield className="h-4 w-4" />
+            {initializing ? 'Initializing...' : 'Initialize Compliance Checklist'}
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  const completedCount = ALL_COMPLIANCE_ITEMS.filter((item) => checked[item]).length;
-  const totalCount = ALL_COMPLIANCE_ITEMS.length;
+  // Group items by section
+  const sections = new Map<string, ComplianceItem[]>();
+  for (const item of items) {
+    const section = item.section || 'General';
+    if (!sections.has(section)) sections.set(section, []);
+    sections.get(section)!.push(item);
+  }
+
+  const completedCount = items.filter((item) => item.checked).length;
+  const totalCount = items.length;
   const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
     <div className="space-y-6">
-      {/* Broker Review Banner */}
-      {brokerReviewDate && (
-        <div className="rounded-xl border border-green-300 bg-green-50 p-4 flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-          <div className="text-sm font-medium text-green-800">
-            Broker review complete &mdash; {formatDate(brokerReviewDate)}
-          </div>
-        </div>
-      )}
-
       {/* Score Card */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
         <div className="flex items-center justify-between mb-3">
@@ -1184,30 +1269,31 @@ function ComplianceTab({ txId }: { txId: number }) {
       </div>
 
       {/* Sections */}
-      {COMPLIANCE_SECTIONS.map((section) => {
-        const sectionComplete = section.items.filter((item) => checked[item]).length;
+      {Array.from(sections.entries()).map(([sectionTitle, sectionItems]) => {
+        const sectionComplete = sectionItems.filter((item) => item.checked).length;
         return (
-          <div key={section.title} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div key={sectionTitle} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-700">{section.title}</span>
+              <span className="text-sm font-semibold text-slate-700">{sectionTitle}</span>
               <span className="text-xs text-slate-400">
-                {sectionComplete}/{section.items.length}
+                {sectionComplete}/{sectionItems.length}
               </span>
             </div>
             <div className="divide-y divide-slate-100">
-              {section.items.map((item) => (
+              {sectionItems.map((item) => (
                 <label
-                  key={item}
+                  key={item.id}
                   className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 cursor-pointer transition-colors"
                 >
                   <input
                     type="checkbox"
-                    checked={!!checked[item]}
+                    checked={item.checked}
                     onChange={() => handleToggle(item)}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    disabled={toggling === item.id}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                   />
-                  <span className={`text-sm ${checked[item] ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                    {item}
+                  <span className={`text-sm ${item.checked ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                    {item.item_text}
                   </span>
                 </label>
               ))}
@@ -1215,17 +1301,425 @@ function ComplianceTab({ txId }: { txId: number }) {
           </div>
         );
       })}
+    </div>
+  );
+}
 
-      {/* Broker Review Button */}
-      <div className="flex justify-end">
+// ── EMD Tab ─────────────────────────────────────────────────────────────────
+
+function EmdTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
+  const txAny = tx as Record<string, unknown>;
+  const [emdAmount, setEmdAmount] = useState<string>(txAny.emd_amount != null ? String(txAny.emd_amount) : '');
+  const [emdHolder, setEmdHolder] = useState<string>((txAny.emd_holder as string) ?? '');
+  const [emdDueDate, setEmdDueDate] = useState<string>((txAny.emd_due_date as string) ?? '');
+  const [emdReceived, setEmdReceived] = useState<boolean>((txAny.emd_received as boolean) ?? false);
+  const [emdNotes, setEmdNotes] = useState<string>((txAny.emd_notes as string) ?? '');
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+
+  async function handleSave() {
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      await updateEmd(txId, {
+        emd_amount: emdAmount ? parseFloat(emdAmount) : null,
+        emd_holder: emdHolder || null,
+        emd_due_date: emdDueDate || null,
+        emd_received: emdReceived,
+        emd_notes: emdNotes || null,
+      });
+      setSaveMsg('Saved');
+      setTimeout(() => setSaveMsg(''), 2000);
+    } catch {
+      setSaveMsg('Save failed');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-5">
+          <DollarSign className="h-5 w-5 text-blue-600" />
+          <h3 className="text-base font-semibold text-slate-900">Earnest Money Deposit</h3>
+          <span className="text-xs text-slate-500">for {tx.address}</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">EMD Amount</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+              <input
+                type="number"
+                step="100"
+                min="0"
+                value={emdAmount}
+                onChange={(e) => setEmdAmount(e.target.value)}
+                placeholder="0"
+                className="w-full pl-7 pr-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">Who Holds It</label>
+            <input
+              type="text"
+              value={emdHolder}
+              onChange={(e) => setEmdHolder(e.target.value)}
+              placeholder="Title Company, Broker, etc."
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1.5">Due Date</label>
+            <input
+              type="date"
+              value={emdDueDate}
+              onChange={(e) => setEmdDueDate(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-end pb-1">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={emdReceived}
+                onChange={(e) => setEmdReceived(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-700 font-medium">Received</span>
+              {emdReceived && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+            </label>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-xs font-medium text-slate-700 mb-1.5">Notes</label>
+          <textarea
+            value={emdNotes}
+            onChange={(e) => setEmdNotes(e.target.value)}
+            rows={3}
+            placeholder="Any notes about the earnest money deposit..."
+            className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-3">
+          {saveMsg && (
+            <span className={`text-xs font-medium ${saveMsg === 'Saved' ? 'text-green-600' : 'text-red-600'}`}>
+              {saveMsg}
+            </span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save EMD Details'}
+          </button>
+        </div>
+      </div>
+
+      {/* Summary card */}
+      {emdAmount && parseFloat(emdAmount) > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
+            <span className="text-sm font-semibold text-slate-700">EMD Summary</span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-sm text-slate-600">Amount</span>
+              <span className="text-sm font-semibold text-slate-900">{formatCurrency(parseFloat(emdAmount))}</span>
+            </div>
+            {emdHolder && (
+              <div className="flex items-center justify-between px-5 py-3">
+                <span className="text-sm text-slate-600">Held by</span>
+                <span className="text-sm font-semibold text-slate-900">{emdHolder}</span>
+              </div>
+            )}
+            {emdDueDate && (
+              <div className="flex items-center justify-between px-5 py-3">
+                <span className="text-sm text-slate-600">Due Date</span>
+                <span className="text-sm font-semibold text-slate-900">{formatDate(emdDueDate)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-sm text-slate-600">Status</span>
+              <Badge variant={emdReceived ? 'success' : 'warning'}>
+                {emdReceived ? 'Received' : 'Pending'}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Inspection Tab ──────────────────────────────────────────────────────────
+
+const SEVERITY_BADGES: Record<string, { bg: string; text: string }> = {
+  minor: { bg: 'bg-yellow-100 border-yellow-200', text: 'text-yellow-800' },
+  major: { bg: 'bg-orange-100 border-orange-200', text: 'text-orange-800' },
+  safety: { bg: 'bg-red-100 border-red-200', text: 'text-red-800' },
+};
+
+const STATUS_BADGES: Record<string, { bg: string; text: string }> = {
+  open: { bg: 'bg-blue-100 border-blue-200', text: 'text-blue-800' },
+  negotiating: { bg: 'bg-yellow-100 border-yellow-200', text: 'text-yellow-800' },
+  repaired: { bg: 'bg-green-100 border-green-200', text: 'text-green-800' },
+  waived: { bg: 'bg-slate-100 border-slate-200', text: 'text-slate-600' },
+  credited: { bg: 'bg-purple-100 border-purple-200', text: 'text-purple-800' },
+};
+
+function InspectionTab({ txId }: { txId: number }) {
+  const { data: items, error, isLoading, mutate } = useSWR<InspectionItem[]>(
+    `/transactions/${txId}/inspection`,
+    () => getInspectionItems(txId),
+    { revalidateOnFocus: false }
+  );
+  const [showForm, setShowForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<InspectionItem | null>(null);
+  const [form, setForm] = useState({
+    description: '',
+    severity: 'minor' as string,
+    status: 'open' as string,
+    repair_cost: '',
+    notes: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  function resetForm() {
+    setForm({ description: '', severity: 'minor', status: 'open', repair_cost: '', notes: '' });
+    setEditingItem(null);
+    setShowForm(false);
+  }
+
+  function handleEdit(item: InspectionItem) {
+    setForm({
+      description: item.description,
+      severity: item.severity,
+      status: item.status,
+      repair_cost: item.repair_cost != null ? String(item.repair_cost) : '',
+      notes: item.notes ?? '',
+    });
+    setEditingItem(item);
+    setShowForm(true);
+  }
+
+  async function handleSave() {
+    if (!form.description.trim()) return;
+    setSaving(true);
+    try {
+      const payload = {
+        description: form.description,
+        severity: form.severity,
+        status: form.status,
+        repair_cost: form.repair_cost ? parseFloat(form.repair_cost) : null,
+        notes: form.notes || null,
+      };
+      if (editingItem) {
+        await updateInspectionItem(txId, editingItem.id, payload);
+      } else {
+        await createInspectionItem(txId, payload);
+      }
+      await mutate();
+      resetForm();
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(itemId: number) {
+    setDeletingId(itemId);
+    try {
+      await deleteInspectionItem(txId, itemId);
+      await mutate();
+    } catch {
+      // ignore
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
+
+  const totalCost = (items ?? []).reduce((sum, i) => sum + (i.repair_cost ?? 0), 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Header + Add button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-blue-600" />
+          <h3 className="text-base font-semibold text-slate-900">Inspection Findings</h3>
+          {items && items.length > 0 && (
+            <span className="text-xs text-slate-500">{items.length} item{items.length !== 1 ? 's' : ''} &mdash; Total est. cost: {formatCurrency(totalCost)}</span>
+          )}
+        </div>
         <button
-          onClick={handleBrokerReview}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          onClick={() => { resetForm(); setShowForm(!showForm); }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
         >
-          <Shield className="h-4 w-4" />
-          {brokerReviewDate ? 'Update Broker Review' : 'Mark as Broker Reviewed'}
+          <Plus className="h-3.5 w-3.5" />
+          Add Item
         </button>
       </div>
+
+      {/* Inline form */}
+      {showForm && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+          <h4 className="text-sm font-semibold text-slate-900 mb-3">
+            {editingItem ? 'Edit Inspection Item' : 'New Inspection Item'}
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-slate-700 mb-1">Description</label>
+              <input
+                type="text"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="e.g. HVAC system needs repair"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Severity</label>
+              <select
+                value={form.severity}
+                onChange={(e) => setForm({ ...form, severity: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="minor">Minor</option>
+                <option value="major">Major</option>
+                <option value="safety">Safety</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="open">Open</option>
+                <option value="negotiating">Negotiating</option>
+                <option value="repaired">Repaired</option>
+                <option value="waived">Waived</option>
+                <option value="credited">Credited</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Estimated Repair Cost</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                <input
+                  type="number"
+                  step="50"
+                  min="0"
+                  value={form.repair_cost}
+                  onChange={(e) => setForm({ ...form, repair_cost: e.target.value })}
+                  placeholder="0"
+                  className="w-full pl-7 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Notes</label>
+              <input
+                type="text"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Additional notes..."
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving || !form.description.trim()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {saving ? 'Saving...' : editingItem ? 'Update Item' : 'Add Item'}
+            </button>
+            <button
+              onClick={resetForm}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Items list */}
+      {(!items || items.length === 0) && !showForm ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
+          <AlertCircle className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+          <p className="text-sm text-slate-500">No inspection findings yet</p>
+          <p className="text-xs text-slate-400 mt-0.5">Add items to track inspection findings and repairs</p>
+        </div>
+      ) : items && items.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          {/* Table header */}
+          <div className="hidden md:grid md:grid-cols-12 gap-3 px-5 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wide">
+            <div className="col-span-4">Description</div>
+            <div className="col-span-2">Severity</div>
+            <div className="col-span-2">Status</div>
+            <div className="col-span-2">Cost</div>
+            <div className="col-span-2">Actions</div>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {items.map((item) => {
+              const sev = SEVERITY_BADGES[item.severity] ?? SEVERITY_BADGES.minor;
+              const sta = STATUS_BADGES[item.status] ?? STATUS_BADGES.open;
+              return (
+                <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 px-5 py-3 items-center hover:bg-slate-50 transition-colors">
+                  <div className="col-span-4">
+                    <div className="text-sm text-slate-900">{item.description}</div>
+                    {item.notes && <div className="text-xs text-slate-500 mt-0.5">{item.notes}</div>}
+                  </div>
+                  <div className="col-span-2">
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${sev.bg} ${sev.text}`}>
+                      {item.severity}
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${sta.bg} ${sta.text}`}>
+                      {item.status}
+                    </span>
+                  </div>
+                  <div className="col-span-2 text-sm text-slate-900">
+                    {item.repair_cost != null ? formatCurrency(item.repair_cost) : '--'}
+                  </div>
+                  <div className="col-span-2 flex gap-2">
+                    <button
+                      onClick={() => handleEdit(item)}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      disabled={deletingId === item.id}
+                      className="text-xs text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1420,9 +1914,11 @@ export default function TransactionDetailPage({
       {activeTab === 'Commission' && <CommissionTab tx={tx} />}
       {activeTab === 'Compliance' && <ComplianceTab txId={txId} />}
       {activeTab === 'FIRPTA' && <FirptaTab tx={tx} txId={txId} />}
+      {activeTab === 'EMD' && <EmdTab tx={tx} txId={txId} />}
+      {activeTab === 'Inspection' && <InspectionTab txId={txId} />}
 
       {/* Quick Notes Floating Widget */}
-      <QuickNotes txId={txId} />
+      <QuickNotes txId={txId} txData={tx} />
     </div>
   );
 }

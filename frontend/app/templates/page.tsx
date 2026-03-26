@@ -1,10 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { Mail, Plus, Edit3, Trash2, Eye, Copy, Save, X, ChevronRight } from 'lucide-react';
+import {
+  getTemplates,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate as apiDeleteTemplate,
+} from '@/lib/api';
+import type { EmailTemplate as ApiTemplate } from '@/lib/api';
 
-interface EmailTemplate {
-  id: string;
+// Local template shape for the editor (maps from API shape)
+interface TemplateView {
+  id: number;
   name: string;
   subject: string;
   body: string;
@@ -13,9 +22,21 @@ interface EmailTemplate {
   updatedAt: string;
 }
 
-const DEFAULT_TEMPLATES: EmailTemplate[] = [
+function toView(t: ApiTemplate): TemplateView {
+  return {
+    id: t.id,
+    name: t.name,
+    subject: t.subject,
+    body: t.body,
+    category: t.category,
+    createdAt: t.created_at,
+    updatedAt: t.updated_at,
+  };
+}
+
+const DEFAULT_TEMPLATES: TemplateView[] = [
   {
-    id: 'intro-buyer',
+    id: -1,
     name: 'Introduction to Buyer',
     subject: 'Welcome — Your Real Estate Transaction Is Underway',
     category: 'Onboarding',
@@ -42,168 +63,7 @@ Warm regards,
 {{agent_phone}}
 {{agent_email}}`,
   },
-  {
-    id: 'inspection-scheduled',
-    name: 'Inspection Scheduled',
-    subject: 'Home Inspection Confirmed — {{property_address}}',
-    category: 'Milestones',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    body: `Dear {{buyer_name}},
-
-Great news! Your home inspection has been scheduled.
-
-**Inspection Details:**
-- Date: {{inspection_date}}
-- Time: {{inspection_time}}
-- Address: {{property_address}}
-- Inspector: {{inspector_name}}
-- Inspector Phone: {{inspector_phone}}
-
-I recommend being present during the inspection so you can ask questions directly. Please plan for approximately 2-4 hours.
-
-After the inspection, we will receive a detailed report within 24-48 hours. We will then review it together and determine if any repair requests are needed.
-
-See you there!
-
-{{agent_name}}
-{{agent_phone}}`,
-  },
-  {
-    id: 'clear-to-close',
-    name: 'Clear to Close',
-    subject: 'GREAT NEWS: You\'re Clear to Close! — {{property_address}}',
-    category: 'Milestones',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    body: `Dear {{buyer_name}},
-
-CONGRATULATIONS! Your lender has issued a "Clear to Close" (CTC)!
-
-This means your financing is fully approved and we are ready to move forward to closing.
-
-**Your Closing Details:**
-- Closing Date: {{closing_date}}
-- Closing Time: {{closing_time}}
-- Title Company: {{title_company}}
-- Address: {{title_address}}
-
-**What to bring to closing:**
-- Government-issued photo ID (two forms recommended)
-- Certified or cashier's check for {{closing_costs}} (or wire transfer already completed)
-- Any documents requested by title
-
-Please wire your closing funds no later than {{wire_deadline}}. I will send wire instructions separately — always verify wire instructions by phone before sending any funds.
-
-We're almost there!
-
-{{agent_name}}
-{{agent_phone}}`,
-  },
-  {
-    id: 'closing-day',
-    name: 'Closing Day Reminder',
-    subject: 'Today\'s the Day! Closing Reminder — {{property_address}}',
-    category: 'Milestones',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    body: `Dear {{buyer_name}},
-
-Today is the big day! Here's a quick reminder of everything you need for this morning's closing.
-
-**Today's Closing:**
-- Time: {{closing_time}}
-- Location: {{title_address}}
-
-**Checklist:**
-☑ Government-issued photo ID
-☑ Cashier's check or wire confirmation
-☑ Any pending documents
-
-**After closing:** Keys will be handed over and you'll officially be a homeowner!
-
-If you have any last-minute questions, call me directly at {{agent_phone}}.
-
-So excited for you — see you soon!
-
-{{agent_name}}`,
-  },
-  {
-    id: 'document-reminder',
-    name: 'Document Request Reminder',
-    subject: 'Action Required: Pending Documents — {{property_address}}',
-    category: 'Follow-Up',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    body: `Dear {{party_name}},
-
-I hope this message finds you well. I'm writing with a friendly reminder that we are still awaiting the following documents for your transaction at {{property_address}}:
-
-- {{pending_document_1}}
-- {{pending_document_2}}
-
-These documents are due by {{due_date}}. Timely submission is important to keep your transaction on track and avoid any delays to your closing date of {{closing_date}}.
-
-Please send documents to: {{submission_email}}
-Or upload directly at: {{portal_link}}
-
-If you have any questions or difficulty obtaining these documents, please don't hesitate to contact me.
-
-Thank you,
-{{agent_name}}
-{{agent_phone}}`,
-  },
-  {
-    id: 'contract-executed',
-    name: 'Contract Executed Confirmation',
-    subject: 'Contract Executed — {{property_address}} is Under Contract!',
-    category: 'Onboarding',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    body: `Dear {{buyer_name}},
-
-Excellent news — your contract for {{property_address}} has been fully executed!
-
-**Transaction Summary:**
-- Property: {{property_address}}
-- Purchase Price: {{purchase_price}}
-- Contract Execution Date: {{contract_date}}
-- Target Closing Date: {{closing_date}}
-
-**Immediate Next Steps (Time-Sensitive):**
-1. Earnest Money Deposit due by {{emd_deadline}} — Amount: {{emd_amount}}
-2. Schedule home inspection before {{inspection_deadline}}
-3. Submit loan application to your lender immediately
-
-I will be in touch regularly with updates. You can also view your transaction status anytime at your portal: {{portal_link}}
-
-Welcome to the journey!
-
-{{agent_name}}
-{{brokerage_name}}
-{{agent_phone}}`,
-  },
 ];
-
-const STORAGE_KEY = 'lex_email_templates';
-
-function loadTemplates(): EmailTemplate[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_TEMPLATES;
-    return JSON.parse(raw) as EmailTemplate[];
-  } catch {
-    return DEFAULT_TEMPLATES;
-  }
-}
-
-function saveTemplates(templates: EmailTemplate[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
-  } catch {
-    // ignore
-  }
-}
 
 // Highlight template variables like {{variable_name}}
 function renderPreview(body: string): React.ReactNode {
@@ -222,18 +82,23 @@ function renderPreview(body: string): React.ReactNode {
 const CATEGORIES = ['All', 'Onboarding', 'Milestones', 'Follow-Up'];
 
 export default function TemplatesPage() {
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<EmailTemplate | null>(null);
+  const { data: apiTemplates, error, isLoading, mutate } = useSWR('/templates', getTemplates, {
+    revalidateOnFocus: false,
+  });
+
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [editing, setEditing] = useState<TemplateView | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [preview, setPreview] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState<number | null>(null);
   const [saveMsg, setSaveMsg] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setTemplates(loadTemplates());
-  }, []);
+  // Use API templates, or default templates as fallback if API fails or returns empty
+  const templates: TemplateView[] = apiTemplates && apiTemplates.length > 0
+    ? apiTemplates.map(toView)
+    : error ? DEFAULT_TEMPLATES : [];
 
   const filtered = categoryFilter === 'All'
     ? templates
@@ -241,21 +106,21 @@ export default function TemplatesPage() {
 
   const selected = templates.find((t) => t.id === selectedId) ?? null;
 
-  function handleSelect(id: string) {
+  function handleSelect(id: number) {
     setSelectedId(id);
     setEditing(null);
     setIsNew(false);
     setPreview(false);
   }
 
-  function handleEdit(template: EmailTemplate) {
+  function handleEdit(template: TemplateView) {
     setEditing({ ...template });
     setPreview(false);
   }
 
   function handleNew() {
-    const newT: EmailTemplate = {
-      id: `template-${Date.now()}`,
+    const newT: TemplateView = {
+      id: 0,
       name: 'New Template',
       subject: '',
       body: '',
@@ -268,39 +133,68 @@ export default function TemplatesPage() {
     setSelectedId(null);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!editing) return;
-    const updated = { ...editing, updatedAt: new Date().toISOString() };
-    let next: EmailTemplate[];
-    if (isNew) {
-      next = [...templates, updated];
-    } else {
-      next = templates.map((t) => (t.id === updated.id ? updated : t));
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      if (isNew) {
+        const created = await createTemplate({
+          name: editing.name,
+          subject: editing.subject,
+          body: editing.body,
+          category: editing.category,
+        });
+        await mutate();
+        setSelectedId(created.id);
+      } else {
+        await updateTemplate(editing.id, {
+          name: editing.name,
+          subject: editing.subject,
+          body: editing.body,
+          category: editing.category,
+        });
+        await mutate();
+        setSelectedId(editing.id);
+      }
+      setEditing(null);
+      setIsNew(false);
+      setSaveMsg('Saved!');
+      setTimeout(() => setSaveMsg(''), 2000);
+    } catch (err) {
+      setSaveMsg('Save failed');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } finally {
+      setSaving(false);
     }
-    setTemplates(next);
-    saveTemplates(next);
-    setSelectedId(updated.id);
-    setEditing(null);
-    setIsNew(false);
-    setSaveMsg('Saved!');
-    setTimeout(() => setSaveMsg(''), 2000);
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: number) {
     if (!confirm('Delete this template?')) return;
-    const next = templates.filter((t) => t.id !== id);
-    setTemplates(next);
-    saveTemplates(next);
-    if (selectedId === id) {
-      setSelectedId(next[0]?.id ?? null);
+    try {
+      await apiDeleteTemplate(id);
+      await mutate();
+      if (selectedId === id) {
+        setSelectedId(null);
+      }
+    } catch {
+      // ignore
     }
   }
 
-  function handleCopy(text: string, label: string) {
+  function handleCopy(text: string, id: number) {
     navigator.clipboard.writeText(text).then(() => {
-      setCopied(label);
+      setCopied(id);
       setTimeout(() => setCopied(null), 2000);
     });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[calc(100vh-0px)] items-center justify-center">
+        <div className="text-slate-500 text-sm">Loading templates...</div>
+      </div>
+    );
   }
 
   return (
@@ -378,7 +272,7 @@ export default function TemplatesPage() {
                 {isNew ? 'New Template' : `Edit: ${editing.name}`}
               </h2>
               <div className="flex items-center gap-2">
-                {saveMsg && <span className="text-xs text-green-600 font-medium">{saveMsg}</span>}
+                {saveMsg && <span className={`text-xs font-medium ${saveMsg === 'Saved!' ? 'text-green-600' : 'text-red-600'}`}>{saveMsg}</span>}
                 <button
                   onClick={() => { setEditing(null); setIsNew(false); }}
                   className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -388,10 +282,11 @@ export default function TemplatesPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                  disabled={saving}
+                  className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Save className="h-3.5 w-3.5" />
-                  Save Template
+                  {saving ? 'Saving...' : 'Save Template'}
                 </button>
               </div>
             </div>

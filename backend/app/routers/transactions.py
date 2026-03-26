@@ -47,6 +47,14 @@ class CommissionUpdateRequest(BaseModel):
     disbursed_at: datetime | None = None
     notes: str | None = None
 
+
+class EmdUpdateRequest(BaseModel):
+    emd_amount: float | None = None
+    emd_holder: str | None = None
+    emd_due_date: date | None = None
+    emd_received: bool | None = None
+    emd_notes: str | None = None
+
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
@@ -330,6 +338,45 @@ async def update_commission(
     }
 
 
+@router.patch("/{transaction_id}/emd")
+async def update_emd(
+    transaction_id: int,
+    body: EmdUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Update earnest money deposit fields on a transaction.
+
+    Only fields included in the request body are modified.
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    txn = await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    if body.emd_amount is not None:
+        txn.emd_amount = body.emd_amount
+    if body.emd_holder is not None:
+        txn.emd_holder = body.emd_holder
+    if body.emd_due_date is not None:
+        txn.emd_due_date = body.emd_due_date
+    if body.emd_received is not None:
+        txn.emd_received = body.emd_received
+    if body.emd_notes is not None:
+        txn.emd_notes = body.emd_notes
+
+    db.add(txn)
+    await db.flush()
+    await db.refresh(txn)
+
+    return {
+        "id": txn.id,
+        "emd_amount": float(txn.emd_amount) if txn.emd_amount else None,
+        "emd_holder": txn.emd_holder,
+        "emd_due_date": txn.emd_due_date.isoformat() if txn.emd_due_date else None,
+        "emd_received": txn.emd_received,
+        "emd_notes": txn.emd_notes,
+    }
+
+
 @router.get("/{transaction_id}", response_model=TransactionDetail)
 async def get_transaction(
     transaction_id: int,
@@ -382,6 +429,18 @@ async def update_transaction(
         txn.purchase_price = float(body.purchase_price)
     if body.contract_execution_date is not None:
         txn.contract_execution_date = body.contract_execution_date
+    if body.notes is not None:
+        txn.notes = body.notes
+    if body.emd_amount is not None:
+        txn.emd_amount = float(body.emd_amount)
+    if body.emd_holder is not None:
+        txn.emd_holder = body.emd_holder
+    if body.emd_due_date is not None:
+        txn.emd_due_date = body.emd_due_date
+    if body.emd_received is not None:
+        txn.emd_received = body.emd_received
+    if body.emd_notes is not None:
+        txn.emd_notes = body.emd_notes
 
     db.add(txn)
     await db.flush()

@@ -116,6 +116,11 @@ class TransactionListItem(BaseModel):
     closing_date: date | None
     contract_execution_date: date | None
     notes: str | None = None
+    emd_amount: Decimal | None = None
+    emd_holder: str | None = None
+    emd_due_date: date | None = None
+    emd_received: bool = False
+    emd_notes: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -143,6 +148,12 @@ class TransactionUpdate(BaseModel):
     closing_date: date | None = None
     purchase_price: Decimal | None = None
     contract_execution_date: date | None = None
+    notes: str | None = None
+    emd_amount: Decimal | None = None
+    emd_holder: str | None = None
+    emd_due_date: date | None = None
+    emd_received: bool | None = None
+    emd_notes: str | None = None
 
     @field_validator("purchase_price")
     @classmethod

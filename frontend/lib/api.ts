@@ -388,3 +388,195 @@ export async function getAllContacts(): Promise<ContactsResponse> {
   const res = await authFetch('/transactions/contacts/all');
   return res.json();
 }
+
+// ── Exposed authFetch for direct use ─────────────────────────────────────────
+
+export { authFetch };
+
+// ── Templates ────────────────────────────────────────────────────────────────
+
+export type EmailTemplate = {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  category: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getTemplates(): Promise<EmailTemplate[]> {
+  const res = await authFetch('/templates');
+  return res.json();
+}
+
+export async function createTemplate(data: { name: string; subject: string; body: string; category: string }): Promise<EmailTemplate> {
+  const res = await authFetch('/templates', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function updateTemplate(id: number, data: { name?: string; subject?: string; body?: string; category?: string }): Promise<EmailTemplate> {
+  const res = await authFetch(`/templates/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function deleteTemplate(id: number): Promise<void> {
+  await authFetch(`/templates/${id}`, { method: 'DELETE' });
+}
+
+// ── Compliance ───────────────────────────────────────────────────────────────
+
+export type ComplianceItem = {
+  id: number;
+  transaction_id: number;
+  section: string;
+  item_text: string;
+  checked: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getCompliance(txId: number | string): Promise<ComplianceItem[]> {
+  const res = await authFetch(`/transactions/${txId}/compliance`);
+  return res.json();
+}
+
+export async function initializeCompliance(txId: number | string): Promise<ComplianceItem[]> {
+  const res = await authFetch(`/transactions/${txId}/compliance/initialize`, { method: 'POST' });
+  return res.json();
+}
+
+export async function toggleComplianceItem(txId: number | string, itemId: number | string, checked: boolean): Promise<ComplianceItem> {
+  const res = await authFetch(`/transactions/${txId}/compliance/items/${itemId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ checked }),
+  });
+  return res.json();
+}
+
+// ── Tasks ────────────────────────────────────────────────────────────────────
+
+export type TaskItem = {
+  id: number;
+  transaction_id: number;
+  name: string;
+  completed: boolean;
+  due_date: string | null;
+  assigned_role: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getTasks(txId: number | string): Promise<TaskItem[]> {
+  const res = await authFetch(`/transactions/${txId}/tasks`);
+  return res.json();
+}
+
+export async function createTask(txId: number | string, data: { name: string; due_date?: string; assigned_role?: string }): Promise<TaskItem> {
+  const res = await authFetch(`/transactions/${txId}/tasks`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function updateTask(txId: number | string, taskId: number | string, data: Partial<{ name: string; completed: boolean; due_date: string; assigned_role: string }>): Promise<TaskItem> {
+  const res = await authFetch(`/transactions/${txId}/tasks/${taskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function deleteTask(txId: number | string, taskId: number | string): Promise<void> {
+  await authFetch(`/transactions/${txId}/tasks/${taskId}`, { method: 'DELETE' });
+}
+
+// ── EMD ──────────────────────────────────────────────────────────────────────
+
+export type EmdData = {
+  emd_amount: number | null;
+  emd_holder: string | null;
+  emd_due_date: string | null;
+  emd_received: boolean;
+  emd_notes: string | null;
+};
+
+export async function updateEmd(txId: number | string, data: EmdData): Promise<unknown> {
+  const res = await authFetch(`/transactions/${txId}/emd`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+// ── Inspection ───────────────────────────────────────────────────────────────
+
+export type InspectionItem = {
+  id: number;
+  transaction_id: number;
+  description: string;
+  severity: 'minor' | 'major' | 'safety';
+  status: 'open' | 'negotiating' | 'repaired' | 'waived' | 'credited';
+  repair_cost: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getInspectionItems(txId: number | string): Promise<InspectionItem[]> {
+  const res = await authFetch(`/transactions/${txId}/inspection`);
+  return res.json();
+}
+
+export async function createInspectionItem(txId: number | string, data: {
+  description: string;
+  severity: string;
+  status: string;
+  repair_cost?: number | null;
+  notes?: string | null;
+}): Promise<InspectionItem> {
+  const res = await authFetch(`/transactions/${txId}/inspection`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function updateInspectionItem(txId: number | string, itemId: number | string, data: Partial<{
+  description: string;
+  severity: string;
+  status: string;
+  repair_cost: number | null;
+  notes: string | null;
+}>): Promise<InspectionItem> {
+  const res = await authFetch(`/transactions/${txId}/inspection/${itemId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function deleteInspectionItem(txId: number | string, itemId: number | string): Promise<void> {
+  await authFetch(`/transactions/${txId}/inspection/${itemId}`, { method: 'DELETE' });
+}
+
+// ── Lender Portal ────────────────────────────────────────────────────────────
+
+export async function createLenderPortalToken(
+  txId: number | string,
+  lenderName: string = 'Loan Officer',
+  lenderEmail?: string
+): Promise<{ token: string; expires_at: string; transaction_id: number; lender_name: string; lender_email: string | null }> {
+  const res = await authFetch(`/portal/lender-token/${txId}`, {
+    method: 'POST',
+    body: JSON.stringify({ lender_name: lenderName, lender_email: lenderEmail ?? null }),
+  });
+  return res.json();
+}

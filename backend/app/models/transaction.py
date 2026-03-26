@@ -47,6 +47,11 @@ class Transaction(Base):
     commission_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     commission_disbursed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     commission_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    emd_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    emd_holder: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    emd_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    emd_received: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    emd_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -81,4 +86,7 @@ class Transaction(Base):
     )
     compliance_review: Mapped["ComplianceReview | None"] = relationship(  # noqa: F821
         "ComplianceReview", back_populates="transaction", cascade="all, delete-orphan", uselist=False
+    )
+    inspection_items: Mapped[list["InspectionItem"]] = relationship(  # noqa: F821
+        "InspectionItem", back_populates="transaction", cascade="all, delete-orphan", lazy="select"
     )
