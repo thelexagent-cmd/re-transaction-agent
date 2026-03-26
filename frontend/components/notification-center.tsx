@@ -10,6 +10,8 @@ import Link from 'next/link';
 
 interface NotificationCenterProps {
   onClose?: () => void;
+  readIds?: Set<number>;
+  onReadIdsChange?: (ids: Set<number>) => void;
 }
 
 function eventIcon(eventType: string) {
@@ -40,16 +42,16 @@ function saveReadIds(ids: Set<number>) {
   }
 }
 
-export function NotificationCenter({ onClose }: NotificationCenterProps) {
+export function NotificationCenter({ onClose, readIds: externalReadIds, onReadIdsChange }: NotificationCenterProps) {
   const { data, isLoading } = useSWR('/events/recent', () => getRecentEvents(20), {
     refreshInterval: 60000,
   });
 
-  const [readIds, setReadIds] = useState<Set<number>>(new Set());
+  const [internalReadIds, setInternalReadIds] = useState<Set<number>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setReadIds(getReadIds());
+    setInternalReadIds(getReadIds());
   }, []);
 
   useEffect(() => {
@@ -61,6 +63,13 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [onClose]);
+
+  const readIds = externalReadIds ?? internalReadIds;
+
+  function setReadIds(ids: Set<number>) {
+    setInternalReadIds(ids);
+    onReadIdsChange?.(ids);
+  }
 
   const events = data?.events ?? [];
   const unreadCount = events.filter((e) => !readIds.has(e.id)).length;
@@ -167,6 +176,10 @@ export function NotificationBell() {
   const events = data?.events ?? [];
   const unreadCount = events.filter((e) => !readIds.has(e.id)).length;
 
+  function handleReadIdsChange(ids: Set<number>) {
+    setReadIds(new Set(ids));
+  }
+
   return (
     <div className="relative">
       <button
@@ -183,7 +196,11 @@ export function NotificationBell() {
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-2 z-50 w-80">
-          <NotificationCenter onClose={() => setOpen(false)} />
+          <NotificationCenter
+            onClose={() => setOpen(false)}
+            readIds={readIds}
+            onReadIdsChange={handleReadIdsChange}
+          />
         </div>
       )}
     </div>
