@@ -1,5 +1,6 @@
 """Authentication endpoints — register, login, current-user lookup, and first-time setup."""
 
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -17,12 +18,18 @@ from app.models.email_template import EmailTemplate
 from app.models.user import User
 from app.schemas.auth import (
     ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UpdateProfileRequest,
     UserResponse,
 )
+
+# ── In-memory password reset token store ─────────────────────────────────────
+# { token: { "user_id": int, "expires_at": datetime } }
+_reset_tokens: dict[str, dict] = {}
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
@@ -590,6 +597,84 @@ async def change_password(
         )
     current_user.hashed_password = _hash_password(body.new_password)
     await db.commit()
+
+
+@router.post("/forgot-password")
+async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    """Send a password reset email.
+
+    Always returns 200 regardless of whether the email is registered to avoid
+    leaking account existence.
+    """
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    if user is not None:
+        token = secrets.token_urlsafe(32)
+        _reset_tokens[token] = {
+            "user_id": user.id,
+            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=30),
+        }
+        reset_link = f"https://frontend-rose-ten-64.vercel.app/reset-password?token={token}"
+        html_body = (
+            f"<p>Hello {user.full_name},</p>"
+            f"<p>You requested a password reset for your Lex Transaction Agent account.</p>"
+            f"<p><a href=\"{reset_link}\">Click here to reset your password</a></p>"
+            f"<p>This link expires in 30 minutes. If you did not request this, you can safely ignore this email.</p>"
+            f"<p>Lex Transaction Agent</p>"
+        )
+        text_body = (
+            f"Hello {user.full_name},\n\n"
+            f"You requested a password reset for your Lex Transaction Agent account.\n\n"
+            f"Reset your password here:\n{reset_link}\n\n"
+            f"This link expires in 30 minutes. If you did not request this, you can safely ignore this email.\n\n"
+            f"Lex Transaction Agent"
+        )
+        from app.services.email_service import EmailService
+        svc = EmailService()
+        await svc.send(
+            to_email=user.email,
+            to_name=user.full_name,
+            subject="Reset your Lex Transaction Agent password",
+            html_body=html_body,
+            text_body=text_body,
+        )
+
+    return {"message": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    """Reset a user's password using a valid reset token."""
+    token_data = _reset_tokens.get(body.token)
+    if token_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset link",
+        )
+
+    if datetime.now(timezone.utc) > token_data["expires_at"]:
+        del _reset_tokens[body.token]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset link",
+        )
+
+    result = await db.execute(select(User).where(User.id == token_data["user_id"]))
+    user = result.scalar_one_or_none()
+    if user is None:
+        del _reset_tokens[body.token]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset link",
+        )
+
+    user.hashed_password = _hash_password(body.new_password)
+    await db.commit()
+
+    del _reset_tokens[body.token]
+
+    return {"message": "Password reset successfully."}
 
 
 @router.post("/setup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)

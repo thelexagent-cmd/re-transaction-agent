@@ -428,10 +428,12 @@ export default function SettingsPage() {
   const { data: user, isLoading } = useSWR('/auth/me', getMe, { revalidateOnFocus: false });
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen bg-slate-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+      <div className="flex gap-6">
       {/* Settings sidebar nav */}
-      <nav className="w-52 shrink-0 border-r border-slate-200 bg-white pt-8 px-3 settings-sidenav">
-        <p className="px-3 mb-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Settings</p>
+      <nav className="w-52 shrink-0 settings-sidenav">
+        <p className="px-3 mb-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Settings</p>
         <div className="space-y-0.5">
           {sidebarItems.map(({ id, label, icon: Icon }) => (
             <button
@@ -452,7 +454,7 @@ export default function SettingsPage() {
       </nav>
 
       {/* Content */}
-      <div className="flex-1 p-8 max-w-2xl">
+      <div className="flex-1 min-w-0">
         {isLoading ? (
           <div className="space-y-4">
             <div className="h-8 w-48 rounded-lg bg-slate-200 animate-pulse" />
@@ -469,6 +471,8 @@ export default function SettingsPage() {
         ) : (
           <ErrorBanner message="Could not load user profile. Please refresh." />
         )}
+      </div>
+      </div>
       </div>
     </div>
   );
