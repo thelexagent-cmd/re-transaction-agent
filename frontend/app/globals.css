@@ -49,6 +49,21 @@ html.dark select {
 html.dark .hover\:bg-slate-50:hover  { background-color: #1e293b !important; }
 html.dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
 
+/* Settings page sidenav */
+html.dark .settings-sidenav {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+html.dark .settings-sidenav button.text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+html.dark .settings-sidenav button.text-blue-700 {
+  color: #60a5fa !important;
+  background-color: #1e3a5f !important;
+}
+
 /* Print / PDF export styles */
 @media print {
   .no-print {

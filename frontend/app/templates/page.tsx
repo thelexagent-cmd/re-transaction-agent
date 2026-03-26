@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { Mail, Plus, Edit3, Trash2, Eye, Copy, Save, X, ChevronRight } from 'lucide-react';
+import { Mail, Plus, Edit3, Trash2, Eye, Copy, Save, X, ChevronRight, Zap } from 'lucide-react';
 import {
   getTemplates,
   createTemplate,
@@ -18,6 +18,7 @@ interface TemplateView {
   subject: string;
   body: string;
   category: string;
+  trigger: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,39 +30,556 @@ function toView(t: ApiTemplate): TemplateView {
     subject: t.subject,
     body: t.body,
     category: t.category,
+    trigger: inferTrigger(t.name),
     createdAt: t.created_at,
     updatedAt: t.updated_at,
   };
 }
 
+// Infer automation trigger label from template name
+function inferTrigger(name: string): string {
+  if (name === 'Under Contract Congratulations') return 'Auto: Under Contract';
+  if (name === 'Inspection Results — Repair Request') return 'Auto: Inspection Done';
+  if (name === 'Clear to Close') return 'Auto: Clear to Close';
+  if (name === 'Closing Date Reminder') return 'Auto: 3 Days to Close';
+  if (name === 'Post-Closing Thank You') return 'Auto: Closed';
+  return 'Manual only';
+}
+
+// Trigger badge style map
+const TRIGGER_STYLES: Record<string, string> = {
+  'Manual only': 'bg-slate-100 text-slate-500',
+  'Auto: Under Contract': 'bg-blue-100 text-blue-700',
+  'Auto: Inspection Done': 'bg-orange-100 text-orange-700',
+  'Auto: Clear to Close': 'bg-teal-100 text-teal-700',
+  'Auto: 3 Days to Close': 'bg-red-100 text-red-700',
+  'Auto: Closed': 'bg-green-100 text-green-700',
+};
+
 const DEFAULT_TEMPLATES: TemplateView[] = [
   {
     id: -1,
     name: 'Introduction to Buyer',
-    subject: 'Welcome — Your Real Estate Transaction Is Underway',
+    subject: 'Welcome — Your Transaction Is Underway | {{property_address}}',
     category: 'Onboarding',
+    trigger: 'Manual only',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     body: `Dear {{buyer_name}},
 
-Welcome! I'm thrilled to be working with you on the purchase of {{property_address}}.
+Welcome! I am thrilled to be working with you on the purchase of {{property_address}}.
 
-I wanted to reach out to introduce myself formally and let you know what to expect over the coming weeks.
+Key Contacts:
+- Your Agent: {{agent_name}} | {{agent_phone}} | {{agent_email}}
+- Title Company: {{title_company}}
+- Lender: {{lender_name}}
 
-**What happens next:**
-1. We will review the contract together and ensure all deadlines are clear
-2. You will need to schedule a home inspection within {{inspection_days}} days
-3. Your lender will begin the financing process
+What Happens Next:
+1. Review the contract together and confirm all deadlines
+2. Schedule your home inspection within {{inspection_days}} days of contract execution
+3. Your lender will begin the financing and appraisal process
+4. Title company will begin the title search
 
-Please don't hesitate to reach out at any time. My direct line is {{agent_phone}} and I'm available 7 days a week.
+Important Deadlines:
+- Inspection Deadline: {{inspection_deadline}}
+- Financing Contingency: {{financing_deadline}}
+- Estimated Closing Date: {{closing_date}}
 
-Looking forward to a smooth transaction!
+Please do not hesitate to reach out at any time. I am available 7 days a week.
 
 Warm regards,
 {{agent_name}}
 {{brokerage_name}}
-{{agent_phone}}
-{{agent_email}}`,
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -2,
+    name: 'Introduction to Seller',
+    subject: "We're Under Contract — What Happens Next | {{property_address}}",
+    category: 'Onboarding',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{seller_name}},
+
+Congratulations — you are officially under contract for the sale of {{property_address}}!
+
+Your Action Items:
+1. Gather all property disclosures and HOA documents (if applicable)
+2. Prepare for the buyer's home inspection on or around {{inspection_date}}
+3. Continue maintaining the property in its current condition
+4. Vacate the property by {{closing_date}} as agreed
+
+Documents We Will Need From You:
+- Seller's disclosure forms
+- HOA contact and document package (if applicable)
+- Copy of any warranties on appliances or roof
+- Survey (if available)
+
+Timeline Overview:
+- Inspection Period Ends: {{inspection_deadline}}
+- Appraisal Expected: {{appraisal_date}}
+- Estimated Closing: {{closing_date}}
+
+I will keep you updated every step of the way.
+
+Best regards,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -3,
+    name: 'Inspection Reminder',
+    subject: 'ACTION REQUIRED: Schedule Your Home Inspection | {{property_address}}',
+    category: 'Milestones',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+This is a reminder that your home inspection must be scheduled and completed by {{inspection_deadline}}.
+
+Why the Inspection Matters:
+The home inspection is one of the most important steps in your purchase. A licensed inspector will evaluate the property's condition — roof, foundation, electrical, plumbing, HVAC, and more.
+
+Recommended Inspectors:
+- {{inspector_name_1}} | {{inspector_phone_1}}
+- {{inspector_name_2}} | {{inspector_phone_2}}
+
+What to Expect:
+- Inspections typically take 2-4 hours depending on property size
+- You are encouraged to attend
+- You will receive a full written report within 24 hours
+- We can then negotiate repairs or credits based on findings
+
+Please contact me immediately once your inspection is scheduled.
+
+Best,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -4,
+    name: 'Under Contract Congratulations',
+    subject: "Congratulations — You're Under Contract! | {{property_address}}",
+    category: 'Milestones',
+    trigger: 'Auto: Under Contract',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+Congratulations! Your offer on {{property_address}} has been accepted and you are now officially under contract.
+
+Immediate Next Steps:
+1. Earnest Money Deposit (EMD) of {{emd_amount}} is due by {{emd_due_date}}
+2. Schedule your home inspection before {{inspection_deadline}}
+3. Notify your lender to begin processing your loan
+
+Coming Up:
+- Home inspection
+- Appraisal (ordered by lender)
+- Title search and insurance
+- Final loan approval
+- Final walkthrough
+- CLOSING — estimated {{closing_date}}
+
+I will be with you every step of the way.
+
+Warmly,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -5,
+    name: 'Closing Date Reminder',
+    subject: 'Your Closing Is in 3 Days | {{property_address}}',
+    category: 'Milestones',
+    trigger: 'Auto: 3 Days to Close',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+Your closing is scheduled for {{closing_date}} — just 3 days away!
+
+What to Bring to Closing:
+- Government-issued photo ID (driver's license or passport)
+- Cashier's check or confirmation of wire transfer for {{cash_to_close}}
+- Proof of homeowner's insurance
+
+WIRE FRAUD WARNING:
+NEVER wire funds based solely on email instructions. Always call our office at {{agent_phone}} to verbally verify wiring instructions before sending any money.
+
+Closing Details:
+- Date: {{closing_date}}
+- Time: {{closing_time}}
+- Location: {{closing_location}}
+- Closing Agent: {{closing_agent_name}}
+
+Plan to arrive 10-15 minutes early. Closing typically takes 1-2 hours.
+
+Congratulations — you are almost a homeowner!
+
+Best regards,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -6,
+    name: 'Post-Closing Thank You',
+    subject: 'Congratulations on Your New Home! | {{property_address}}',
+    category: 'Follow-Up',
+    trigger: 'Auto: Closed',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+Congratulations — you are officially a homeowner! It has been an absolute pleasure working with you on the purchase of {{property_address}}.
+
+A Few Reminders Now That You Are Home:
+- Change the locks as soon as possible
+- Register your address for mail forwarding if you have not already
+- File for Homestead Exemption (if applicable in your county) — the deadline is typically March 1st
+- Keep your closing documents in a safe place
+
+If you had a great experience working with me, I would truly appreciate a review:
+{{review_link}}
+
+Wishing you many years of happiness in your new home!
+
+Warmly,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -7,
+    name: 'Document Request — Buyer',
+    subject: 'Documents Needed to Keep Your Transaction on Track | {{property_address}}',
+    category: 'Milestones',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+To keep your transaction on track, we need the following documents from you by {{document_deadline}}:
+
+Documents Needed:
+- {{document_1}}
+- {{document_2}}
+- {{document_3}}
+
+How to Submit:
+You can upload documents directly through your secure client portal:
+{{portal_link}}
+
+Alternatively, you may email them to {{agent_email}} or bring them to our office.
+
+Missing this deadline could delay your closing or put your contract at risk.
+
+Thank you for your prompt attention to this matter.
+
+Best regards,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -8,
+    name: 'Document Request — Lender',
+    subject: 'Documents Needed from Your Lending Team | {{property_address}}',
+    category: 'Milestones',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{lender_name}},
+
+I am following up on the transaction for {{property_address}} with our buyer {{buyer_name}}.
+
+To keep this transaction on schedule for closing on {{closing_date}}, we need the following from your team by {{document_deadline}}:
+
+Documents Needed:
+- Commitment Letter
+- Clear to Close (CTC) confirmation
+- Closing Disclosure (CD) — at least 3 business days before closing
+- Final loan approval documentation
+
+Lender Portal:
+{{lender_portal_link}}
+
+Please let me know immediately if there are any issues or conditions that need to be resolved.
+
+Thank you for your attention to this.
+
+Best regards,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -9,
+    name: 'FIRPTA Notice',
+    subject: 'Important: FIRPTA Withholding Notice | {{property_address}}',
+    category: 'Compliance',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{seller_name}},
+
+As part of your real estate transaction for {{property_address}}, I need to inform you about an important federal tax requirement that may apply to your sale.
+
+What Is FIRPTA?
+The Foreign Investment in Real Property Tax Act (FIRPTA) requires buyers to withhold a portion of the sale price when purchasing property from a foreign person or entity.
+
+Withholding Details:
+- Standard withholding rate: 15% of the gross sales price
+- Applicable sales price: {{purchase_price}}
+- Estimated withholding amount: {{firpta_withholding_amount}}
+
+What You Need to Do:
+1. Consult with a tax professional or CPA familiar with international tax law
+2. Determine if you qualify for a reduced withholding certificate from the IRS
+3. Complete IRS Form 8288 (U.S. Withholding Tax Return for Dispositions by Foreign Persons of U.S. Real Property Interests)
+4. Provide your ITIN if you do not have a U.S. Social Security Number
+
+Key IRS Forms:
+- Form 8288: Withholding tax return
+- Form 8288-A: Statement of withholding
+- Form 8288-B: Application for withholding certificate (to request reduction)
+
+Please consult with a qualified tax professional as soon as possible.
+
+Best regards,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -10,
+    name: 'Earnest Money Deposit Reminder',
+    subject: 'EMD Due in 48 Hours | {{property_address}}',
+    category: 'Milestones',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+This is an urgent reminder that your Earnest Money Deposit (EMD) is due within 48 hours.
+
+EMD Details:
+- Amount Due: {{emd_amount}}
+- Due Date: {{emd_due_date}}
+- Payable To: {{escrow_company}}
+
+How to Submit Your EMD:
+Option 1 — Wire Transfer:
+  Bank: {{escrow_bank}}
+  Account: {{escrow_account}}
+  Routing: {{escrow_routing}}
+
+Option 2 — Cashier's Check:
+  Made payable to: {{escrow_company}}
+  Deliver to: {{escrow_address}}
+
+IMPORTANT: Before wiring any funds, call {{agent_phone}} to verbally verify the wire instructions. Never rely on email instructions alone — wire fraud is real.
+
+Failure to deliver the EMD on time may put your contract at risk.
+
+Best regards,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -11,
+    name: 'Inspection Results — Repair Request',
+    subject: 'Inspection Complete — Repair Negotiations Begin | {{property_address}}',
+    category: 'Milestones',
+    trigger: 'Auto: Inspection Done',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+The home inspection for {{property_address}} has been completed. Here is a summary of the findings and our next steps.
+
+Items Being Negotiated:
+- {{repair_item_1}}
+- {{repair_item_2}}
+- {{repair_item_3}}
+
+Our Approach:
+We have several options:
+1. Request the seller to repair specific items before closing
+2. Request a credit at closing in lieu of repairs
+3. Accept the property as-is and negotiate price reduction
+
+Timeline:
+- We must submit our repair request by: {{repair_request_deadline}}
+- Seller has until {{seller_response_deadline}} to respond
+
+I will be sending our formal repair request to the seller's agent shortly.
+
+Best regards,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -12,
+    name: 'Clear to Close',
+    subject: 'CLEAR TO CLOSE — Final Steps | {{property_address}}',
+    category: 'Milestones',
+    trigger: 'Auto: Clear to Close',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+Excellent news — your lender has issued a Clear to Close (CTC) for your loan on {{property_address}}!
+
+This means your financing has been fully approved and we are ready to move to the final steps.
+
+What Happens Now:
+1. You will receive your Closing Disclosure (CD) — review it carefully and confirm your cash-to-close amount
+2. Final walkthrough is scheduled for {{walkthrough_date}} at {{walkthrough_time}}
+3. Closing is confirmed for {{closing_date}} at {{closing_time}}
+4. Arrange your cashier's check or wire transfer for {{cash_to_close}}
+
+Closing Location:
+{{closing_location}}
+{{closing_agent_name}} — {{closing_agent_phone}}
+
+REMINDER: Always call to verify wire instructions before transferring funds.
+
+See you at closing!
+
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -13,
+    name: 'Wire Fraud Warning',
+    subject: 'IMPORTANT: Wire Fraud Warning for Your Closing | {{property_address}}',
+    category: 'Compliance',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+As your closing date approaches, I want to share an extremely important warning about wire fraud — one of the fastest-growing scams targeting homebuyers.
+
+WHAT IS WIRE FRAUD?
+Criminals monitor real estate email communications and send fake wire instructions that appear to come from your agent, title company, or lender. If you wire money to the wrong account, it is nearly impossible to recover.
+
+HOW TO PROTECT YOURSELF:
+1. ALWAYS call to verify — Before wiring ANY funds, call our office directly at {{agent_phone}} using a number you find independently (not from an email)
+2. NEVER click links in emails claiming to have wire instructions
+3. NEVER trust a last-minute change in wire instructions without verbal confirmation
+4. Confirm the FULL routing and account number verbally before wiring
+
+OUR OFFICIAL CONTACT INFORMATION:
+- Agent: {{agent_name}} | {{agent_phone}}
+- Title Company: {{title_company}} | {{title_phone}}
+
+If you ever receive wire instructions via email that seem off — even slightly — STOP and call us immediately.
+
+Stay safe,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -14,
+    name: 'Title Insurance Explanation',
+    subject: 'Understanding Your Title Insurance | {{property_address}}',
+    category: 'Onboarding',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}},
+
+As part of your purchase of {{property_address}}, you will be purchasing title insurance. I want to make sure you fully understand what it covers and why it matters.
+
+What Is Title Insurance?
+Title insurance protects you against problems with the ownership history (title) of the property — things that may not be discovered during the title search.
+
+Two Types of Title Insurance:
+
+1. Lender's Title Insurance (required)
+   - Protects your lender against title defects
+   - Required by virtually all mortgage lenders
+   - Does NOT protect you as the buyer
+
+2. Owner's Title Insurance (strongly recommended)
+   - Protects YOU as the property owner
+   - One-time premium paid at closing
+   - Covers you for as long as you own the property
+
+What It Covers:
+- Unknown liens or encumbrances on the property
+- Forged documents or fraud in the chain of title
+- Errors in public records
+- Unknown heirs claiming ownership
+- Boundary disputes
+
+Your Premium:
+- Estimated Owner's Policy: {{owners_policy_amount}}
+- Estimated Lender's Policy: {{lenders_policy_amount}}
+
+I strongly recommend purchasing the owner's title insurance policy. It is a small one-time cost for permanent peace of mind.
+
+Best regards,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
+  },
+  {
+    id: -15,
+    name: 'Foreign National Welcome',
+    subject: 'Welcome — Informacion Importante Para Compradores Internacionales | {{property_address}}',
+    category: 'Compliance',
+    trigger: 'Manual only',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    body: `Dear {{buyer_name}} / Estimado/a {{buyer_name}},
+
+--- ENGLISH ---
+
+Welcome and congratulations on your decision to purchase property in the United States! I am honored to represent you in the purchase of {{property_address}}.
+
+FIRPTA (Foreign Investment in Real Property Tax Act):
+When you eventually sell U.S. property, federal law requires withholding of up to 15% of the gross sale price for tax purposes.
+
+ITIN (Individual Taxpayer Identification Number):
+If you do not have a U.S. Social Security Number, you will need an ITIN for tax reporting purposes (IRS Form W-7).
+
+Required Documents for This Transaction:
+- Valid passport (all buyers)
+- Proof of funds or financing approval
+- ITIN or SSN for tax reporting
+- Wire transfer documentation from your financial institution
+
+--- ESPANOL ---
+
+Bienvenido/a y felicidades por su decision de comprar propiedad en los Estados Unidos.
+
+FIRPTA: La ley federal requiere la retencion de hasta el 15% del precio de venta bruto para efectos fiscales cuando venda la propiedad.
+
+ITIN: Si no tiene numero de Seguro Social de EE.UU., necesitara un ITIN (Formulario IRS W-7).
+
+Documentos Requeridos:
+- Pasaporte valido (todos los compradores)
+- Comprobante de fondos o aprobacion de financiamiento
+- ITIN o SSN para declaracion de impuestos
+- Documentacion de transferencia bancaria
+
+Atentamente,
+{{agent_name}}
+{{brokerage_name}}
+{{agent_phone}} | {{agent_email}}`,
   },
 ];
 
@@ -79,7 +597,18 @@ function renderPreview(body: string): React.ReactNode {
   );
 }
 
-const CATEGORIES = ['All', 'Onboarding', 'Milestones', 'Follow-Up'];
+function TriggerBadge({ trigger }: { trigger: string }) {
+  const style = TRIGGER_STYLES[trigger] ?? 'bg-slate-100 text-slate-500';
+  const isAuto = trigger.startsWith('Auto:');
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${style}`}>
+      {isAuto && <Zap className="h-2.5 w-2.5" />}
+      {trigger}
+    </span>
+  );
+}
+
+const CATEGORIES = ['All', 'Onboarding', 'Milestones', 'Follow-Up', 'Compliance'];
 
 export default function TemplatesPage() {
   const { data: apiTemplates, error, isLoading, mutate } = useSWR('/templates', getTemplates, {
@@ -125,6 +654,7 @@ export default function TemplatesPage() {
       subject: '',
       body: '',
       category: 'Onboarding',
+      trigger: 'Manual only',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -248,12 +778,15 @@ export default function TemplatesPage() {
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-slate-900 truncate">{tpl.name}</div>
                   <div className="text-xs text-slate-500 truncate mt-0.5">{tpl.subject}</div>
-                  <span className="inline-flex mt-1 items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                    {tpl.category}
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                      {tpl.category}
+                    </span>
+                    <TriggerBadge trigger={tpl.trigger} />
+                  </div>
                 </div>
                 <ChevronRight className="h-3.5 w-3.5 text-slate-400 mt-1 shrink-0" />
               </div>
@@ -312,6 +845,7 @@ export default function TemplatesPage() {
                     <option value="Onboarding">Onboarding</option>
                     <option value="Milestones">Milestones</option>
                     <option value="Follow-Up">Follow-Up</option>
+                    <option value="Compliance">Compliance</option>
                   </select>
                 </div>
               </div>
@@ -344,7 +878,7 @@ export default function TemplatesPage() {
                   {[
                     '{{buyer_name}}', '{{seller_name}}', '{{agent_name}}', '{{property_address}}',
                     '{{closing_date}}', '{{purchase_price}}', '{{portal_link}}', '{{brokerage_name}}',
-                    '{{agent_phone}}', '{{agent_email}}'
+                    '{{agent_phone}}', '{{agent_email}}', '{{inspection_deadline}}', '{{emd_amount}}',
                   ].map((v) => (
                     <button
                       key={v}
@@ -364,9 +898,12 @@ export default function TemplatesPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
               <div>
                 <h2 className="text-base font-semibold text-slate-900">{selected.name}</h2>
-                <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-medium text-blue-700 mt-1">
-                  {selected.category}
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    {selected.category}
+                  </span>
+                  <TriggerBadge trigger={selected.trigger} />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button

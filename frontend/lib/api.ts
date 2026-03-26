@@ -139,9 +139,32 @@ export async function login(email: string, password: string): Promise<{ access_t
   return res.json();
 }
 
-export async function getMe(): Promise<unknown> {
+export type UserProfile = {
+  id: number;
+  email: string;
+  full_name: string;
+  brokerage_name: string | null;
+  created_at: string;
+};
+
+export async function getMe(): Promise<UserProfile> {
   const res = await authFetch('/auth/me');
   return res.json();
+}
+
+export async function updateMe(data: { full_name?: string; brokerage_name?: string | null }): Promise<UserProfile> {
+  const res = await authFetch('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await authFetch('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
 }
 
 // ── Transactions ───────────────────────────────────────────────────────────

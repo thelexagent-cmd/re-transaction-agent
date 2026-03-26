@@ -24,6 +24,7 @@ import {
   Moon,
   Bell,
   CheckSquare,
+  Settings,
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notification-center';
 
@@ -36,6 +37,7 @@ const navItems = [
   { href: '/tasks',          label: 'Tasks',                icon: CheckSquare },
   { href: '/commission',    label: 'Commission',          icon: DollarSign },
   { href: '/templates',     label: 'Email Templates',     icon: Mail },
+  { href: '/settings',      label: 'Settings',            icon: Settings },
 ];
 
 export function Sidebar() {

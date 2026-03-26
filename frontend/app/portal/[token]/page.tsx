@@ -1,6 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import { useState, useRef } from 'react';
 import useSWR from 'swr';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-bb87.up.railway.app';
@@ -35,6 +36,50 @@ export default function PortalPage() {
     () => fetchPortal(token),
     { revalidateOnFocus: false }
   );
+
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; id: number }[]>([]);
+  const [docName, setDocName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadMsg('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (docName.trim()) {
+        formData.append('document_name', docName.trim());
+      }
+
+      const res = await fetch(`${API_URL}/portal/${token}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Upload failed');
+      }
+
+      const result = await res.json();
+      setUploadedFiles((prev) => [...prev, { name: result.name, id: result.id }]);
+      setUploadMsg('Document uploaded successfully.');
+      setDocName('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err: unknown) {
+      setUploadMsg(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+      setTimeout(() => setUploadMsg(''), 5000);
+    }
+  }
 
   if (isLoading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -127,6 +172,69 @@ export default function PortalPage() {
             </div>
           </div>
         )}
+
+        {/* Document Upload */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <h2 className="font-semibold text-slate-800 mb-1">Upload Documents</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            Securely submit documents directly to your agent.
+          </p>
+
+          <form onSubmit={handleUpload} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Document Name <span className="text-slate-400 font-normal">(optional — uses filename if blank)</span>
+              </label>
+              <input
+                type="text"
+                value={docName}
+                onChange={(e) => setDocName(e.target.value)}
+                placeholder="e.g. Proof of Insurance, Bank Statement..."
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                File
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                required
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic,.xls,.xlsx"
+                className="w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              <p className="text-xs text-slate-400 mt-1">PDF, Word, Excel, or image files accepted</p>
+            </div>
+            <button
+              type="submit"
+              disabled={uploading}
+              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? 'Uploading...' : 'Upload Document'}
+            </button>
+          </form>
+
+          {uploadMsg && (
+            <p className={`mt-3 text-sm font-medium ${uploadMsg.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+              {uploadMsg}
+            </p>
+          )}
+
+          {uploadedFiles.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-slate-700 mb-2">Uploaded This Session</p>
+              <div className="space-y-1.5">
+                {uploadedFiles.map((f) => (
+                  <div key={f.id} className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-green-50 border border-green-200">
+                    <span className="text-xs text-green-700 font-medium">{f.name}</span>
+                    <span className="text-xs text-green-500 ml-auto">Received</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Key Deadlines */}
         {data.deadlines?.length > 0 && (

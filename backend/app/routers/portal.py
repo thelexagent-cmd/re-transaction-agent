@@ -192,6 +192,64 @@ async def get_portal_view(
     }
 
 
+@router.post("/portal/{token}/upload", status_code=status.HTTP_201_CREATED)
+async def client_upload_document(
+    token: str,
+    file: UploadFile = File(...),
+    document_name: str = "",
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Public endpoint — client uploads a document file via the portal.
+
+    Accepts multipart/form-data, uploads to R2, and creates a document record.
+    No authentication required. The token itself is the credential.
+    Accepts both 'client' type tokens and any valid unexpired token.
+    """
+    now = datetime.now(timezone.utc)
+
+    result = await db.execute(
+        select(PortalToken).where(
+            PortalToken.token == token,
+            PortalToken.expires_at > now,
+        )
+    )
+    portal_token = result.scalar_one_or_none()
+    if portal_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Portal link is invalid or has expired.",
+        )
+
+    content = await file.read()
+    filename = file.filename or "upload"
+    name = document_name.strip() or filename
+
+    storage_key = await storage.upload_document(
+        portal_token.transaction_id, filename, content
+    )
+
+    doc = Document(
+        transaction_id=portal_token.transaction_id,
+        name=name,
+        phase=1,  # General / early phase for client uploads
+        responsible_party_role="client",
+        storage_key=storage_key,
+    )
+    db.add(doc)
+    await db.flush()
+    await db.refresh(doc)
+
+    logger.info("Client uploaded document '%s' for transaction %s", name, portal_token.transaction_id)
+
+    return {
+        "id": doc.id,
+        "transaction_id": doc.transaction_id,
+        "name": doc.name,
+        "status": doc.status,
+        "created_at": doc.created_at.isoformat(),
+    }
+
+
 # ── Lender portal endpoints ─────────────────────────────────────────────────
 
 
