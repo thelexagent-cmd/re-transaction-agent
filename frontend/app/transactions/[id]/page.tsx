@@ -1202,7 +1202,7 @@ function ComplianceTab({ txId }: { txId: number }) {
   async function handleToggle(item: ComplianceItem) {
     setToggling(item.id);
     try {
-      await toggleComplianceItem(txId, item.id, !item.checked);
+      await toggleComplianceItem(txId, item.id, !item.is_checked);
       await mutate();
     } catch {
       // ignore
@@ -1244,7 +1244,7 @@ function ComplianceTab({ txId }: { txId: number }) {
     sections.get(section)!.push(item);
   }
 
-  const completedCount = items.filter((item) => item.checked).length;
+  const completedCount = items.filter((item) => item.is_checked).length;
   const totalCount = items.length;
   const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -1270,7 +1270,7 @@ function ComplianceTab({ txId }: { txId: number }) {
 
       {/* Sections */}
       {Array.from(sections.entries()).map(([sectionTitle, sectionItems]) => {
-        const sectionComplete = sectionItems.filter((item) => item.checked).length;
+        const sectionComplete = sectionItems.filter((item) => item.is_checked).length;
         return (
           <div key={sectionTitle} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
@@ -1287,13 +1287,13 @@ function ComplianceTab({ txId }: { txId: number }) {
                 >
                   <input
                     type="checkbox"
-                    checked={item.checked}
+                    checked={item.is_checked}
                     onChange={() => handleToggle(item)}
                     disabled={toggling === item.id}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                   />
-                  <span className={`text-sm ${item.checked ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                    {item.item_text}
+                  <span className={`text-sm ${item.is_checked ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                    {item.label}
                   </span>
                 </label>
               ))}

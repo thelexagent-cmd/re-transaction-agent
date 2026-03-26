@@ -436,20 +436,23 @@ export type ComplianceItem = {
   id: number;
   transaction_id: number;
   section: string;
-  item_text: string;
-  checked: boolean;
+  label: string;
+  is_checked: boolean;
+  sort_order: number;
+  checked_at: string | null;
   created_at: string;
-  updated_at: string;
 };
 
 export async function getCompliance(txId: number | string): Promise<ComplianceItem[]> {
   const res = await authFetch(`/transactions/${txId}/compliance`);
-  return res.json();
+  const data = await res.json();
+  return data.items ?? data;
 }
 
 export async function initializeCompliance(txId: number | string): Promise<ComplianceItem[]> {
   const res = await authFetch(`/transactions/${txId}/compliance/initialize`, { method: 'POST' });
-  return res.json();
+  const data = await res.json();
+  return data.items ?? data;
 }
 
 export async function toggleComplianceItem(txId: number | string, itemId: number | string, checked: boolean): Promise<ComplianceItem> {

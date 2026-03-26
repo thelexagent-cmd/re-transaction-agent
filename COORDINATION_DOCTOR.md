@@ -1,61 +1,42 @@
-# COORDINATION_DOCTOR.md — Security & Quality Audit Report
+# COORDINATION_DOCTOR.md -- Expanded Audit Report
 
-**Date:** 2026-03-26
-**Auditor:** Doctor Agent (Claude)
+**Audit Date:** 2026-03-26
+**Auditor:** DOCTOR Agent (Claude Opus 4.6)
 
 ---
 
-## 1. AUTHORIZATION — Users only access their own data
+## PART A: 10-POINT SECURITY CHECKLIST
 
-**Status: PASS**
+### 1. AUTHORIZATION -- PASS
 
-Every router was reviewed. All transaction-scoped endpoints use a `_require_transaction_ownership()` or `_get_transaction_or_404()` helper that filters by `Transaction.user_id == current_user.id`. Every protected endpoint depends on `get_current_user` (JWT-based `HTTPBearer`).
+Every router filters by `user_id` via `_require_transaction_ownership()` or equivalent:
 
-- `transactions.py` — All endpoints check ownership. Global endpoints (`/stats`, `/deadlines/all`, `/documents/all`, `/events/recent`, `/contacts/all`) all filter by `current_user.id`.
-- `documents.py` — Uses `_get_transaction_or_404(transaction_id, current_user.id, db)`.
-- `tasks.py` — Uses `_require_transaction_ownership()`.
-- `compliance.py` — Uses `_require_transaction_ownership()`.
-- `inspection.py` — Uses `_require_transaction_ownership()`.
-- `templates.py` — Filters by `EmailTemplate.user_id == current_user.id`.
-- `reports.py` — Filters by `Transaction.user_id == current_user.id`.
-- `portal.py` — Token-creation endpoints require auth + ownership. Public portal endpoints only accept valid, unexpired tokens (48-byte `secrets.token_urlsafe`). Token-type is validated for lender endpoints. No auth leakage found.
+- `transactions.py`: All endpoints use `_require_transaction_ownership(transaction_id, current_user.id, db)` or filter by `Transaction.user_id == current_user.id`.
+- `documents.py`: Uses `_get_transaction_or_404(transaction_id, current_user.id, db)`.
+- `tasks.py`: Uses `_require_transaction_ownership(transaction_id, current_user.id, db)`.
+- `compliance.py`: Uses `_require_transaction_ownership(transaction_id, current_user.id, db)`.
+- `inspection.py`: Uses `_require_transaction_ownership(transaction_id, current_user.id, db)`.
+- `portal.py`: Authenticated endpoints (token creation) filter by `Transaction.user_id == current_user.id`. Public endpoints use token-based auth (the token IS the credential).
+- `templates.py`: Filters by `EmailTemplate.user_id == current_user.id`.
+- `reports.py`: Filters by `Transaction.user_id == current_user.id`.
 
 No fixes needed.
 
----
+### 2. INPUT VALIDATION -- PASS
 
-## 2. INPUT VALIDATION / SANITIZATION
+All Pydantic schemas have typed fields with validators and max_length constraints:
 
-**Status: FIXED**
+- `auth.py`: `EmailStr` for email, password 8-128 chars, full_name max 200, brokerage_name max 200.
+- `transaction.py`: address max 500, purchase_price positive, closing_date future check, phone 10-digit US validation, notes max 50000.
+- `document.py`: Properly typed with enums.
+- `email_template.py`: name max 200, subject max 500, body max 50000.
+- Inline schemas in routers (tasks, compliance, inspection, portal) all have field validators with max_length.
 
-### Findings:
-- **`update_party` endpoint accepted raw `dict`** instead of a typed Pydantic model. This bypasses all schema validation. FIXED: now uses `PartyUpdate` Pydantic schema.
-- **Multiple schemas lacked max-length constraints** on string fields, allowing unbounded input that could cause DB errors or memory issues.
-- No raw SQL queries found (only `text("SELECT 1")` in health check, which is parameterless).
-- No `dangerouslySetInnerHTML` usage found in the frontend.
-- **Inspection schemas** lacked enum validation for `severity` and `status` fields — any string was accepted. FIXED with allowlist validation.
+No fixes needed.
 
-### Fixes applied:
-- `backend/app/routers/transactions.py` — Changed `update_party` body from `dict` to `PartyUpdate` Pydantic model.
-- `backend/app/schemas/auth.py` — Added max-length validators: password (128), full_name (200), brokerage_name (200). Added required/strip checks.
-- `backend/app/schemas/transaction.py` — Added max-length on `address` (500), `PartyCreate.full_name` (200), `NotesUpdate.content` (50000), `PartyUpdate.preferred_language` (10).
-- `backend/app/schemas/email_template.py` — Added max-length on `name` (200), `subject` (500), `body` (50000) for both create and update.
-- `backend/app/routers/tasks.py` — Added max-length on `title` (500), `assigned_role` (100) for TaskCreate and TaskUpdate.
-- `backend/app/routers/inspection.py` — Added max-length on `description` (2000), `notes` (5000). Added allowlist validation for `severity` and `status` fields.
-- `backend/app/routers/compliance.py` — Added max-length on `reviewed_by_name` (200).
-- `backend/app/routers/portal.py` — Added max-length on `lender_name` (200), `lender_email` (300), `LenderDocUpload.name` (500).
+### 3. CORS POLICY -- PASS
 
----
-
-## 3. CORS POLICY
-
-**Status: FIXED**
-
-### Finding:
-`allow_origin_regex=r"https://.*\.(vercel\.app|up\.railway\.app)"` matched ANY Vercel or Railway subdomain — not just this project's deployments. An attacker could deploy their own app on Vercel and make credentialed cross-origin requests.
-
-### Fix:
-Replaced the regex with an explicit allowlist:
+`backend/app/main.py` lines 37-46:
 ```python
 allow_origins=[
     "http://localhost:3000",
@@ -63,129 +44,184 @@ allow_origins=[
 ]
 ```
 
-**File modified:** `backend/app/main.py`
+Correctly restricted. Not using `["*"]`.
+
+No fixes needed.
+
+### 4. RATE LIMITING -- PASS
+
+- `slowapi==0.1.9` is in `backend/requirements.txt`.
+- `backend/app/main.py` sets up `Limiter(key_func=get_remote_address, default_limits=["60/minute"])`.
+- Auth endpoints (`/auth/register`, `/auth/login`, `/auth/setup`) have `@limiter.limit("5/minute")`.
+
+No fixes needed.
+
+### 5. JWT EXPIRY -- PASS
+
+`backend/app/config.py`: `access_token_expire_minutes: int = 1440` (24 hours).
+Token created with `timedelta(minutes=settings.access_token_expire_minutes)` in `auth.py`.
+
+Expiry: 24 hours. Reasonable for a broker-facing SaaS app.
+
+### 6. FRONTEND ERROR HANDLING -- PASS
+
+- `frontend/app/error.tsx` exists: Shows "Something went wrong" with a "Try Again" button. No stack traces exposed.
+- `frontend/app/not-found.tsx` exists: Shows "Page Not Found" with a "Back to Dashboard" link.
+
+No fixes needed.
+
+### 7. DATABASE INDEXING -- PASS
+
+`backend/alembic/versions/0013_add_indexes.py` exists with:
+- `ix_transactions_user_id` on `transactions.user_id`
+- `ix_transactions_status` on `transactions.status`
+- `ix_portal_tokens_token` on `portal_tokens.token` (unique)
+- `ix_inspection_items_transaction_id` on `inspection_items.transaction_id`
+- `ix_compliance_items_transaction_id` on `compliance_items.transaction_id`
+- `ix_tasks_transaction_id` on `tasks.transaction_id`
+
+Revision chain: 0012 -> 0013. Correct.
+
+No fixes needed.
+
+### 8. LOGGING -- PASS
+
+- `backend/app/logging_config.py` exists with structured JSON logging support.
+- Configurable via `LOG_LEVEL` and `LOG_FORMAT` env vars.
+- Request logging middleware logs method, path, status code, and duration.
+- `main.py` imports and calls `configure_logging()` at startup.
+- Global error handlers log exceptions via `logger.error()` / `logger.exception()`.
+
+No fixes needed.
+
+### 9. ALERTS -- PASS
+
+Railway handles infrastructure alerts.
+
+### 10. ROLLBACK -- PASS
+
+Vercel handles rollback via deployment history.
 
 ---
 
-## 4. RATE LIMITING
+## PART B: FEATURE COMPLETENESS AUDIT
 
-**Status: FIXED**
+### B1. Tab Rendering -- FIXED
 
-### Finding:
-No rate limiting was in place. `slowapi` was not in `requirements.txt`.
+All 4 new tabs are defined and wired in `frontend/app/transactions/[id]/page.tsx`:
 
-### Fixes:
-- Added `slowapi==0.1.9` to `backend/requirements.txt`.
-- In `backend/app/main.py`: configured `Limiter` with `default_limits=["60/minute"]` globally, added `RateLimitExceeded` exception handler.
-- In `backend/app/routers/auth.py`: applied `@limiter.limit("5/minute")` to `/register`, `/login`, and `/setup` endpoints to prevent credential-stuffing attacks.
+| Tab | Component | Wired At | Verdict |
+|---|---|---|---|
+| Commission | `CommissionTab` (line 574) | `activeTab === 'Commission'` (line 1914) | PASS |
+| Compliance | `ComplianceTab` (line 1181) | `activeTab === 'Compliance'` (line 1915) | FIXED |
+| EMD | `EmdTab` (line 1310) | `activeTab === 'EMD'` (line 1917) | PASS |
+| Inspection | `InspectionTab` (line 1478) | `activeTab === 'Inspection'` (line 1918) | PASS |
 
-**Files modified:** `backend/requirements.txt`, `backend/app/main.py`, `backend/app/routers/auth.py`
+**Issue found and fixed in ComplianceTab:**
 
----
+The frontend `ComplianceItem` type had field name mismatches with the backend API response:
+- Frontend used `item_text` but backend returns `label`
+- Frontend used `checked` but backend returns `is_checked`
+- Frontend `getCompliance()` returned the raw response, but backend wraps items in `{ items: [...], review: ..., total: ... }`
 
-## 5. PASSWORD RESET / JWT EXPIRY
+**Files modified:**
+- `frontend/lib/api.ts`: Updated `ComplianceItem` type fields (`item_text` -> `label`, `checked` -> `is_checked`, added `sort_order`, `checked_at`). Updated `getCompliance()` and `initializeCompliance()` to extract `.items` from the wrapper response.
+- `frontend/app/transactions/[id]/page.tsx`: Updated all references from `item.checked` to `item.is_checked` and `item.item_text` to `item.label` (5 occurrences fixed).
 
-**Status: PASS (noted)**
+### B2. Lender Portal Backend -- PASS
 
-- JWT expiry is set to `access_token_expire_minutes = 1440` (24 hours) in `backend/app/config.py`.
-- Token expiry is properly checked in `backend/app/middleware/auth.py` via both `jose.jwt.decode()` (which validates `exp` claim) and a manual expiry check.
-- No password reset endpoint exists. This is noted as a future enhancement but not a blocker for the current single-broker use case.
+All 3 endpoints exist in `backend/app/routers/portal.py`:
 
----
+| Endpoint | Line | Status |
+|---|---|---|
+| `POST /portal/lender-token/{transaction_id}` | 178 | PASS |
+| `GET /portal/lender/{token}` | 222 | PASS |
+| `POST /portal/lender/{token}/upload` | 283 | PASS |
 
-## 6. FRONTEND ERROR HANDLING
+Portal router is registered in `main.py` line 98: `app.include_router(portal.router)`.
 
-**Status: FIXED**
+### B3. Frontend Lender Portal Page -- PASS
 
-### Finding:
-No `error.tsx` or `not-found.tsx` existed. Unhandled errors would show raw Next.js error screens in production, potentially leaking implementation details.
+`frontend/app/portal/lender/[token]/page.tsx` exists (185 lines):
+- Fetches from `${API_URL}/portal/lender/${token}` -- correct endpoint.
+- Handles loading state (lines 22-27).
+- Handles error state with "Link Expired" message (lines 30-38).
+- Renders transaction details, required docs checklist, uploaded docs, deadlines, and parties.
 
-### Fixes:
-- Created `frontend/app/error.tsx` — client-side error boundary with a clean "Something went wrong" UI and a "Try Again" button.
-- Created `frontend/app/not-found.tsx` — clean 404 page with a "Back to Dashboard" link.
+### B4. SWR Keys Match API Routes -- PASS
 
-**Files created:** `frontend/app/error.tsx`, `frontend/app/not-found.tsx`
+Verified all `authFetch()` paths in `frontend/lib/api.ts`:
 
----
+| Frontend Path | Backend Route | Match |
+|---|---|---|
+| `/auth/login` | `POST /auth/login` | Yes |
+| `/auth/me` | `GET /auth/me` | Yes |
+| `/transactions` | `GET /transactions` | Yes |
+| `/transactions/${id}` | `GET /transactions/{id}` | Yes |
+| `/transactions/${id}/documents` | `GET /{tid}/documents` | Yes |
+| `/transactions/${id}/documents/summary` | `GET /{tid}/documents/summary` | Yes |
+| `/transactions/${id}/deadlines` | `GET /{tid}/deadlines` | Yes |
+| `/transactions/${id}/alerts` | `GET /{tid}/alerts` | Yes |
+| `/transactions/${id}/firpta` | `GET /{tid}/firpta` | Yes |
+| `/transactions/${txId}/portal-token` | `POST /transactions/{tid}/portal-token` | Yes |
+| `/transactions/${txId}/compliance` | `GET /transactions/{tid}/compliance` | Yes |
+| `/transactions/${txId}/inspection` | `GET /transactions/{tid}/inspection` | Yes |
+| `/transactions/${txId}/tasks` | `GET /transactions/{tid}/tasks` | Yes |
+| `/transactions/${txId}/emd` | `PATCH /transactions/{tid}/emd` | Yes |
+| `/templates` | `GET /templates` | Yes |
+| `/reports/summary` | `GET /reports/summary` | Yes |
+| `/portal/lender-token/${txId}` | `POST /portal/lender-token/{tid}` | Yes |
 
-## 7. DATABASE INDEXING
+`API_URL` uses `process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'` -- env var with localhost fallback is correct pattern.
 
-**Status: FIXED**
+### B5. Inspection Router Registered -- PASS
 
-### Finding:
-No index migration existed. Commonly queried foreign key columns had no indexes, which would cause full table scans at scale.
+`backend/app/main.py` line 16: `from app.routers import auth, compliance, documents, inspection, tasks, transactions`
+Line 97: `app.include_router(inspection.router)`
 
-### Fix:
-Created `backend/alembic/versions/0013_add_indexes.py` with indexes on:
-- `transactions.user_id` — every auth-scoped query filters on this
-- `transactions.status` — dashboard stats filter by status
-- `portal_tokens.token` (unique) — portal lookups by token string
-- `inspection_items.transaction_id` — inspection item listing
-- `compliance_items.transaction_id` — compliance item listing
-- `tasks.transaction_id` — task listing
+### B6. Production Launch Readiness -- PASS
 
-**File created:** `backend/alembic/versions/0013_add_indexes.py`
-
-**NOTE:** Run `alembic upgrade head` on Railway after deploy.
-
----
-
-## 8. LOGGING IN PRODUCTION
-
-**Status: PASS**
-
-Logging is already well-configured:
-- `backend/app/logging_config.py` provides structured JSON logging when `LOG_FORMAT=json` env var is set.
-- `configure_logging()` is called at startup in `main.py`.
-- Request logging middleware logs method, path, status code, and duration for every request.
-- SQLAlchemy and database errors are caught and logged via global exception handlers.
-- Noisy third-party loggers (uvicorn.access, sqlalchemy.engine, httpx) are suppressed to WARNING level.
-
-### Additional fix:
-The generic 500 error handler was leaking `str(exc)` and full Python tracebacks to the client. FIXED: now returns a generic message while still logging the full exception server-side via `logger.exception()`.
-
-**File modified:** `backend/app/main.py`
-
----
-
-## 9. ALERTS
-
-**Status: PASS (no code changes needed)**
-
-Railway dashboard handles infrastructure-level alerts. Celery deadline alerts (T-3 and T-1 day broker alerts) are already built into the application's background task pipeline.
+| Check | Status | Detail |
+|---|---|---|
+| Hardcoded localhost in api.ts | PASS | Behind `NEXT_PUBLIC_API_URL` env var (line 3) |
+| Leftover `print()` statements | PASS | Zero found in `backend/app/` |
+| Alembic migration chain | PASS | Linear: 0001 -> 0002 -> 0003 -> 0003b -> 0004 -> 0005 -> 0006 -> 0007 -> 0008 -> 0009 -> 0010 -> 0011 -> 0012 -> 0013 |
+| Models __init__.py imports | PASS | All 12 models imported: User, Transaction, Party, Document, Deadline, Event, PortalToken, EmailTemplate, Task, ComplianceItem, ComplianceReview, InspectionItem |
 
 ---
 
-## 10. ROLLBACK
+## SUMMARY TABLE
 
-**Status: PASS (no code changes needed)**
+| # | Check | Verdict |
+|---|---|---|
+| A1 | Authorization | PASS |
+| A2 | Input Validation | PASS |
+| A3 | CORS Policy | PASS |
+| A4 | Rate Limiting | PASS |
+| A5 | JWT Expiry (24h) | PASS |
+| A6 | Frontend Error Handling | PASS |
+| A7 | Database Indexing | PASS |
+| A8 | Logging | PASS |
+| A9 | Alerts (Railway) | PASS |
+| A10 | Rollback (Vercel) | PASS |
+| B1 | Tab Rendering | **FIXED** |
+| B2 | Lender Portal Backend | PASS |
+| B3 | Lender Portal Frontend | PASS |
+| B4 | SWR Keys Match Routes | PASS |
+| B5 | Inspection Router | PASS |
+| B6 | Production Readiness | PASS |
 
-Vercel maintains all deployment history with instant rollback capability. Railway keeps deployment history for the backend. No code changes required.
+**15/16 PASS, 1/16 FIXED**
 
----
+## FILES MODIFIED IN THIS AUDIT
 
-## FILES MODIFIED
+1. `frontend/lib/api.ts` -- Fixed `ComplianceItem` type to match backend response fields; fixed `getCompliance()` and `initializeCompliance()` to extract `.items` from wrapper object.
+2. `frontend/app/transactions/[id]/page.tsx` -- Fixed ComplianceTab to use `is_checked` instead of `checked` and `label` instead of `item_text` (5 occurrences).
 
-| File | Change |
-|------|--------|
-| `backend/app/main.py` | CORS lockdown, rate limiter setup, error handler leak fix |
-| `backend/app/routers/auth.py` | Rate limiting on login/register/setup (5/min) |
-| `backend/requirements.txt` | Added `slowapi==0.1.9` |
-| `backend/app/routers/transactions.py` | `update_party` body typed as `PartyUpdate` instead of `dict` |
-| `backend/app/schemas/auth.py` | Max-length validators on all string fields |
-| `backend/app/schemas/transaction.py` | Max-length on address, full_name, notes, preferred_language |
-| `backend/app/schemas/email_template.py` | Max-length validators on name, subject, body |
-| `backend/app/routers/tasks.py` | Max-length on title, assigned_role |
-| `backend/app/routers/inspection.py` | Max-length + allowlist validation on severity/status |
-| `backend/app/routers/compliance.py` | Max-length on reviewed_by_name |
-| `backend/app/routers/portal.py` | Max-length on lender_name, lender_email, doc name |
-| `frontend/app/error.tsx` | **NEW** — global error boundary |
-| `frontend/app/not-found.tsx` | **NEW** — 404 page |
-| `backend/alembic/versions/0013_add_indexes.py` | **NEW** — performance indexes |
+## ITEMS REQUIRING NICO'S ATTENTION
 
-## REMAINING CONCERNS
+1. **Vercel env var `NEXT_PUBLIC_API_URL`**: Must be set to `https://backend-production-bb87.up.railway.app` in the Vercel project settings. Without it, the frontend falls back to `http://localhost:8000` which will fail in production. (If already set, no action needed.)
 
-1. **No password reset flow** — acceptable for single-broker but should be added if multi-user.
-2. **No CSRF protection** — mitigated by JWT Bearer auth (not cookie-based), but worth noting.
-3. **Portal tokens have no revocation endpoint** — tokens can only expire (30 days). Consider adding a revoke endpoint.
-4. **`recent_events` `limit` query parameter** has no upper bound — an attacker could request `?limit=999999`. Consider capping at 100.
+2. **Railway env var `LOG_FORMAT=json`**: Recommended for structured logging in production (enables JSON log output for easier aggregation). Optional.
+
+3. **Migration 0013 (indexes)**: Run `alembic upgrade head` on the Railway database if not already applied. This adds performance indexes on frequently-queried columns.
