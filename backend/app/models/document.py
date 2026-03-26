@@ -34,6 +34,7 @@ class Document(Base):
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     collected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     storage_key: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    esign_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     last_followup_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

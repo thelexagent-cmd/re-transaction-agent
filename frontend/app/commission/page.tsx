@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { getTransactions } from '@/lib/api';
+import type { TransactionListItem } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { DollarSign, Calculator, TrendingUp, ChevronDown } from 'lucide-react';
+import { DollarSign, Calculator, TrendingUp, ChevronDown, ChevronUp, Banknote } from 'lucide-react';
 
 function formatPct(val: number): string {
   return `${val.toFixed(2)}%`;
@@ -30,6 +31,50 @@ interface ManualCalcState {
   commissionPct: string;
   cobrokePct: string;
   agentSplitPct: string;
+}
+
+// ── Disbursement Types & Helpers ──────────────────────────────────────────
+
+type DisbursementStatus = 'Pending' | 'Disbursed' | 'Partial';
+
+type DisbursementData = {
+  status: DisbursementStatus;
+  dateDisbursed: string;
+  notes: string;
+};
+
+function loadDisbursement(txId: number): DisbursementData {
+  try {
+    const stored = localStorage.getItem(`lex_disbursement_${txId}`);
+    if (stored) {
+      const parsed = JSON.parse(stored) as DisbursementData;
+      return {
+        status: parsed.status ?? 'Pending',
+        dateDisbursed: parsed.dateDisbursed ?? '',
+        notes: parsed.notes ?? '',
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return { status: 'Pending', dateDisbursed: '', notes: '' };
+}
+
+function saveDisbursement(txId: number, data: DisbursementData) {
+  localStorage.setItem(`lex_disbursement_${txId}`, JSON.stringify(data));
+}
+
+function StatusBadgeDisbursement({ status }: { status: DisbursementStatus }) {
+  const colors: Record<DisbursementStatus, string> = {
+    Pending: 'bg-slate-100 text-slate-600',
+    Disbursed: 'bg-green-100 text-green-800',
+    Partial: 'bg-yellow-100 text-yellow-800',
+  };
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colors[status]}`}>
+      {status}
+    </span>
+  );
 }
 
 function ResultRow({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
@@ -321,6 +366,251 @@ export default function CommissionPage() {
           </div>
         </div>
       )}
+
+      {/* Disbursement Tracker */}
+      <DisbursementTracker
+        transactions={transactions ?? []}
+        commissionPct={calcInput.commissionPct}
+        cobrokePct={calcInput.cobrokePct}
+        agentSplitPct={calcInput.agentSplitPct}
+      />
     </div>
+  );
+}
+
+// ── Disbursement Tracker ──────────────────────────────────────────────────────
+
+function DisbursementTracker({
+  transactions,
+  commissionPct,
+  cobrokePct,
+  agentSplitPct,
+}: {
+  transactions: TransactionListItem[];
+  commissionPct: number;
+  cobrokePct: number;
+  agentSplitPct: number;
+}) {
+  const [disbursements, setDisbursements] = useState<Record<number, DisbursementData>>({});
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const txWithPrice = useMemo(() => transactions.filter((t) => t.purchase_price), [transactions]);
+
+  // Load all disbursement data on mount / when transactions change
+  useEffect(() => {
+    const loaded: Record<number, DisbursementData> = {};
+    txWithPrice.forEach((tx) => {
+      loaded[tx.id] = loadDisbursement(tx.id);
+    });
+    setDisbursements(loaded);
+  }, [txWithPrice]);
+
+  const updateDisbursement = useCallback((txId: number, updates: Partial<DisbursementData>) => {
+    setDisbursements((prev) => {
+      const current = prev[txId] ?? { status: 'Pending' as DisbursementStatus, dateDisbursed: '', notes: '' };
+      const updated = { ...current, ...updates };
+      saveDisbursement(txId, updated);
+      return { ...prev, [txId]: updated };
+    });
+  }, []);
+
+  // Summary calculations
+  const summary = useMemo(() => {
+    let totalPending = 0;
+    let totalDisbursed = 0;
+    let countPending = 0;
+    let countDisbursed = 0;
+    let countPartial = 0;
+
+    const currentYear = new Date().getFullYear();
+
+    txWithPrice.forEach((tx) => {
+      const d = disbursements[tx.id];
+      const calc = commissionCalc(tx.purchase_price ?? 0, commissionPct, cobrokePct, agentSplitPct);
+
+      if (!d || d.status === 'Pending') {
+        totalPending += calc.agentNet;
+        countPending++;
+      } else if (d.status === 'Disbursed') {
+        if (d.dateDisbursed) {
+          const year = new Date(d.dateDisbursed).getFullYear();
+          if (year === currentYear) totalDisbursed += calc.agentNet;
+        } else {
+          totalDisbursed += calc.agentNet;
+        }
+        countDisbursed++;
+      } else {
+        // Partial
+        countPartial++;
+        totalPending += calc.agentNet * 0.5;
+        totalDisbursed += calc.agentNet * 0.5;
+      }
+    });
+
+    return { totalPending, totalDisbursed, countPending, countDisbursed, countPartial };
+  }, [txWithPrice, disbursements, commissionPct, cobrokePct, agentSplitPct]);
+
+  if (txWithPrice.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center gap-2 mb-6">
+        <Banknote className="h-5 w-5 text-blue-600" />
+        <h2 className="text-lg font-bold text-slate-900">Disbursement Tracker</h2>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Pending</div>
+          <div className="text-2xl font-bold text-slate-900">{formatCurrency(summary.totalPending)}</div>
+          <div className="text-xs text-slate-400 mt-1">{summary.countPending} transactions</div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Disbursed This Year</div>
+          <div className="text-2xl font-bold text-green-700">{formatCurrency(summary.totalDisbursed)}</div>
+          <div className="text-xs text-slate-400 mt-1">{summary.countDisbursed} transactions</div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Partial</div>
+          <div className="text-2xl font-bold text-yellow-700">{summary.countPartial}</div>
+          <div className="text-xs text-slate-400 mt-1">transactions</div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Tracked</div>
+          <div className="text-2xl font-bold text-blue-700">{txWithPrice.length}</div>
+          <div className="text-xs text-slate-400 mt-1">transactions</div>
+        </div>
+      </div>
+
+      {/* Disbursement Table */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Property</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Sale Price</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Commission $</th>
+                <th className="text-center px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date Disbursed</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Notes</th>
+                <th className="w-10 px-3 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {txWithPrice.map((tx) => {
+                const d = disbursements[tx.id] ?? { status: 'Pending' as DisbursementStatus, dateDisbursed: '', notes: '' };
+                const calc = commissionCalc(tx.purchase_price ?? 0, commissionPct, cobrokePct, agentSplitPct);
+                const isExpanded = expandedId === tx.id;
+
+                return (
+                  <DisbursementRow
+                    key={tx.id}
+                    tx={tx}
+                    data={d}
+                    agentNet={calc.agentNet}
+                    isExpanded={isExpanded}
+                    onToggleExpand={() => setExpandedId(isExpanded ? null : tx.id)}
+                    onUpdate={(updates) => updateDisbursement(tx.id, updates)}
+                  />
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DisbursementRow({
+  tx,
+  data,
+  agentNet,
+  isExpanded,
+  onToggleExpand,
+  onUpdate,
+}: {
+  tx: TransactionListItem;
+  data: DisbursementData;
+  agentNet: number;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onUpdate: (updates: Partial<DisbursementData>) => void;
+}) {
+  return (
+    <>
+      <tr
+        className="hover:bg-slate-50 cursor-pointer transition-colors"
+        onClick={onToggleExpand}
+      >
+        <td className="px-6 py-3">
+          <Link
+            href={`/transactions/${tx.id}`}
+            className="text-blue-600 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {tx.address}
+          </Link>
+        </td>
+        <td className="px-6 py-3 text-right text-slate-700">{formatCurrency(tx.purchase_price)}</td>
+        <td className="px-6 py-3 text-right font-semibold text-green-700">{formatCurrency(agentNet)}</td>
+        <td className="px-6 py-3 text-center">
+          <StatusBadgeDisbursement status={data.status} />
+        </td>
+        <td className="px-6 py-3 text-slate-600 text-xs">
+          {data.dateDisbursed || '--'}
+        </td>
+        <td className="px-6 py-3 text-slate-500 text-xs truncate max-w-[150px]">
+          {data.notes || '--'}
+        </td>
+        <td className="px-3 py-3 text-slate-400">
+          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr>
+          <td colSpan={7} className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
+                <select
+                  value={data.status}
+                  onChange={(e) => onUpdate({ status: e.target.value as DisbursementStatus })}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Disbursed">Disbursed</option>
+                  <option value="Partial">Partial</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Date Disbursed</label>
+                <input
+                  type="date"
+                  value={data.dateDisbursed}
+                  onChange={(e) => onUpdate({ dateDisbursed: e.target.value })}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Notes</label>
+                <input
+                  type="text"
+                  value={data.notes}
+                  onChange={(e) => onUpdate({ notes: e.target.value })}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Add notes..."
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

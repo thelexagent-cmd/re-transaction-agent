@@ -44,6 +44,9 @@ class Transaction(Base):
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     insurance_alert_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     ctc_alert_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    commission_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    commission_disbursed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    commission_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -69,4 +72,13 @@ class Transaction(Base):
     )
     portal_tokens: Mapped[list["PortalToken"]] = relationship(  # noqa: F821
         "PortalToken", back_populates="transaction", cascade="all, delete-orphan"
+    )
+    tasks: Mapped[list["Task"]] = relationship(  # noqa: F821
+        "Task", back_populates="transaction", cascade="all, delete-orphan", lazy="select"
+    )
+    compliance_items: Mapped[list["ComplianceItem"]] = relationship(  # noqa: F821
+        "ComplianceItem", back_populates="transaction", cascade="all, delete-orphan", lazy="select"
+    )
+    compliance_review: Mapped["ComplianceReview | None"] = relationship(  # noqa: F821
+        "ComplianceReview", back_populates="transaction", cascade="all, delete-orphan", uselist=False
     )

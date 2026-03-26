@@ -68,7 +68,7 @@ const PIPELINE_STEPS = [
   { key: 'closed',     label: 'Closed',     phase: '6' },
 ];
 
-const TABS = ['Overview', 'Documents', 'Timeline', 'Activity', 'Alerts', 'Commission', 'FIRPTA'] as const;
+const TABS = ['Overview', 'Documents', 'Timeline', 'Activity', 'Alerts', 'Commission', 'Compliance', 'FIRPTA'] as const;
 type Tab = typeof TABS[number];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -668,6 +668,92 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
 
 // ── Documents Tab ────────────────────────────────────────────────────────────
 
+function ESignButton({ docId }: { docId: number }) {
+  const storageKey = `lex_esign_${docId}`;
+  const [link, setLink] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(storageKey);
+    if (stored) setLink(stored);
+  }, [storageKey]);
+
+  function handleSave() {
+    if (!inputValue.trim()) return;
+    localStorage.setItem(storageKey, inputValue.trim());
+    setLink(inputValue.trim());
+    setInputValue('');
+    setShowForm(false);
+  }
+
+  function handleChangeLink() {
+    setInputValue(link);
+    setShowForm(true);
+  }
+
+  if (link && !showForm) {
+    return (
+      <div className="flex items-center gap-2">
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:text-green-800"
+        >
+          <Link2 className="h-3.5 w-3.5 text-green-600" />
+          E-Sign link
+        </a>
+        <button
+          onClick={handleChangeLink}
+          className="text-xs text-slate-400 hover:text-slate-600"
+        >
+          Change
+        </button>
+      </div>
+    );
+  }
+
+  if (showForm) {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="url"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          placeholder="Paste signing link"
+          className="w-48 px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+          autoFocus
+        />
+        <button
+          onClick={handleSave}
+          disabled={!inputValue.trim()}
+          className="rounded bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
+        >
+          Save
+        </button>
+        <button
+          onClick={() => { setShowForm(false); setInputValue(''); }}
+          className="text-xs text-slate-400 hover:text-slate-600"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setShowForm(true)}
+      className="inline-flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+    >
+      <Link2 className="h-3 w-3" />
+      E-Sign
+    </button>
+  );
+}
+
 function DocumentsTab({ txId }: { txId: number }) {
   const { data: docs, error: docsError, isLoading: docsLoading, mutate: mutateDocs } = useSWR(
     `/transactions/${txId}/documents`,
@@ -770,6 +856,9 @@ function DocumentsTab({ txId }: { txId: number }) {
                       )}
                     </div>
                   </div>
+                  {(doc.status === 'pending' || doc.status === 'overdue') && (
+                    <ESignButton docId={doc.id} />
+                  )}
                   <DocStatusBadge status={doc.status} />
                 </div>
               ))}
@@ -968,6 +1057,179 @@ function AlertsTab({ txId }: { txId: number }) {
   );
 }
 
+// ── Compliance Tab ──────────────────────────────────────────────────────────
+
+type ComplianceSection = {
+  title: string;
+  items: string[];
+};
+
+const COMPLIANCE_SECTIONS: ComplianceSection[] = [
+  {
+    title: 'Contract',
+    items: [
+      'Executed contract uploaded',
+      'All addenda collected',
+      'Commission agreement signed',
+      'MLS listing updated',
+    ],
+  },
+  {
+    title: 'Inspection',
+    items: [
+      'Inspection report received',
+      'Inspection response deadline noted',
+      'Repairs agreed upon documented',
+    ],
+  },
+  {
+    title: 'Financing',
+    items: [
+      'Pre-approval letter on file',
+      'Loan commitment received',
+      'Appraisal ordered',
+      'Appraisal received',
+    ],
+  },
+  {
+    title: 'Title',
+    items: [
+      'Title search ordered',
+      'Title commitment reviewed',
+      'Title insurance confirmed',
+      'Lien search completed',
+    ],
+  },
+  {
+    title: 'Closing',
+    items: [
+      'Closing disclosure reviewed',
+      'Final walkthrough scheduled',
+      'Wire instructions verified',
+      'Closing confirmed with all parties',
+    ],
+  },
+];
+
+const ALL_COMPLIANCE_ITEMS = COMPLIANCE_SECTIONS.flatMap((s) => s.items);
+
+type ComplianceState = Record<string, boolean>;
+
+function ComplianceTab({ txId }: { txId: number }) {
+  const storageKey = `lex_compliance_${txId}`;
+  const [checked, setChecked] = useState<ComplianceState>({});
+  const [brokerReviewDate, setBrokerReviewDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setChecked(parsed.checked ?? {});
+        setBrokerReviewDate(parsed.brokerReviewDate ?? null);
+      }
+    } catch {
+      // ignore
+    }
+  }, [storageKey]);
+
+  function persist(newChecked: ComplianceState, reviewDate: string | null) {
+    setChecked(newChecked);
+    setBrokerReviewDate(reviewDate);
+    localStorage.setItem(storageKey, JSON.stringify({ checked: newChecked, brokerReviewDate: reviewDate }));
+  }
+
+  function handleToggle(item: string) {
+    const updated = { ...checked, [item]: !checked[item] };
+    persist(updated, brokerReviewDate);
+  }
+
+  function handleBrokerReview() {
+    const date = new Date().toISOString();
+    persist(checked, date);
+  }
+
+  const completedCount = ALL_COMPLIANCE_ITEMS.filter((item) => checked[item]).length;
+  const totalCount = ALL_COMPLIANCE_ITEMS.length;
+  const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Broker Review Banner */}
+      {brokerReviewDate && (
+        <div className="rounded-xl border border-green-300 bg-green-50 p-4 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+          <div className="text-sm font-medium text-green-800">
+            Broker review complete &mdash; {formatDate(brokerReviewDate)}
+          </div>
+        </div>
+      )}
+
+      {/* Score Card */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-slate-900">Compliance Score</h3>
+          <span className="text-sm font-bold text-slate-700">
+            {completedCount}/{totalCount} items complete &mdash; {pct}%
+          </span>
+        </div>
+        <div className="h-3 rounded-full bg-slate-200 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              pct === 100 ? 'bg-green-500' : pct >= 70 ? 'bg-blue-600' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+            }`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Sections */}
+      {COMPLIANCE_SECTIONS.map((section) => {
+        const sectionComplete = section.items.filter((item) => checked[item]).length;
+        return (
+          <div key={section.title} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-700">{section.title}</span>
+              <span className="text-xs text-slate-400">
+                {sectionComplete}/{section.items.length}
+              </span>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {section.items.map((item) => (
+                <label
+                  key={item}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!checked[item]}
+                    onChange={() => handleToggle(item)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className={`text-sm ${checked[item] ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                    {item}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Broker Review Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleBrokerReview}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+        >
+          <Shield className="h-4 w-4" />
+          {brokerReviewDate ? 'Update Broker Review' : 'Mark as Broker Reviewed'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function TransactionDetailPage({
@@ -1156,6 +1418,7 @@ export default function TransactionDetailPage({
       {activeTab === 'Activity' && <ActivityTab events={tx.events} />}
       {activeTab === 'Alerts' && <AlertsTab txId={txId} />}
       {activeTab === 'Commission' && <CommissionTab tx={tx} />}
+      {activeTab === 'Compliance' && <ComplianceTab txId={txId} />}
       {activeTab === 'FIRPTA' && <FirptaTab tx={tx} txId={txId} />}
 
       {/* Quick Notes Floating Widget */}

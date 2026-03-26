@@ -23,6 +23,7 @@ import {
   Sun,
   Moon,
   Bell,
+  CheckSquare,
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notification-center';
 
@@ -32,6 +33,7 @@ const navItems = [
   { href: '/documents',     label: 'Pending Documents',   icon: FileText },
   { href: '/contacts',      label: 'Contacts',            icon: Users },
   { href: '/reports',       label: 'Reports',             icon: BarChart3 },
+  { href: '/tasks',          label: 'Tasks',                icon: CheckSquare },
   { href: '/commission',    label: 'Commission',          icon: DollarSign },
   { href: '/templates',     label: 'Email Templates',     icon: Mail },
 ];

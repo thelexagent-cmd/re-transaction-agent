@@ -1,8 +1,9 @@
 """Transaction endpoints — create, list, retrieve, and contract parsing."""
 
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -33,6 +34,18 @@ from app.schemas.transaction import (
     TransactionUpdate,
 )
 from app.services import storage
+
+
+# ── Inline request schemas for new endpoints ─────────────────────────────────
+
+class EsignUrlRequest(BaseModel):
+    esign_url: str
+
+
+class CommissionUpdateRequest(BaseModel):
+    status: str
+    disbursed_at: datetime | None = None
+    notes: str | None = None
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -238,6 +251,83 @@ async def get_parse_status(
         }
     # RETRY or unknown
     return {"task_id": task_id, "status": "processing"}
+
+
+# ── E-Signature URL endpoint ──────────────────────────────────────────────────
+
+
+@router.patch("/{transaction_id}/documents/{document_id}/esign")
+async def update_document_esign_url(
+    transaction_id: int,
+    document_id: int,
+    body: EsignUrlRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Set or update the e-signature URL for a document.
+
+    Raises 404 if the transaction or document does not exist or belongs to a different broker.
+    """
+    await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    result = await db.execute(
+        select(Document).where(
+            Document.id == document_id,
+            Document.transaction_id == transaction_id,
+        )
+    )
+    doc = result.scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    doc.esign_url = body.esign_url
+    db.add(doc)
+    await db.flush()
+    await db.refresh(doc)
+
+    return {
+        "id": doc.id,
+        "transaction_id": doc.transaction_id,
+        "name": doc.name,
+        "esign_url": doc.esign_url,
+        "status": doc.status,
+    }
+
+
+# ── Commission disbursement endpoint ─────────────────────────────────────────
+
+
+@router.patch("/{transaction_id}/commission")
+async def update_commission(
+    transaction_id: int,
+    body: CommissionUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Update commission disbursement fields on a transaction.
+
+    Body: {status: "pending"|"disbursed"|"partial", disbursed_at?, notes?}
+
+    Raises 404 if the transaction does not belong to the authenticated broker.
+    """
+    txn = await _require_transaction_ownership(transaction_id, current_user.id, db)
+
+    txn.commission_status = body.status
+    if body.disbursed_at is not None:
+        txn.commission_disbursed_at = body.disbursed_at
+    if body.notes is not None:
+        txn.commission_notes = body.notes
+
+    db.add(txn)
+    await db.flush()
+    await db.refresh(txn)
+
+    return {
+        "id": txn.id,
+        "commission_status": txn.commission_status,
+        "commission_disbursed_at": txn.commission_disbursed_at.isoformat() if txn.commission_disbursed_at else None,
+        "commission_notes": txn.commission_notes,
+    }
 
 
 @router.get("/{transaction_id}", response_model=TransactionDetail)
