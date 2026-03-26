@@ -1,9 +1,10 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import { useRef, useState } from 'react';
 import useSWR from 'swr';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-bb87.up.railway.app';
 
 async function fetchLenderPortal(token: string) {
   const res = await fetch(`${API_URL}/portal/lender/${token}`);
@@ -11,9 +12,11 @@ async function fetchLenderPortal(token: string) {
   return res.json();
 }
 
+const API_URL_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-bb87.up.railway.app';
+
 export default function LenderPortalPage() {
   const { token } = useParams<{ token: string }>();
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     token ? `/portal/lender/${token}` : null,
     () => fetchLenderPortal(token),
     { revalidateOnFocus: false }
@@ -49,6 +52,35 @@ export default function LenderPortalPage() {
   const uploadedDocs: Array<{ id: number; name: string; status: string; uploaded_at?: string }> = data?.uploaded_docs ?? data?.documents ?? [];
   const parties = data?.parties ?? tx?.parties ?? [];
   const deadlines = data?.deadlines ?? tx?.deadlines ?? [];
+
+  const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [docName, setDocName] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleUpload() {
+    const file = fileRef.current?.files?.[0];
+    if (!file) { setUploadError('Please select a file.'); return; }
+    setUploading(true);
+    setUploadError('');
+    setUploadSuccess('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      if (docName.trim()) form.append('document_name', docName.trim());
+      const res = await fetch(`${API_URL_BASE}/portal/lender/${token}/upload`, { method: 'POST', body: form });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Upload failed.'); }
+      setUploadSuccess(`"${docName || file.name}" uploaded successfully.`);
+      setDocName('');
+      if (fileRef.current) fileRef.current.value = '';
+      mutate();
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'Upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const statusColors: Record<string, string> = {
     active: 'bg-green-100 text-green-800',
@@ -130,13 +162,40 @@ export default function LenderPortalPage() {
           </div>
         )}
 
-        {/* Upload note */}
+        {/* Upload Form */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-800 mb-2">Need to Upload Documents?</h2>
-          <p className="text-sm text-slate-600">
-            Please contact the transaction agent directly to upload documents for this transaction.
-            They will be able to receive and process your documents securely.
-          </p>
+          <h2 className="font-semibold text-slate-800 mb-1">Upload a Document</h2>
+          <p className="text-sm text-slate-500 mb-4">Upload loan documents directly. The agent will be notified automatically.</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Document Name <span className="text-slate-400">(optional — defaults to file name)</span></label>
+              <input
+                type="text"
+                value={docName}
+                onChange={(e) => setDocName(e.target.value)}
+                placeholder="e.g. Commitment Letter, Clear to Close"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">File</label>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                className="w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+              />
+            </div>
+            {uploadError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{uploadError}</p>}
+            {uploadSuccess && <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">✓ {uploadSuccess}</p>}
+            <button
+              onClick={handleUpload}
+              disabled={uploading}
+              className="w-full py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              {uploading ? 'Uploading...' : 'Upload Document'}
+            </button>
+          </div>
         </div>
 
         {/* Deadlines */}

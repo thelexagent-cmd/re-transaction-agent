@@ -8,7 +8,7 @@ import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +20,7 @@ from app.models.document import Document
 from app.models.portal_token import PortalToken
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.services import storage
 
 router = APIRouter(tags=["portal"])
 logger = logging.getLogger(__name__)
@@ -120,6 +121,7 @@ async def get_portal_view(
             selectinload(PortalToken.transaction).selectinload(Transaction.parties),
             selectinload(PortalToken.transaction).selectinload(Transaction.deadlines),
             selectinload(PortalToken.transaction).selectinload(Transaction.events),
+            selectinload(PortalToken.transaction).selectinload(Transaction.documents),
         )
     )
     portal_token = result.scalar_one_or_none()
@@ -160,15 +162,33 @@ async def get_portal_view(
         for p in txn.parties
     ]
 
+    # Pending documents (client-visible, non-sensitive)
+    pending_docs = [
+        {"name": d.name, "phase": d.phase, "status": d.status}
+        for d in txn.documents
+        if d.status in ("pending", "overdue")
+    ]
+
+    # Pipeline stages for progress display
+    pipeline_stages = ["Lead", "Under Contract", "Inspection", "Financing", "Clear to Close", "Closed"]
+    status_to_stage = {
+        "lead": 0, "active": 1, "under_contract": 1, "inspection": 2,
+        "financing": 3, "clear_to_close": 4, "closed": 5,
+    }
+    current_stage = status_to_stage.get(txn.status, 1)
+
     return {
         "address": txn.address,
         "property_type": txn.property_type,
         "status": txn.status,
-        "purchase_price": txn.purchase_price,
+        "purchase_price": float(txn.purchase_price) if txn.purchase_price else None,
         "closing_date": txn.closing_date.isoformat() if txn.closing_date else None,
+        "pipeline_stages": pipeline_stages,
+        "current_stage": current_stage,
         "parties": parties,
         "deadlines": deadlines,
         "events": events,
+        "pending_documents": pending_docs,
     }
 
 
@@ -283,12 +303,13 @@ async def get_lender_portal_view(
 @router.post("/portal/lender/{token}/upload", status_code=status.HTTP_201_CREATED)
 async def lender_upload_document(
     token: str,
-    body: LenderDocUpload,
+    file: UploadFile = File(...),
+    document_name: str = "",
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Public endpoint — allow lender to submit a document record via the portal.
+    """Public endpoint — lender uploads a document file via the portal.
 
-    Stores document metadata. The frontend handles actual file upload to R2.
+    Accepts multipart/form-data, uploads to R2, and creates a document record.
     No authentication required. The token itself is the credential.
     """
     now = datetime.now(timezone.utc)
@@ -307,15 +328,26 @@ async def lender_upload_document(
             detail="Lender portal link is invalid or has expired.",
         )
 
+    content = await file.read()
+    filename = file.filename or "upload"
+    name = document_name.strip() or filename
+
+    storage_key = await storage.upload_document(
+        portal_token.transaction_id, filename, content
+    )
+
     doc = Document(
         transaction_id=portal_token.transaction_id,
-        name=body.name,
+        name=name,
         phase=5,  # Financing phase
         responsible_party_role="lender",
+        storage_key=storage_key,
     )
     db.add(doc)
     await db.flush()
     await db.refresh(doc)
+
+    logger.info("Lender uploaded document '%s' for transaction %s", name, portal_token.transaction_id)
 
     return {
         "id": doc.id,
