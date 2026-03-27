@@ -12,7 +12,15 @@ import {
   ListChecks,
 } from 'lucide-react';
 
-// ── Active Tasks Panel ──────────────────────────────────────────────────────
+const inputStyle = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid rgba(148,163,184,0.09)',
+  color: '#f1f5f9',
+  outline: 'none',
+  fontSize: '0.875rem',
+  padding: '0.5rem 0.75rem',
+  borderRadius: '0.5rem',
+};
 
 function ActiveTasksPanel({
   transactions,
@@ -41,11 +49,8 @@ function ActiveTasksPanel({
       await createTask(txIdNum, { title: newTaskName.trim() });
       await mutate();
       setNewTaskName('');
-    } catch {
-      // ignore
-    } finally {
-      setSaving(false);
-    }
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
   }
 
   async function handleToggleTask(task: TaskItem) {
@@ -53,9 +58,7 @@ function ActiveTasksPanel({
     try {
       await updateTask(txIdNum, task.id, { status: task.status === 'completed' ? 'pending' : 'completed' });
       await mutate();
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }
 
   async function handleDeleteTask(taskId: number) {
@@ -63,9 +66,7 @@ function ActiveTasksPanel({
     try {
       await deleteTask(txIdNum, taskId);
       await mutate();
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }
 
   async function handleUpdateTask(taskId: number, updates: Partial<{ due_date: string; assigned_role: string }>) {
@@ -73,20 +74,22 @@ function ActiveTasksPanel({
     try {
       await updateTask(txIdNum, taskId, updates);
       await mutate();
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }
 
   const taskList = tasks ?? [];
   const completedCount = taskList.filter((t) => t.status === 'completed').length;
+  const pct = taskList.length > 0 ? Math.round((completedCount / taskList.length) * 100) : 0;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm h-full">
-      <div className="px-5 py-4 border-b border-slate-200">
+    <div className="rounded-2xl h-full" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
+      {/* Header */}
+      <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
         <div className="flex items-center gap-2 mb-3">
-          <ListChecks className="h-5 w-5 text-blue-600" />
-          <h2 className="text-base font-semibold text-slate-900">Active Tasks</h2>
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)' }}>
+            <ListChecks className="h-3.5 w-3.5" style={{ color: '#60a5fa' }} />
+          </div>
+          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>Active Tasks</h2>
         </div>
 
         {/* Transaction selector */}
@@ -94,16 +97,17 @@ function ActiveTasksPanel({
           <select
             value={selectedTxId}
             onChange={(e) => onSelectTx(e.target.value)}
-            className="w-full appearance-none pl-3 pr-8 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full appearance-none rounded-lg transition-all duration-150"
+            style={{ ...inputStyle, paddingRight: '2rem' }}
           >
-            <option value="">-- Select a transaction --</option>
+            <option value="">— Select a transaction —</option>
             {transactions.map((tx) => (
               <option key={tx.id} value={String(tx.id)}>
                 {tx.address} ({tx.status})
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: '#3d5068' }} />
         </div>
       </div>
 
@@ -111,38 +115,38 @@ function ActiveTasksPanel({
         <>
           {/* Progress */}
           {taskList.length > 0 && (
-            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+            <div className="px-5 py-3" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)', background: 'rgba(148,163,184,0.03)' }}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-medium text-slate-600">
-                  {completedCount}/{taskList.length} complete
-                </span>
-                <span className="text-xs font-medium text-slate-500">
-                  {taskList.length > 0 ? Math.round((completedCount / taskList.length) * 100) : 0}%
-                </span>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{completedCount}/{taskList.length} complete</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#60a5fa' }}>{pct}%</span>
               </div>
-              <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(148,163,184,0.1)' }}>
                 <div
-                  className="h-full rounded-full bg-blue-600 transition-all duration-300"
-                  style={{ width: `${taskList.length > 0 ? (completedCount / taskList.length) * 100 : 0}%` }}
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #3b82f6, #2563eb)' }}
                 />
               </div>
             </div>
           )}
 
           {/* Add task */}
-          <div className="px-5 py-3 border-b border-slate-200 flex gap-2">
+          <div className="px-5 py-3 flex gap-2" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
             <input
               type="text"
               value={newTaskName}
               onChange={(e) => setNewTaskName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
               placeholder="Add a new task..."
-              className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 transition-all duration-150"
+              style={inputStyle}
+              onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
+              onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
             />
             <button
               onClick={handleAddTask}
               disabled={!newTaskName.trim() || saving}
-              className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
+              className="inline-flex items-center gap-1 rounded-lg transition-all duration-150 disabled:opacity-40"
+              style={{ padding: '0.5rem 0.875rem', fontSize: '0.75rem', fontWeight: 600, background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', boxShadow: '0 2px 8px rgba(59,130,246,0.3)' }}
             >
               <Plus className="h-3.5 w-3.5" />
               Add
@@ -150,29 +154,34 @@ function ActiveTasksPanel({
           </div>
 
           {/* Task list */}
-          <div className="divide-y divide-slate-100 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
             {taskList.length === 0 ? (
-              <div className="px-5 py-12 text-center text-slate-400 text-sm">
+              <div className="px-5 py-12 text-center" style={{ fontSize: '0.875rem', color: '#3d5068' }}>
                 No tasks yet. Add tasks manually above.
               </div>
             ) : (
               taskList.map((task) => (
-                <div key={task.id} className="px-5 py-3 hover:bg-slate-50 transition-colors">
+                <div
+                  key={task.id}
+                  className="px-5 py-3 transition-colors duration-100"
+                  style={{ borderBottom: '1px solid rgba(148,163,184,0.05)' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(148,163,184,0.03)'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                >
                   <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleToggleTask(task)}
-                      className="shrink-0"
-                    >
+                    <button onClick={() => handleToggleTask(task)} className="shrink-0">
                       {task.status === 'completed' ? (
-                        <CheckSquare className="h-5 w-5 text-green-500" />
+                        <div className="h-5 w-5 rounded flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                          <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 6l3 3 5-5" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
                       ) : (
-                        <div className="h-5 w-5 rounded border-2 border-slate-300 hover:border-blue-400 transition-colors" />
+                        <div className="h-5 w-5 rounded border-2 transition-colors" style={{ borderColor: 'rgba(148,163,184,0.2)' }} />
                       )}
                     </button>
                     <div className="flex-1 min-w-0">
-                      <div
-                        className={`text-sm ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-900'}`}
-                      >
+                      <div style={{ fontSize: '0.875rem', color: task.status === 'completed' ? '#3d5068' : '#e2e8f0', textDecoration: task.status === 'completed' ? 'line-through' : 'none' }}>
                         {task.title}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
@@ -182,18 +191,20 @@ function ActiveTasksPanel({
                               type="date"
                               value={task.due_date ?? ''}
                               onChange={(e) => handleUpdateTask(task.id, { due_date: e.target.value })}
-                              className="px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="rounded"
+                              style={{ ...inputStyle, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                             />
                             <input
                               type="text"
                               value={task.assigned_role ?? ''}
                               onChange={(e) => handleUpdateTask(task.id, { assigned_role: e.target.value })}
                               placeholder="Role"
-                              className="px-2 py-1 text-xs border border-slate-200 rounded w-24 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="rounded w-24"
+                              style={{ ...inputStyle, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                             />
                             <button
                               onClick={() => setEditingId(null)}
-                              className="text-xs text-blue-600 hover:underline"
+                              style={{ fontSize: '0.75rem', color: '#3b82f6' }}
                             >
                               Done
                             </button>
@@ -201,14 +212,14 @@ function ActiveTasksPanel({
                         ) : (
                           <>
                             {task.due_date && (
-                              <span className="text-xs text-slate-400">Due {task.due_date}</span>
+                              <span style={{ fontSize: '0.6875rem', color: '#3d5068' }}>Due {task.due_date}</span>
                             )}
                             {task.assigned_role && (
-                              <span className="text-xs text-slate-400">{task.assigned_role}</span>
+                              <span style={{ fontSize: '0.6875rem', color: '#3d5068' }}>{task.assigned_role}</span>
                             )}
                             <button
                               onClick={() => setEditingId(task.id)}
-                              className="text-xs text-blue-500 hover:underline"
+                              style={{ fontSize: '0.6875rem', color: '#3b82f6' }}
                             >
                               Edit
                             </button>
@@ -218,7 +229,10 @@ function ActiveTasksPanel({
                     </div>
                     <button
                       onClick={() => handleDeleteTask(task.id)}
-                      className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
+                      className="shrink-0 transition-colors duration-150"
+                      style={{ color: '#2d3f55' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#2d3f55'; }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -229,15 +243,13 @@ function ActiveTasksPanel({
           </div>
         </>
       ) : (
-        <div className="px-5 py-16 text-center text-slate-400 text-sm">
+        <div className="px-5 py-16 text-center" style={{ fontSize: '0.875rem', color: '#3d5068' }}>
           Select a transaction above to view or manage tasks.
         </div>
       )}
     </div>
   );
 }
-
-// ── Main Tasks Page ─────────────────────────────────────────────────────────
 
 export default function TasksPage() {
   const { data: transactions } = useSWR('/transactions', getTransactions, { revalidateOnFocus: false });
@@ -246,12 +258,14 @@ export default function TasksPage() {
   return (
     <div className="p-8 max-w-4xl">
       <div className="flex items-center gap-3 mb-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', boxShadow: '0 4px 16px rgba(59,130,246,0.35)' }}>
           <CheckSquare className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Task Manager</h1>
-          <p className="text-sm text-slate-500">Manage per-transaction task checklists</p>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+            Task Manager
+          </h1>
+          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '2px' }}>Manage per-transaction task checklists</p>
         </div>
       </div>
 

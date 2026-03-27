@@ -23,31 +23,33 @@ export default function DocumentsPage() {
     { refreshInterval: 60000 }
   );
 
-  const overdue  = documents?.filter(d => d.status === 'overdue') ?? [];
-  const pending  = documents?.filter(d => d.status === 'pending') ?? [];
+  const overdue = documents?.filter(d => d.status === 'overdue') ?? [];
+  const pending = documents?.filter(d => d.status === 'pending') ?? [];
 
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Pending Documents</h1>
-        <p className="text-sm text-slate-500 mt-1">Every document still outstanding across all transactions</p>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+          Pending Documents
+        </h1>
+        <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>Every document still outstanding across all transactions</p>
       </div>
 
       {/* Summary bar */}
       {!isLoading && documents && (
         <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
+          <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <AlertCircle className="h-5 w-5 shrink-0" style={{ color: '#f87171' }} />
             <div>
-              <div className="text-xl font-bold text-red-700">{overdue.length}</div>
-              <div className="text-xs text-red-600">Overdue</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f87171' }}>{overdue.length}</div>
+              <div style={{ fontSize: '0.75rem', color: '#ef4444' }}>Overdue</div>
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 flex items-center gap-3">
-            <Clock className="h-5 w-5 text-blue-500 shrink-0" />
+          <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}>
+            <Clock className="h-5 w-5 shrink-0" style={{ color: '#60a5fa' }} />
             <div>
-              <div className="text-xl font-bold text-slate-700">{pending.length}</div>
-              <div className="text-xs text-slate-500">Pending</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#e2e8f0' }}>{pending.length}</div>
+              <div style={{ fontSize: '0.75rem', color: '#3d5068' }}>Pending</div>
             </div>
           </div>
         </div>
@@ -56,32 +58,34 @@ export default function DocumentsPage() {
       {isLoading && (
         <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-16 lex-skeleton rounded-xl" />
           ))}
         </div>
       )}
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+        <div className="rounded-xl px-5 py-4 text-sm" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
           Failed to load documents.
         </div>
       )}
 
       {!isLoading && !error && documents?.length === 0 && (
         <div className="text-center py-20">
-          <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3" />
-          <p className="text-base font-semibold text-slate-700">All caught up</p>
-          <p className="text-sm text-slate-400 mt-1">No pending documents across any transaction</p>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.15)' }}>
+            <CheckCircle className="h-7 w-7" style={{ color: '#34d399' }} />
+          </div>
+          <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#94a3b8' }}>All caught up</p>
+          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>No pending documents across any transaction</p>
         </div>
       )}
 
       {!isLoading && documents && documents.length > 0 && (
         <div className="space-y-8">
           {overdue.length > 0 && (
-            <DocSection title="Overdue" icon={<AlertCircle className="h-4 w-4 text-red-500" />} docs={overdue} rowStyle="border-red-100 bg-red-50/40" badgeStyle="bg-red-100 text-red-700" />
+            <DocSection title="Overdue" icon={<AlertCircle className="h-4 w-4" style={{ color: '#f87171' }} />} docs={overdue} isOverdue={true} />
           )}
           {pending.length > 0 && (
-            <DocSection title="Pending" icon={<Clock className="h-4 w-4 text-blue-500" />} docs={pending} rowStyle="border-slate-200 bg-white" badgeStyle="bg-blue-100 text-blue-700" />
+            <DocSection title="Pending" icon={<Clock className="h-4 w-4" style={{ color: '#60a5fa' }} />} docs={pending} isOverdue={false} />
           )}
         </div>
       )}
@@ -89,39 +93,51 @@ export default function DocumentsPage() {
   );
 }
 
-function DocSection({ title, icon, docs, rowStyle, badgeStyle }: {
+function DocSection({ title, icon, docs, isOverdue }: {
   title: string;
   icon: React.ReactNode;
   docs: Awaited<ReturnType<typeof getAllDocuments>>;
-  rowStyle: string;
-  badgeStyle: string;
+  isOverdue: boolean;
 }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
         {icon}
-        <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{title}</h2>
-        <span className="text-xs text-slate-400">({docs.length})</span>
+        <h2 style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</h2>
+        <span style={{ fontSize: '0.6875rem', color: '#3d5068' }}>({docs.length})</span>
       </div>
       <div className="space-y-2">
         {docs.map((doc) => (
-          <Link key={doc.id} href={`/transactions/${doc.transaction_id}`}>
-            <div className={`flex items-center justify-between rounded-xl border px-5 py-4 hover:opacity-80 transition-opacity cursor-pointer ${rowStyle}`}>
+          <Link key={doc.id} href={`/transactions/${doc.transaction_id}`} className="block">
+            <div
+              className="flex items-center justify-between rounded-xl px-5 py-4 transition-all duration-150 cursor-pointer"
+              style={{
+                background: isOverdue ? 'rgba(239,68,68,0.05)' : 'var(--bg-surface)',
+                border: isOverdue ? '1px solid rgba(239,68,68,0.15)' : '1px solid rgba(148,163,184,0.09)',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.8'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+            >
               <div className="flex items-center gap-3 min-w-0">
-                <FileText className="h-4 w-4 text-slate-400 shrink-0" />
+                <FileText className="h-4 w-4 shrink-0" style={{ color: '#3d5068' }} />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5 truncate">{doc.transaction_address}</p>
+                  <p className="truncate" style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e2e8f0' }}>{doc.name}</p>
+                  <p className="truncate mt-0.5" style={{ fontSize: '0.75rem', color: '#3d5068' }}>{doc.transaction_address}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
                 {doc.responsible_party_role && (
-                  <span className="text-xs text-slate-400 hidden sm:block">
+                  <span className="hidden sm:block" style={{ fontSize: '0.75rem', color: '#3d5068' }}>
                     {PARTY_ROLE_LABELS[doc.responsible_party_role] ?? doc.responsible_party_role}
                   </span>
                 )}
-                <span className="text-xs text-slate-400">{doc.due_date ? formatDate(doc.due_date) : 'No due date'}</span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badgeStyle}`}>
+                <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>{doc.due_date ? formatDate(doc.due_date) : 'No due date'}</span>
+                <span className="rounded-full px-2.5 py-0.5" style={{
+                  fontSize: '0.6875rem', fontWeight: 700,
+                  color: isOverdue ? '#f87171' : '#60a5fa',
+                  background: isOverdue ? 'rgba(239,68,68,0.1)' : 'rgba(59,130,246,0.1)',
+                  border: isOverdue ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(59,130,246,0.25)',
+                }}>
                   {PHASE_LABELS[doc.phase] ?? `Phase ${doc.phase}`}
                 </span>
               </div>

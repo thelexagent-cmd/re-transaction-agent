@@ -33,8 +33,6 @@ interface ManualCalcState {
   agentSplitPct: string;
 }
 
-// ── Disbursement Types & Helpers ──────────────────────────────────────────
-
 type DisbursementStatus = 'Pending' | 'Disbursed' | 'Partial';
 
 type DisbursementData = {
@@ -48,15 +46,9 @@ function loadDisbursement(txId: number): DisbursementData {
     const stored = localStorage.getItem(`lex_disbursement_${txId}`);
     if (stored) {
       const parsed = JSON.parse(stored) as DisbursementData;
-      return {
-        status: parsed.status ?? 'Pending',
-        dateDisbursed: parsed.dateDisbursed ?? '',
-        notes: parsed.notes ?? '',
-      };
+      return { status: parsed.status ?? 'Pending', dateDisbursed: parsed.dateDisbursed ?? '', notes: parsed.notes ?? '' };
     }
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
   return { status: 'Pending', dateDisbursed: '', notes: '' };
 }
 
@@ -64,14 +56,32 @@ function saveDisbursement(txId: number, data: DisbursementData) {
   localStorage.setItem(`lex_disbursement_${txId}`, JSON.stringify(data));
 }
 
+const cardStyle = {
+  background: 'var(--bg-surface)',
+  border: '1px solid rgba(148,163,184,0.09)',
+  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+};
+
+const inputStyle = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid rgba(148,163,184,0.09)',
+  color: '#f1f5f9',
+  outline: 'none',
+  fontSize: '0.875rem',
+  padding: '0.5625rem 0.875rem',
+  borderRadius: '0.5rem',
+  width: '100%',
+};
+
 function StatusBadgeDisbursement({ status }: { status: DisbursementStatus }) {
-  const colors: Record<DisbursementStatus, string> = {
-    Pending: 'bg-slate-100 text-slate-600',
-    Disbursed: 'bg-green-100 text-green-800',
-    Partial: 'bg-yellow-100 text-yellow-800',
+  const cfg: Record<DisbursementStatus, { color: string; bg: string; border: string }> = {
+    Pending:   { color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.15)' },
+    Disbursed: { color: '#34d399', bg: 'rgba(16,185,129,0.1)',   border: 'rgba(16,185,129,0.25)' },
+    Partial:   { color: '#fbbf24', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.25)' },
   };
+  const c = cfg[status];
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colors[status]}`}>
+    <span className="inline-flex items-center rounded-full px-2 py-0.5" style={{ fontSize: '0.6875rem', fontWeight: 700, color: c.color, background: c.bg, border: `1px solid ${c.border}` }}>
       {status}
     </span>
   );
@@ -79,9 +89,9 @@ function StatusBadgeDisbursement({ status }: { status: DisbursementStatus }) {
 
 function ResultRow({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`flex items-center justify-between py-3 border-b border-slate-100 ${highlight ? 'bg-blue-50 -mx-4 px-4 rounded' : ''}`}>
-      <span className={`text-sm ${highlight ? 'font-semibold text-blue-900' : 'text-slate-600'}`}>{label}</span>
-      <span className={`text-sm font-bold ${highlight ? 'text-blue-700 text-base' : 'text-slate-900'}`}>{value}</span>
+    <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)', ...(highlight ? { background: 'rgba(59,130,246,0.05)', margin: '0 -1rem', padding: '0.75rem 1rem', borderRadius: '0.5rem' } : {}) }}>
+      <span style={{ fontSize: '0.875rem', color: highlight ? '#93c5fd' : '#94a3b8', fontWeight: highlight ? 600 : 400 }}>{label}</span>
+      <span style={{ fontSize: highlight ? '1rem' : '0.875rem', fontWeight: 700, color: highlight ? '#60a5fa' : '#e2e8f0' }}>{value}</span>
     </div>
   );
 }
@@ -97,8 +107,6 @@ export default function CommissionPage() {
   });
 
   const [selectedTxId, setSelectedTxId] = useState<string>('');
-
-  // Populate from selected transaction
   const selectedTx = transactions?.find((t) => String(t.id) === selectedTxId);
 
   const calcInput = useMemo(() => {
@@ -111,80 +119,76 @@ export default function CommissionPage() {
     return { salePrice, commissionPct, cobrokePct, agentSplitPct };
   }, [manual, selectedTx]);
 
-  const result = useMemo(() => commissionCalc(
-    calcInput.salePrice,
-    calcInput.commissionPct,
-    calcInput.cobrokePct,
-    calcInput.agentSplitPct
-  ), [calcInput]);
+  const result = useMemo(() => commissionCalc(calcInput.salePrice, calcInput.commissionPct, calcInput.cobrokePct, calcInput.agentSplitPct), [calcInput]);
 
   function handleManual(field: keyof ManualCalcState, value: string) {
     setManual((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Summary stats from all transactions
   const closedTransactions = transactions?.filter((t) => t.status === 'closed' && t.purchase_price) ?? [];
   const totalVolume = closedTransactions.reduce((sum, t) => sum + (t.purchase_price ?? 0), 0);
-  const estGross = totalVolume * 0.03; // estimate 3% commission
-  const estAgentNet = estGross * 0.7; // estimate 70% agent split after co-broke
+  const estGross = totalVolume * 0.03;
+  const estAgentNet = estGross * 0.7;
 
   return (
     <div className="p-8 max-w-5xl">
       <div className="flex items-center gap-3 mb-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', boxShadow: '0 4px 16px rgba(59,130,246,0.35)' }}>
           <DollarSign className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Commission Tracker</h1>
-          <p className="text-sm text-slate-500">Calculate and track your commission earnings</p>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+            Commission Tracker
+          </h1>
+          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '2px' }}>Calculate and track your commission earnings</p>
         </div>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Closed Volume (Est.)</div>
-          <div className="text-2xl font-bold text-slate-900">{formatCurrency(totalVolume)}</div>
-          <div className="text-xs text-slate-400 mt-1">{closedTransactions.length} closed transactions</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Est. Gross Commission</div>
-          <div className="text-2xl font-bold text-green-700">{formatCurrency(estGross)}</div>
-          <div className="text-xs text-slate-400 mt-1">Based on 3% avg commission</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Est. Agent Net</div>
-          <div className="text-2xl font-bold text-blue-700">{formatCurrency(estAgentNet)}</div>
-          <div className="text-xs text-slate-400 mt-1">After co-broke & 70% split</div>
-        </div>
+        {[
+          { label: 'Closed Volume (Est.)', value: formatCurrency(totalVolume), sub: `${closedTransactions.length} closed transactions`, color: '#e2e8f0' },
+          { label: 'Est. Gross Commission', value: formatCurrency(estGross), sub: 'Based on 3% avg commission', color: '#34d399' },
+          { label: 'Est. Agent Net', value: formatCurrency(estAgentNet), sub: 'After co-broke & 70% split', color: '#60a5fa' },
+        ].map(({ label, value, sub, color }) => (
+          <div key={label} className="rounded-2xl p-5" style={cardStyle}>
+            <div style={{ fontSize: '0.6875rem', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>{label}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color }}>{value}</div>
+            <div style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '2px' }}>{sub}</div>
+          </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Calculator */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl p-6" style={cardStyle}>
           <div className="flex items-center gap-2 mb-5">
-            <Calculator className="h-5 w-5 text-blue-600" />
-            <h2 className="text-base font-semibold text-slate-900">Commission Calculator</h2>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)' }}>
+              <Calculator className="h-3.5 w-3.5" style={{ color: '#60a5fa' }} />
+            </div>
+            <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>Commission Calculator</h2>
           </div>
 
-          {/* Load from transaction */}
           {transactions && transactions.length > 0 && (
             <div className="mb-5">
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">Load from Transaction</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
+                Load from Transaction
+              </label>
               <div className="relative">
                 <select
                   value={selectedTxId}
                   onChange={(e) => setSelectedTxId(e.target.value)}
-                  className="w-full appearance-none pl-3 pr-8 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="appearance-none transition-all duration-150"
+                  style={{ ...inputStyle, paddingRight: '2rem' }}
                 >
-                  <option value="">-- Manual entry --</option>
+                  <option value="">— Manual entry —</option>
                   {transactions.filter((t) => t.purchase_price).map((t) => (
                     <option key={t.id} value={String(t.id)}>
                       {t.address} ({formatCurrency(t.purchase_price)})
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: '#3d5068' }} />
               </div>
             </div>
           )}
@@ -192,93 +196,64 @@ export default function CommissionPage() {
           <div className="space-y-4">
             {/* Sale Price */}
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">Sale Price</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>Sale Price</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#3d5068', fontSize: '0.875rem' }}>$</span>
                 <input
                   type="text"
                   value={selectedTx?.purchase_price ? selectedTx.purchase_price.toLocaleString() : manual.salePrice}
                   onChange={(e) => { setSelectedTxId(''); handleManual('salePrice', e.target.value); }}
                   placeholder="500,000"
-                  className="w-full pl-7 pr-4 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ ...inputStyle, paddingLeft: '1.5rem' }}
                   readOnly={!!selectedTx}
+                  onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
                 />
               </div>
             </div>
 
-            {/* Commission % */}
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                Total Commission Rate
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.25"
-                  min="0"
-                  max="10"
-                  value={manual.commissionPct}
-                  onChange={(e) => handleManual('commissionPct', e.target.value)}
-                  className="w-full pr-8 pl-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+            {[
+              { field: 'commissionPct' as const, label: 'Total Commission Rate', step: '0.25', min: '0', max: '10' },
+              { field: 'cobrokePct' as const, label: 'Co-broke Split (other side)', step: '5', min: '0', max: '100' },
+              { field: 'agentSplitPct' as const, label: 'Your Agent Split', step: '5', min: '0', max: '100' },
+            ].map(({ field, label, step, min, max }) => (
+              <div key={field}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>{label}</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step={step}
+                    min={min}
+                    max={max}
+                    value={manual[field]}
+                    onChange={(e) => handleManual(field, e.target.value)}
+                    style={{ ...inputStyle, paddingRight: '2rem' }}
+                    onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#3d5068', fontSize: '0.875rem' }}>%</span>
+                </div>
               </div>
-            </div>
-
-            {/* Co-broke split */}
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                Co-broke Split (other side)
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="5"
-                  min="0"
-                  max="100"
-                  value={manual.cobrokePct}
-                  onChange={(e) => handleManual('cobrokePct', e.target.value)}
-                  className="w-full pr-8 pl-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
-              </div>
-            </div>
-
-            {/* Agent split */}
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                Your Agent Split
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="5"
-                  min="0"
-                  max="100"
-                  value={manual.agentSplitPct}
-                  onChange={(e) => handleManual('agentSplitPct', e.target.value)}
-                  className="w-full pr-8 pl-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
         {/* Results */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl p-6" style={cardStyle}>
           <div className="flex items-center gap-2 mb-5">
-            <TrendingUp className="h-5 w-5 text-green-600" />
-            <h2 className="text-base font-semibold text-slate-900">Commission Breakdown</h2>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)' }}>
+              <TrendingUp className="h-3.5 w-3.5" style={{ color: '#34d399' }} />
+            </div>
+            <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>Commission Breakdown</h2>
           </div>
 
           {calcInput.salePrice === 0 ? (
-            <div className="text-center py-8 text-slate-400 text-sm">
+            <div className="text-center py-8" style={{ fontSize: '0.875rem', color: '#3d5068' }}>
               Enter a sale price to see the breakdown
             </div>
           ) : (
-            <div className="space-y-0">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-3 font-medium">
+            <div>
+              <div style={{ fontSize: '0.6875rem', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.75rem' }}>
                 Based on {formatCurrency(calcInput.salePrice)} sale
               </div>
               <ResultRow label="Sale Price" value={formatCurrency(calcInput.salePrice)} />
@@ -286,22 +261,22 @@ export default function CommissionPage() {
               <ResultRow label={`Co-broke to Other Side (${formatPct(calcInput.cobrokePct)})`} value={`- ${formatCurrency(result.cobrokeDollar)}`} />
               <ResultRow label="Your Side of Commission" value={formatCurrency(result.ourSide)} />
               <ResultRow label={`Broker Portion (${formatPct(100 - calcInput.agentSplitPct)})`} value={`- ${formatCurrency(result.brokerNet)}`} />
-              <div className="mt-3 pt-3 border-t-2 border-blue-200">
-                <div className="flex items-center justify-between py-2 bg-blue-50 -mx-2 px-2 rounded-lg">
-                  <span className="text-sm font-bold text-blue-900">Your Net Commission</span>
-                  <span className="text-xl font-bold text-blue-700">{formatCurrency(result.agentNet)}</span>
+              <div className="mt-3 pt-3" style={{ borderTop: '2px solid rgba(59,130,246,0.2)' }}>
+                <div className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#93c5fd' }}>Your Net Commission</span>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#60a5fa' }}>{formatCurrency(result.agentNet)}</span>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <div className="text-xs text-slate-500 mb-1">Effective Rate</div>
-                  <div className="text-base font-bold text-slate-900">
+                <div className="rounded-lg p-3" style={{ background: 'rgba(148,163,184,0.05)', border: '1px solid rgba(148,163,184,0.07)' }}>
+                  <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginBottom: '4px' }}>Effective Rate</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#e2e8f0' }}>
                     {formatPct((result.agentNet / calcInput.salePrice) * 100)}
                   </div>
                 </div>
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <div className="text-xs text-slate-500 mb-1">Per $1M Volume</div>
-                  <div className="text-base font-bold text-slate-900">
+                <div className="rounded-lg p-3" style={{ background: 'rgba(148,163,184,0.05)', border: '1px solid rgba(148,163,184,0.07)' }}>
+                  <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginBottom: '4px' }}>Per $1M Volume</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#e2e8f0' }}>
                     {formatCurrency((result.agentNet / calcInput.salePrice) * 1_000_000)}
                   </div>
                 </div>
@@ -313,61 +288,55 @@ export default function CommissionPage() {
 
       {/* Transaction Commission Table */}
       {transactions && transactions.filter((t) => t.purchase_price).length > 0 && (
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-            <h2 className="text-base font-semibold text-slate-900">Transaction Commission Estimates</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Using your calculator settings above</p>
+        <div className="mt-8 rounded-2xl overflow-hidden" style={cardStyle}>
+          <div className="px-6 py-4" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)', background: 'rgba(148,163,184,0.03)' }}>
+            <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>Transaction Commission Estimates</h2>
+            <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>Using your calculator settings above</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Address</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Sale Price</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Gross Comm.</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Agent Net</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
+                  {['Address', 'Sale Price', 'Gross Comm.', 'Agent Net', 'Status'].map((h, i) => (
+                    <th key={h} className={i > 0 ? 'text-right' : 'text-left'} style={{ padding: '0.75rem 1.5rem', fontSize: '0.6875rem', fontWeight: 700, color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {transactions
-                  .filter((t) => t.purchase_price)
-                  .map((tx) => {
-                    const r = commissionCalc(
-                      tx.purchase_price ?? 0,
-                      calcInput.commissionPct,
-                      calcInput.cobrokePct,
-                      calcInput.agentSplitPct
-                    );
-                    return (
-                      <tr key={tx.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-3">
-                          <Link href={`/transactions/${tx.id}`} className="text-blue-600 hover:underline">
-                            {tx.address}
-                          </Link>
-                        </td>
-                        <td className="px-6 py-3 text-right text-slate-700">{formatCurrency(tx.purchase_price)}</td>
-                        <td className="px-6 py-3 text-right text-slate-700">{formatCurrency(r.grossCommission)}</td>
-                        <td className="px-6 py-3 text-right font-semibold text-green-700">{formatCurrency(r.agentNet)}</td>
-                        <td className="px-6 py-3 text-right">
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            tx.status === 'closed' ? 'bg-green-100 text-green-800' :
-                            tx.status === 'active' ? 'bg-blue-100 text-blue-800' :
-                            'bg-slate-100 text-slate-600'
-                          }`}>
-                            {tx.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+              <tbody>
+                {transactions.filter((t) => t.purchase_price).map((tx) => {
+                  const r = commissionCalc(tx.purchase_price ?? 0, calcInput.commissionPct, calcInput.cobrokePct, calcInput.agentSplitPct);
+                  const statusCfg = tx.status === 'closed'
+                    ? { color: '#34d399', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)' }
+                    : tx.status === 'active'
+                    ? { color: '#60a5fa', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.25)' }
+                    : { color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.15)' };
+                  return (
+                    <tr key={tx.id} style={{ borderBottom: '1px solid rgba(148,163,184,0.05)' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(148,163,184,0.03)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                    >
+                      <td style={{ padding: '0.75rem 1.5rem' }}>
+                        <Link href={`/transactions/${tx.id}`} style={{ color: '#3b82f6', fontSize: '0.875rem' }}>
+                          {tx.address}
+                        </Link>
+                      </td>
+                      <td className="text-right" style={{ padding: '0.75rem 1.5rem', color: '#94a3b8', fontSize: '0.875rem' }}>{formatCurrency(tx.purchase_price)}</td>
+                      <td className="text-right" style={{ padding: '0.75rem 1.5rem', color: '#94a3b8', fontSize: '0.875rem' }}>{formatCurrency(r.grossCommission)}</td>
+                      <td className="text-right" style={{ padding: '0.75rem 1.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#34d399' }}>{formatCurrency(r.agentNet)}</td>
+                      <td className="text-right" style={{ padding: '0.75rem 1.5rem' }}>
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5" style={{ fontSize: '0.6875rem', fontWeight: 700, color: statusCfg.color, background: statusCfg.bg, border: `1px solid ${statusCfg.border}` }}>
+                          {tx.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Disbursement Tracker */}
       <DisbursementTracker
         transactions={transactions ?? []}
         commissionPct={calcInput.commissionPct}
@@ -377,8 +346,6 @@ export default function CommissionPage() {
     </div>
   );
 }
-
-// ── Disbursement Tracker ──────────────────────────────────────────────────────
 
 function DisbursementTracker({
   transactions,
@@ -393,15 +360,11 @@ function DisbursementTracker({
 }) {
   const [disbursements, setDisbursements] = useState<Record<number, DisbursementData>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
-
   const txWithPrice = useMemo(() => transactions.filter((t) => t.purchase_price), [transactions]);
 
-  // Load all disbursement data on mount / when transactions change
   useEffect(() => {
     const loaded: Record<number, DisbursementData> = {};
-    txWithPrice.forEach((tx) => {
-      loaded[tx.id] = loadDisbursement(tx.id);
-    });
+    txWithPrice.forEach((tx) => { loaded[tx.id] = loadDisbursement(tx.id); });
     setDisbursements(loaded);
   }, [txWithPrice]);
 
@@ -414,39 +377,19 @@ function DisbursementTracker({
     });
   }, []);
 
-  // Summary calculations
   const summary = useMemo(() => {
-    let totalPending = 0;
-    let totalDisbursed = 0;
-    let countPending = 0;
-    let countDisbursed = 0;
-    let countPartial = 0;
-
+    let totalPending = 0, totalDisbursed = 0, countPending = 0, countDisbursed = 0, countPartial = 0;
     const currentYear = new Date().getFullYear();
-
     txWithPrice.forEach((tx) => {
       const d = disbursements[tx.id];
       const calc = commissionCalc(tx.purchase_price ?? 0, commissionPct, cobrokePct, agentSplitPct);
-
-      if (!d || d.status === 'Pending') {
-        totalPending += calc.agentNet;
-        countPending++;
-      } else if (d.status === 'Disbursed') {
-        if (d.dateDisbursed) {
-          const year = new Date(d.dateDisbursed).getFullYear();
-          if (year === currentYear) totalDisbursed += calc.agentNet;
-        } else {
-          totalDisbursed += calc.agentNet;
-        }
+      if (!d || d.status === 'Pending') { totalPending += calc.agentNet; countPending++; }
+      else if (d.status === 'Disbursed') {
+        if (d.dateDisbursed && new Date(d.dateDisbursed).getFullYear() === currentYear) totalDisbursed += calc.agentNet;
+        else if (!d.dateDisbursed) totalDisbursed += calc.agentNet;
         countDisbursed++;
-      } else {
-        // Partial
-        countPartial++;
-        totalPending += calc.agentNet * 0.5;
-        totalDisbursed += calc.agentNet * 0.5;
-      }
+      } else { countPartial++; totalPending += calc.agentNet * 0.5; totalDisbursed += calc.agentNet * 0.5; }
     });
-
     return { totalPending, totalDisbursed, countPending, countDisbursed, countPartial };
   }, [txWithPrice, disbursements, commissionPct, cobrokePct, agentSplitPct]);
 
@@ -455,55 +398,42 @@ function DisbursementTracker({
   return (
     <div className="mt-8">
       <div className="flex items-center gap-2 mb-6">
-        <Banknote className="h-5 w-5 text-blue-600" />
-        <h2 className="text-lg font-bold text-slate-900">Disbursement Tracker</h2>
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)' }}>
+          <Banknote className="h-4 w-4" style={{ color: '#60a5fa' }} />
+        </div>
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#e2e8f0' }}>Disbursement Tracker</h2>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Pending</div>
-          <div className="text-2xl font-bold text-slate-900">{formatCurrency(summary.totalPending)}</div>
-          <div className="text-xs text-slate-400 mt-1">{summary.countPending} transactions</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Disbursed This Year</div>
-          <div className="text-2xl font-bold text-green-700">{formatCurrency(summary.totalDisbursed)}</div>
-          <div className="text-xs text-slate-400 mt-1">{summary.countDisbursed} transactions</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Partial</div>
-          <div className="text-2xl font-bold text-yellow-700">{summary.countPartial}</div>
-          <div className="text-xs text-slate-400 mt-1">transactions</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Total Tracked</div>
-          <div className="text-2xl font-bold text-blue-700">{txWithPrice.length}</div>
-          <div className="text-xs text-slate-400 mt-1">transactions</div>
-        </div>
+        {[
+          { label: 'Total Pending', value: formatCurrency(summary.totalPending), sub: `${summary.countPending} transactions`, color: '#e2e8f0' },
+          { label: 'Disbursed This Year', value: formatCurrency(summary.totalDisbursed), sub: `${summary.countDisbursed} transactions`, color: '#34d399' },
+          { label: 'Partial', value: String(summary.countPartial), sub: 'transactions', color: '#fbbf24' },
+          { label: 'Total Tracked', value: String(txWithPrice.length), sub: 'transactions', color: '#60a5fa' },
+        ].map(({ label, value, sub, color }) => (
+          <div key={label} className="rounded-2xl p-5" style={cardStyle}>
+            <div style={{ fontSize: '0.6875rem', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>{label}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color }}>{value}</div>
+            <div style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '2px' }}>{sub}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Disbursement Table */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl overflow-hidden" style={cardStyle}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Property</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Sale Price</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Commission $</th>
-                <th className="text-center px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date Disbursed</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Notes</th>
-                <th className="w-10 px-3 py-3"></th>
+              <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.07)', background: 'rgba(148,163,184,0.03)' }}>
+                {['Property', 'Sale Price', 'Commission $', 'Status', 'Date Disbursed', 'Notes', ''].map((h, i) => (
+                  <th key={i} className={i > 0 && i < 6 ? 'text-right' : 'text-left'} style={{ padding: '0.75rem 1.5rem', fontSize: '0.6875rem', fontWeight: 700, color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {txWithPrice.map((tx) => {
                 const d = disbursements[tx.id] ?? { status: 'Pending' as DisbursementStatus, dateDisbursed: '', notes: '' };
                 const calc = commissionCalc(tx.purchase_price ?? 0, commissionPct, cobrokePct, agentSplitPct);
                 const isExpanded = expandedId === tx.id;
-
                 return (
                   <DisbursementRow
                     key={tx.id}
@@ -525,12 +455,7 @@ function DisbursementTracker({
 }
 
 function DisbursementRow({
-  tx,
-  data,
-  agentNet,
-  isExpanded,
-  onToggleExpand,
-  onUpdate,
+  tx, data, agentNet, isExpanded, onToggleExpand, onUpdate,
 }: {
   tx: TransactionListItem;
   data: DisbursementData;
@@ -539,74 +464,90 @@ function DisbursementRow({
   onToggleExpand: () => void;
   onUpdate: (updates: Partial<DisbursementData>) => void;
 }) {
+  const rowInputStyle = {
+    background: 'var(--bg-elevated)',
+    border: '1px solid rgba(148,163,184,0.09)',
+    color: '#f1f5f9',
+    outline: 'none',
+    fontSize: '0.875rem',
+    padding: '0.375rem 0.625rem',
+    borderRadius: '0.375rem',
+    width: '100%',
+  };
   return (
     <>
       <tr
-        className="hover:bg-slate-50 cursor-pointer transition-colors"
+        className="cursor-pointer transition-colors duration-100"
+        style={{ borderBottom: '1px solid rgba(148,163,184,0.05)' }}
         onClick={onToggleExpand}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(148,163,184,0.03)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
       >
-        <td className="px-6 py-3">
-          <Link
-            href={`/transactions/${tx.id}`}
-            className="text-blue-600 hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <td style={{ padding: '0.75rem 1.5rem' }}>
+          <Link href={`/transactions/${tx.id}`} style={{ color: '#3b82f6', fontSize: '0.875rem' }} onClick={(e) => e.stopPropagation()}>
             {tx.address}
           </Link>
         </td>
-        <td className="px-6 py-3 text-right text-slate-700">{formatCurrency(tx.purchase_price)}</td>
-        <td className="px-6 py-3 text-right font-semibold text-green-700">{formatCurrency(agentNet)}</td>
-        <td className="px-6 py-3 text-center">
-          <StatusBadgeDisbursement status={data.status} />
-        </td>
-        <td className="px-6 py-3 text-slate-600 text-xs">
-          {data.dateDisbursed || '--'}
-        </td>
-        <td className="px-6 py-3 text-slate-500 text-xs truncate max-w-[150px]">
-          {data.notes || '--'}
-        </td>
-        <td className="px-3 py-3 text-slate-400">
+        <td className="text-right" style={{ padding: '0.75rem 1.5rem', color: '#94a3b8', fontSize: '0.875rem' }}>{formatCurrency(tx.purchase_price)}</td>
+        <td className="text-right" style={{ padding: '0.75rem 1.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#34d399' }}>{formatCurrency(agentNet)}</td>
+        <td className="text-center" style={{ padding: '0.75rem 1.5rem' }}><StatusBadgeDisbursement status={data.status} /></td>
+        <td style={{ padding: '0.75rem 1.5rem', color: '#3d5068', fontSize: '0.75rem' }}>{data.dateDisbursed || '—'}</td>
+        <td className="max-w-[150px] truncate" style={{ padding: '0.75rem 1.5rem', color: '#3d5068', fontSize: '0.75rem' }}>{data.notes || '—'}</td>
+        <td style={{ padding: '0.75rem 0.75rem', color: '#3d5068' }}>
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </td>
       </tr>
       {isExpanded && (
         <tr>
-          <td colSpan={7} className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+          <td colSpan={7} style={{ padding: '1rem 1.5rem', background: 'rgba(148,163,184,0.03)', borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Status</label>
-                <select
-                  value={data.status}
-                  onChange={(e) => onUpdate({ status: e.target.value as DisbursementStatus })}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Disbursed">Disbursed</option>
-                  <option value="Partial">Partial</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Date Disbursed</label>
-                <input
-                  type="date"
-                  value={data.dateDisbursed}
-                  onChange={(e) => onUpdate({ dateDisbursed: e.target.value })}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Notes</label>
-                <input
-                  type="text"
-                  value={data.notes}
-                  onChange={(e) => onUpdate({ notes: e.target.value })}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder="Add notes..."
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {[
+                {
+                  label: 'Status',
+                  content: (
+                    <select
+                      value={data.status}
+                      onChange={(e) => onUpdate({ status: e.target.value as DisbursementStatus })}
+                      onClick={(e) => e.stopPropagation()}
+                      style={rowInputStyle}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Disbursed">Disbursed</option>
+                      <option value="Partial">Partial</option>
+                    </select>
+                  ),
+                },
+                {
+                  label: 'Date Disbursed',
+                  content: (
+                    <input
+                      type="date"
+                      value={data.dateDisbursed}
+                      onChange={(e) => onUpdate({ dateDisbursed: e.target.value })}
+                      onClick={(e) => e.stopPropagation()}
+                      style={rowInputStyle}
+                    />
+                  ),
+                },
+                {
+                  label: 'Notes',
+                  content: (
+                    <input
+                      type="text"
+                      value={data.notes}
+                      onChange={(e) => onUpdate({ notes: e.target.value })}
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder="Add notes..."
+                      style={rowInputStyle}
+                    />
+                  ),
+                },
+              ].map(({ label, content }) => (
+                <div key={label}>
+                  <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>{label}</label>
+                  {content}
+                </div>
+              ))}
             </div>
           </td>
         </tr>

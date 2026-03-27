@@ -6,18 +6,6 @@ import { getAllDeadlines } from '@/lib/api';
 import { daysUntil, formatDate } from '@/lib/utils';
 import { CalendarClock, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
 
-const STATUS_STYLES: Record<string, string> = {
-  missed:   'bg-red-100 text-red-700 border-red-200',
-  warning:  'bg-orange-100 text-orange-700 border-orange-200',
-  upcoming: 'bg-blue-100 text-blue-700 border-blue-200',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  missed:   'Missed',
-  warning:  'Due Soon',
-  upcoming: 'Upcoming',
-};
-
 export default function DeadlinesPage() {
   const { data: deadlines, error, isLoading } = useSWR(
     '/deadlines/all',
@@ -32,42 +20,46 @@ export default function DeadlinesPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Upcoming Deadlines</h1>
-        <p className="text-sm text-slate-500 mt-1">All critical dates across every active transaction</p>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+          Upcoming Deadlines
+        </h1>
+        <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>All critical dates across every active transaction</p>
       </div>
 
       {isLoading && (
         <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-16 lex-skeleton rounded-xl" />
           ))}
         </div>
       )}
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+        <div className="rounded-xl px-5 py-4 text-sm" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
           Failed to load deadlines.
         </div>
       )}
 
       {!isLoading && !error && deadlines && deadlines.length === 0 && (
         <div className="text-center py-20">
-          <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3" />
-          <p className="text-base font-semibold text-slate-700">No upcoming deadlines</p>
-          <p className="text-sm text-slate-400 mt-1">Deadlines appear here once you create transactions</p>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.15)' }}>
+            <CheckCircle className="h-7 w-7" style={{ color: '#34d399' }} />
+          </div>
+          <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#94a3b8' }}>No upcoming deadlines</p>
+          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>Deadlines appear here once you create transactions</p>
         </div>
       )}
 
       {!isLoading && deadlines && deadlines.length > 0 && (
         <div className="space-y-8">
           {missed.length > 0 && (
-            <Section title="Missed" icon={<AlertTriangle className="h-4 w-4 text-red-500" />} items={missed} />
+            <Section title="Missed" icon={<AlertTriangle className="h-4 w-4" style={{ color: '#f87171' }} />} items={missed} status="missed" />
           )}
           {warning.length > 0 && (
-            <Section title="Due Soon" icon={<Clock className="h-4 w-4 text-orange-500" />} items={warning} />
+            <Section title="Due Soon" icon={<Clock className="h-4 w-4" style={{ color: '#fb923c' }} />} items={warning} status="warning" />
           )}
           {upcoming.length > 0 && (
-            <Section title="Upcoming" icon={<CalendarClock className="h-4 w-4 text-blue-500" />} items={upcoming} />
+            <Section title="Upcoming" icon={<CalendarClock className="h-4 w-4" style={{ color: '#60a5fa' }} />} items={upcoming} status="upcoming" />
           )}
         </div>
       )}
@@ -75,13 +67,22 @@ export default function DeadlinesPage() {
   );
 }
 
-function Section({ title, icon, items }: { title: string; icon: React.ReactNode; items: ReturnType<typeof getAllDeadlines> extends Promise<infer T> ? T : never }) {
+type DeadlineItem = Awaited<ReturnType<typeof getAllDeadlines>>[number];
+
+const STATUS_CHIP: Record<string, { color: string; bg: string; border: string }> = {
+  missed:   { color: '#f87171', bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.25)' },
+  warning:  { color: '#fbbf24', bg: 'rgba(245,158,11,0.1)',   border: 'rgba(245,158,11,0.25)' },
+  upcoming: { color: '#60a5fa', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.25)' },
+};
+
+function Section({ title, icon, items, status }: { title: string; icon: React.ReactNode; items: DeadlineItem[]; status: string }) {
+  const chip = STATUS_CHIP[status] ?? STATUS_CHIP.upcoming;
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
         {icon}
-        <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{title}</h2>
-        <span className="text-xs text-slate-400">({items.length})</span>
+        <h2 style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</h2>
+        <span style={{ fontSize: '0.6875rem', color: '#3d5068' }}>({items.length})</span>
       </div>
       <div className="space-y-2">
         {items.map((d) => {
@@ -92,16 +93,25 @@ function Section({ title, icon, items }: { title: string; icon: React.ReactNode;
             `${days} day${days !== 1 ? 's' : ''} left`;
 
           return (
-            <Link key={d.id} href={`/transactions/${d.transaction_id}`}>
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 hover:bg-slate-50 transition-colors cursor-pointer">
+            <Link key={d.id} href={`/transactions/${d.transaction_id}`} className="block">
+              <div
+                className="flex items-center justify-between rounded-xl px-5 py-4 transition-all duration-150 cursor-pointer"
+                style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-elevated)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface)'; }}
+              >
                 <div>
-                  <p className="text-sm font-medium text-slate-800">{d.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{d.transaction_address}</p>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e2e8f0' }}>{d.name}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>{d.transaction_address}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0 ml-4">
-                  <span className="text-xs text-slate-500">{formatDate(d.due_date)}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>{formatDate(d.due_date)}</span>
                   {dayLabel && (
-                    <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${STATUS_STYLES[d.status] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                    <span className="rounded-full px-2.5 py-0.5" style={{
+                      fontSize: '0.6875rem', fontWeight: 700,
+                      color: chip.color, background: chip.bg,
+                      border: `1px solid ${chip.border}`,
+                    }}>
                       {dayLabel}
                     </span>
                   )}

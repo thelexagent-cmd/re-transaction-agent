@@ -16,16 +16,30 @@ import {
   EyeOff,
 } from 'lucide-react';
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
 type Section = 'profile' | 'password' | 'preferences' | 'branding' | 'billing';
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+const cardStyle = {
+  background: 'var(--bg-surface)',
+  border: '1px solid rgba(148,163,184,0.09)',
+  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+};
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+const inputStyle: React.CSSProperties = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid rgba(148,163,184,0.09)',
+  color: '#f1f5f9',
+  outline: 'none',
+  fontSize: '0.875rem',
+  padding: '0.5625rem 0.875rem',
+  borderRadius: '0.5rem',
+  width: '100%',
+  transition: 'border-color 150ms, box-shadow 150ms',
+};
+
+function SettingsCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-      <h2 className="text-base font-semibold text-slate-900 mb-5">{title}</h2>
+    <div className="rounded-2xl p-6" style={cardStyle}>
+      <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '1.25rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>{title}</h2>
       {children}
     </div>
   );
@@ -33,7 +47,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 function SuccessBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+    <div className="flex items-center gap-2 rounded-lg px-4 py-3" style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', fontSize: '0.8125rem', color: '#34d399' }}>
       <CheckCircle className="h-4 w-4 shrink-0" />
       {message}
     </div>
@@ -42,7 +56,7 @@ function SuccessBanner({ message }: { message: string }) {
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+    <div className="flex items-center gap-2 rounded-lg px-4 py-3" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.8125rem', color: '#f87171' }}>
       <AlertCircle className="h-4 w-4 shrink-0" />
       {message}
     </div>
@@ -50,13 +64,7 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 function InputField({
-  label,
-  value,
-  onChange,
-  type = 'text',
-  disabled = false,
-  placeholder = '',
-  suffix,
+  label, value, onChange, type = 'text', disabled = false, placeholder = '', suffix,
 }: {
   label: string;
   value: string;
@@ -68,7 +76,7 @@ function InputField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-slate-700">{label}</label>
+      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
       <div className="relative">
         <input
           type={type}
@@ -76,13 +84,9 @@ function InputField({
           onChange={onChange ? (e) => onChange(e.target.value) : undefined}
           disabled={disabled}
           placeholder={placeholder}
-          className={[
-            'w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'transition-colors',
-            disabled ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white',
-            suffix ? 'pr-10' : '',
-          ].join(' ')}
+          style={{ ...inputStyle, ...(disabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}), ...(suffix ? { paddingRight: '2.5rem' } : {}) }}
+          onFocus={(e) => { if (!disabled) { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}}
+          onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
         />
         {suffix && (
           <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -91,6 +95,43 @@ function InputField({
         )}
       </div>
     </div>
+  );
+}
+
+function SaveButton({ onClick, saving, label = 'Save Changes' }: { onClick: () => void; saving: boolean; label?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={saving}
+      className="rounded-lg transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{
+        padding: '0.5625rem 1.25rem',
+        fontSize: '0.75rem', fontWeight: 700,
+        letterSpacing: '0.07em', textTransform: 'uppercase',
+        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+        color: '#fff',
+        boxShadow: saving ? 'none' : '0 2px 8px rgba(59,130,246,0.3)',
+      }}
+    >
+      {saving ? 'Saving…' : label}
+    </button>
+  );
+}
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
+      style={{ background: checked ? '#3b82f6' : 'rgba(148,163,184,0.15)' }}
+    >
+      <span
+        className="pointer-events-none inline-block h-5 w-5 rounded-full shadow-sm transform transition-transform duration-200"
+        style={{ background: '#fff', transform: checked ? 'translateX(20px)' : 'translateX(0)' }}
+      />
+    </button>
   );
 }
 
@@ -103,68 +144,37 @@ function ProfileSection({ user }: { user: UserProfile }) {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  // Keep form in sync if SWR revalidates
   useEffect(() => {
     setFullName(user.full_name);
     setBrokerageName(user.brokerage_name ?? '');
   }, [user.full_name, user.brokerage_name]);
 
   async function handleSave() {
-    setSuccess('');
-    setError('');
-    if (!fullName.trim()) {
-      setError('Full name is required.');
-      return;
-    }
+    setSuccess(''); setError('');
+    if (!fullName.trim()) { setError('Full name is required.'); return; }
     setSaving(true);
     try {
-      await updateMe({
-        full_name: fullName.trim(),
-        brokerage_name: brokerageName.trim() || null,
-      });
+      await updateMe({ full_name: fullName.trim(), brokerage_name: brokerageName.trim() || null });
       await mutate('/auth/me');
       setSuccess('Profile updated successfully.');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to save profile.');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   return (
-    <Card title="Profile">
+    <SettingsCard title="Profile">
       <div className="space-y-4">
-        <InputField
-          label="Full Name"
-          value={fullName}
-          onChange={setFullName}
-          placeholder="Jane Doe"
-        />
-        <InputField
-          label="Email Address"
-          value={user.email}
-          disabled
-          placeholder=""
-        />
-        <InputField
-          label="Brokerage Name"
-          value={brokerageName}
-          onChange={setBrokerageName}
-          placeholder="Miami Realty Group"
-        />
+        <InputField label="Full Name" value={fullName} onChange={setFullName} placeholder="Jane Doe" />
+        <InputField label="Email Address" value={user.email} disabled />
+        <InputField label="Brokerage Name" value={brokerageName} onChange={setBrokerageName} placeholder="Miami Realty Group" />
         {success && <SuccessBanner message={success} />}
         {error && <ErrorBanner message={error} />}
         <div className="pt-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {saving ? 'Saving…' : 'Save Changes'}
-          </button>
+          <SaveButton onClick={handleSave} saving={saving} />
         </div>
       </div>
-    </Card>
+    </SettingsCard>
   );
 }
 
@@ -181,80 +191,43 @@ function PasswordSection() {
   const [error, setError] = useState('');
 
   async function handleChange() {
-    setSuccess('');
-    setError('');
+    setSuccess(''); setError('');
     if (!currentPw) { setError('Enter your current password.'); return; }
     if (newPw.length < 8) { setError('New password must be at least 8 characters.'); return; }
     if (newPw !== confirmPw) { setError('New passwords do not match.'); return; }
     setSaving(true);
     try {
       await changePassword(currentPw, newPw);
-      setCurrentPw('');
-      setNewPw('');
-      setConfirmPw('');
+      setCurrentPw(''); setNewPw(''); setConfirmPw('');
       setSuccess('Password changed successfully.');
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : 'Failed to change password.';
-      // Surface the backend detail if it mentions "incorrect"
-      if (raw.toLowerCase().includes('incorrect') || raw.toLowerCase().includes('current')) {
-        setError('Current password is incorrect.');
-      } else {
-        setError(raw);
-      }
-    } finally {
-      setSaving(false);
-    }
+      setError(raw.toLowerCase().includes('incorrect') || raw.toLowerCase().includes('current') ? 'Current password is incorrect.' : raw);
+    } finally { setSaving(false); }
   }
 
   const eyeBtn = (show: boolean, toggle: () => void) => (
-    <button
-      type="button"
-      onClick={toggle}
-      className="text-slate-400 hover:text-slate-600"
-      tabIndex={-1}
+    <button type="button" onClick={toggle} tabIndex={-1} style={{ color: '#3d5068', transition: 'color 150ms' }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#3d5068'; }}
     >
       {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
     </button>
   );
 
   return (
-    <Card title="Change Password">
+    <SettingsCard title="Change Password">
       <div className="space-y-4">
-        <InputField
-          label="Current Password"
-          value={currentPw}
-          onChange={setCurrentPw}
-          type={showCurrent ? 'text' : 'password'}
-          suffix={eyeBtn(showCurrent, () => setShowCurrent((v) => !v))}
-        />
-        <InputField
-          label="New Password"
-          value={newPw}
-          onChange={setNewPw}
-          type={showNew ? 'text' : 'password'}
-          placeholder="Min. 8 characters"
-          suffix={eyeBtn(showNew, () => setShowNew((v) => !v))}
-        />
-        <InputField
-          label="Confirm New Password"
-          value={confirmPw}
-          onChange={setConfirmPw}
-          type="password"
-          placeholder="Repeat new password"
-        />
+        <InputField label="Current Password" value={currentPw} onChange={setCurrentPw} type={showCurrent ? 'text' : 'password'} suffix={eyeBtn(showCurrent, () => setShowCurrent((v) => !v))} />
+        <InputField label="New Password" value={newPw} onChange={setNewPw} type={showNew ? 'text' : 'password'} placeholder="Min. 8 characters" suffix={eyeBtn(showNew, () => setShowNew((v) => !v))} />
+        <InputField label="Confirm New Password" value={confirmPw} onChange={setConfirmPw} type="password" placeholder="Repeat new password" />
         {success && <SuccessBanner message={success} />}
         {error && <ErrorBanner message={error} />}
         <div className="pt-2">
-          <button
-            onClick={handleChange}
-            disabled={saving}
-            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {saving ? 'Changing…' : 'Change Password'}
-          </button>
+          <SaveButton onClick={handleChange} saving={saving} label="Change Password" />
         </div>
       </div>
-    </Card>
+    </SettingsCard>
   );
 }
 
@@ -262,46 +235,26 @@ function PasswordSection() {
 
 function PreferencesSection() {
   const [language, setLanguage] = useState('EN');
-  const [isDark, setIsDark] = useState(false);
   const [notifSound, setNotifSound] = useState(true);
 
   useEffect(() => {
     setLanguage(localStorage.getItem('lex_default_language') ?? 'EN');
-    setIsDark(localStorage.getItem('lex_dark_mode') === '1');
     setNotifSound(localStorage.getItem('lex_notif_sound') !== '0');
   }, []);
 
-  function handleLanguage(val: string) {
-    setLanguage(val);
-    localStorage.setItem('lex_default_language', val);
-  }
-
-  function handleDark(next: boolean) {
-    setIsDark(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('lex_dark_mode', '1');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('lex_dark_mode', '0');
-    }
-  }
-
-  function handleNotifSound(next: boolean) {
-    setNotifSound(next);
-    localStorage.setItem('lex_notif_sound', next ? '1' : '0');
-  }
+  function handleLanguage(val: string) { setLanguage(val); localStorage.setItem('lex_default_language', val); }
+  function handleNotifSound(next: boolean) { setNotifSound(next); localStorage.setItem('lex_notif_sound', next ? '1' : '0'); }
 
   return (
-    <Card title="Preferences">
+    <SettingsCard title="Preferences">
       <div className="space-y-5">
-        {/* Language */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-slate-700">Default Language for New Transactions</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Default Language</label>
           <select
             value={language}
             onChange={(e) => handleLanguage(e.target.value)}
-            className="w-full max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            className="max-w-xs"
+            style={inputStyle}
           >
             <option value="EN">English (EN)</option>
             <option value="ES">Spanish (ES)</option>
@@ -309,58 +262,17 @@ function PreferencesSection() {
           </select>
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-slate-100" />
+        <div style={{ borderTop: '1px solid rgba(148,163,184,0.07)' }} />
 
-        {/* Dark mode toggle */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-800">Dark Mode</p>
-            <p className="text-xs text-slate-500 mt-0.5">Switch between light and dark interface</p>
+            <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e2e8f0' }}>Notification Sound</p>
+            <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>Play a sound for new alerts and notifications</p>
           </div>
-          <button
-            role="switch"
-            aria-checked={isDark}
-            onClick={() => handleDark(!isDark)}
-            className={[
-              'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
-              isDark ? 'bg-blue-600' : 'bg-slate-200',
-            ].join(' ')}
-          >
-            <span
-              className={[
-                'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform duration-200',
-                isDark ? 'translate-x-5' : 'translate-x-0',
-              ].join(' ')}
-            />
-          </button>
-        </div>
-
-        {/* Notification sound toggle */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-800">Notification Sound</p>
-            <p className="text-xs text-slate-500 mt-0.5">Play a sound for new alerts and notifications</p>
-          </div>
-          <button
-            role="switch"
-            aria-checked={notifSound}
-            onClick={() => handleNotifSound(!notifSound)}
-            className={[
-              'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
-              notifSound ? 'bg-blue-600' : 'bg-slate-200',
-            ].join(' ')}
-          >
-            <span
-              className={[
-                'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform duration-200',
-                notifSound ? 'translate-x-5' : 'translate-x-0',
-              ].join(' ')}
-            />
-          </button>
+          <Toggle checked={notifSound} onChange={handleNotifSound} />
         </div>
       </div>
-    </Card>
+    </SettingsCard>
   );
 }
 
@@ -368,18 +280,18 @@ function PreferencesSection() {
 
 function BrandingSection() {
   return (
-    <Card title="Branding">
-      <div className="flex flex-col items-center justify-center py-8 px-4 text-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+    <SettingsCard title="Branding">
+      <div className="flex flex-col items-center justify-center py-10 px-4 text-center rounded-xl" style={{ border: '1px dashed rgba(148,163,184,0.15)', background: 'rgba(148,163,184,0.03)' }}>
+        <span className="inline-flex items-center rounded-full px-3 py-1 mb-4" style={{ fontSize: '0.6875rem', fontWeight: 700, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
           Coming Soon
-        </div>
-        <Palette className="h-10 w-10 text-slate-300 mb-3" />
-        <p className="text-sm font-medium text-slate-700 max-w-sm">
-          Custom branding coming soon — upload your logo, customize colors, and white-label the client portal.
+        </span>
+        <Palette className="h-10 w-10 mb-3" style={{ color: '#2d3f55' }} />
+        <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#4a5568', maxWidth: '24rem' }}>
+          Custom branding — upload your logo, customize colors, and white-label the client portal.
         </p>
-        <p className="text-xs text-slate-400 mt-2">Your clients will see your brand, not ours.</p>
+        <p style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '8px' }}>Your clients will see your brand, not ours.</p>
       </div>
-    </Card>
+    </SettingsCard>
   );
 }
 
@@ -387,29 +299,29 @@ function BrandingSection() {
 
 function BillingSection() {
   return (
-    <Card title="Billing & Plan">
+    <SettingsCard title="Billing & Plan">
       <div className="space-y-4">
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-5 py-4">
+        <div className="flex items-center justify-between rounded-xl px-5 py-4" style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.15)' }}>
           <div>
-            <p className="text-sm font-semibold text-slate-900">Professional Plan</p>
-            <p className="text-xs text-slate-500 mt-0.5">Unlimited transactions · Priority support</p>
+            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>Professional Plan</p>
+            <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>Unlimited transactions · Priority support</p>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-slate-900">$49</p>
-            <p className="text-xs text-slate-500">/month</p>
+            <p style={{ fontSize: '1.25rem', fontWeight: 700, color: '#60a5fa' }}>$49</p>
+            <p style={{ fontSize: '0.75rem', color: '#3d5068' }}>/month</p>
           </div>
         </div>
         <button
           disabled
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-400 cursor-not-allowed"
-          title="Coming soon"
+          className="inline-flex items-center gap-2 rounded-lg cursor-not-allowed"
+          style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem', fontWeight: 500, background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.09)', color: '#3d5068', opacity: 0.6 }}
         >
           <CreditCard className="h-4 w-4" />
           Manage Billing
-          <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Coming Soon</span>
+          <span className="ml-1 rounded-full px-2 py-0.5" style={{ fontSize: '0.625rem', fontWeight: 700, background: 'rgba(148,163,184,0.08)', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Soon</span>
         </button>
       </div>
-    </Card>
+    </SettingsCard>
   );
 }
 
@@ -428,51 +340,60 @@ export default function SettingsPage() {
   const { data: user, isLoading } = useSWR('/auth/me', getMe, { revalidateOnFocus: false });
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-      <div className="flex gap-6">
-      {/* Settings sidebar nav */}
-      <nav className="w-52 shrink-0 settings-sidenav">
-        <p className="px-3 mb-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Settings</p>
-        <div className="space-y-0.5">
-          {sidebarItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveSection(id)}
-              className={[
-                'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left',
-                activeSection === id
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-              ].join(' ')}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
-            </button>
-          ))}
+    <div className="p-8">
+      <div className="max-w-4xl">
+        <div className="mb-8">
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+            Settings
+          </h1>
+          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>Manage your account, preferences, and billing</p>
         </div>
-      </nav>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        {isLoading ? (
-          <div className="space-y-4">
-            <div className="h-8 w-48 rounded-lg bg-slate-200 animate-pulse" />
-            <div className="h-64 rounded-xl bg-slate-200 animate-pulse" />
+        <div className="flex gap-6">
+          {/* Settings sidebar nav */}
+          <nav className="w-52 shrink-0">
+            <p style={{ padding: '0 0.75rem', marginBottom: '1rem', fontSize: '0.625rem', fontWeight: 700, color: '#2d3f55', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Account</p>
+            <div className="space-y-0.5">
+              {sidebarItems.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveSection(id)}
+                  className="flex w-full items-center gap-3 rounded-lg text-left transition-all duration-150"
+                  style={{
+                    padding: '0.5625rem 0.75rem',
+                    fontSize: '0.8125rem', fontWeight: 500,
+                    color: activeSection === id ? '#60a5fa' : '#4a5568',
+                    background: activeSection === id ? 'rgba(59,130,246,0.08)' : 'transparent',
+                    borderLeft: activeSection === id ? '2px solid #3b82f6' : '2px solid transparent',
+                  }}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {isLoading ? (
+              <div className="space-y-4">
+                <div className="h-8 w-48 lex-skeleton rounded-lg" />
+                <div className="h-64 lex-skeleton rounded-2xl" />
+              </div>
+            ) : user ? (
+              <>
+                {activeSection === 'profile'     && <ProfileSection user={user} />}
+                {activeSection === 'password'    && <PasswordSection />}
+                {activeSection === 'preferences' && <PreferencesSection />}
+                {activeSection === 'branding'    && <BrandingSection />}
+                {activeSection === 'billing'     && <BillingSection />}
+              </>
+            ) : (
+              <ErrorBanner message="Could not load user profile. Please refresh." />
+            )}
           </div>
-        ) : user ? (
-          <>
-            {activeSection === 'profile'     && <ProfileSection user={user} />}
-            {activeSection === 'password'    && <PasswordSection />}
-            {activeSection === 'preferences' && <PreferencesSection />}
-            {activeSection === 'branding'    && <BrandingSection />}
-            {activeSection === 'billing'     && <BillingSection />}
-          </>
-        ) : (
-          <ErrorBanner message="Could not load user profile. Please refresh." />
-        )}
-      </div>
-      </div>
+        </div>
       </div>
     </div>
   );
