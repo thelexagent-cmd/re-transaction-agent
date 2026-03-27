@@ -9,9 +9,11 @@ import { DealCard } from '@/components/deal-card';
 import { UrgentPanel } from '@/components/urgent-panel';
 import { ActivityFeed } from '@/components/activity-feed';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NotificationBell } from '@/components/notification-center';
 import { DealHealthScore } from '@/components/deal-health-score';
-import { Plus, AlertCircle, TrendingUp, Calendar, FileCheck, Search, ChevronDown, Timer } from 'lucide-react';
+import {
+  Plus, AlertCircle, TrendingUp, Calendar, FileCheck,
+  Search, ChevronDown, Timer,
+} from 'lucide-react';
 import type { TransactionListItem } from '@/lib/api';
 
 function countClosingThisMonth(transactions: TransactionListItem[]): number {
@@ -21,43 +23,58 @@ function countClosingThisMonth(transactions: TransactionListItem[]): number {
   }).length;
 }
 
-// Closing Countdown Widget
+// ── Closing Countdown ──────────────────────────────────────────
 function ClosingCountdown({ transactions }: { transactions: TransactionListItem[] }) {
   const upcoming = transactions
-    .filter((t) => {
-      const d = daysUntil(t.closing_date);
-      return d !== null && d >= 0;
-    })
-    .sort((a, b) => {
-      const da = daysUntil(a.closing_date) ?? 999;
-      const db = daysUntil(b.closing_date) ?? 999;
-      return da - db;
-    })
+    .filter((t) => { const d = daysUntil(t.closing_date); return d !== null && d >= 0; })
+    .sort((a, b) => (daysUntil(a.closing_date) ?? 999) - (daysUntil(b.closing_date) ?? 999))
     .slice(0, 3);
 
   if (upcoming.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm mb-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Timer className="h-4 w-4 text-blue-600" />
-        <h3 className="text-sm font-semibold text-slate-900">Next Closings</h3>
+    <div className="rounded-2xl p-5 mb-6" style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid rgba(148,163,184,0.09)',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+    }}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)' }}>
+          <Timer className="h-4 w-4" style={{ color: '#60a5fa' }} />
+        </div>
+        <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.05em', color: '#e2e8f0' }}>
+          Next Closings
+        </h3>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {upcoming.map((tx) => {
           const days = daysUntil(tx.closing_date) ?? 0;
-          const urgency = days === 0 ? 'bg-red-50 border-red-200' : days <= 7 ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200';
-          const textColor = days === 0 ? 'text-red-700' : days <= 7 ? 'text-orange-700' : 'text-blue-700';
-          const numColor = days === 0 ? 'text-red-600' : days <= 7 ? 'text-orange-600' : 'text-blue-600';
+          const isToday  = days === 0;
+          const isUrgent = days <= 7;
+          const color  = isToday ? '#f87171' : isUrgent ? '#fbbf24' : '#60a5fa';
+          const bg     = isToday ? 'rgba(239,68,68,0.07)' : isUrgent ? 'rgba(245,158,11,0.07)' : 'rgba(59,130,246,0.07)';
+          const border = isToday ? 'rgba(239,68,68,0.2)' : isUrgent ? 'rgba(245,158,11,0.2)' : 'rgba(59,130,246,0.2)';
+
           return (
             <Link key={tx.id} href={`/transactions/${tx.id}`}>
-              <div className={`rounded-lg border p-3 hover:shadow-sm transition-shadow ${urgency}`}>
-                <div className="text-xs text-slate-600 font-medium truncate mb-1">{tx.address}</div>
+              <div
+                className="rounded-xl p-3.5 transition-all duration-150"
+                style={{ background: bg, border: `1px solid ${border}` }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+              >
+                <div className="truncate mb-1.5" style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>{tx.address}</div>
                 <div className="flex items-baseline gap-1">
-                  <span className={`text-2xl font-bold tabular-nums ${numColor}`}>{days}</span>
-                  <span className={`text-xs ${textColor}`}>{days === 0 ? 'TODAY' : days === 1 ? 'day left' : 'days left'}</span>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', fontWeight: 700, color, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                    {days}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color, fontWeight: 600 }}>
+                    {isToday ? 'TODAY' : days === 1 ? 'day left' : 'days left'}
+                  </span>
                 </div>
-                <div className="text-xs text-slate-500 mt-1">Closes {formatDate(tx.closing_date)}</div>
+                <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginTop: '4px' }}>
+                  Closes {formatDate(tx.closing_date)}
+                </div>
               </div>
             </Link>
           );
@@ -67,43 +84,57 @@ function ClosingCountdown({ transactions }: { transactions: TransactionListItem[
   );
 }
 
+// ── Stat Card ──────────────────────────────────────────────────
+function StatCard({ icon, value, label, iconBg, iconColor, isLoading }: {
+  icon: React.ReactNode;
+  value: number;
+  label: string;
+  iconBg: string;
+  iconColor: string;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="lex-stat">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ background: iconBg, border: `1px solid ${iconColor}25`, color: iconColor }}>
+          {icon}
+        </div>
+        <div>
+          {isLoading
+            ? <Skeleton className="h-7 w-12 mb-1" />
+            : <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.625rem', fontWeight: 700, color: '#f1f5f9', lineHeight: 1, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+          }
+          <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginTop: '2px', letterSpacing: '0.03em' }}>{label}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ──────────────────────────────────────────────────
 export default function TransactionsPage() {
-  const { data: transactions, error, isLoading } = useSWR(
-    '/transactions',
-    getTransactions,
-    { refreshInterval: 30000 }
-  );
-
-  const { data: activityData, isLoading: activityLoading } = useSWR(
-    '/events/recent',
-    () => getRecentEvents(15),
-    { refreshInterval: 60000 }
-  );
-
+  const { data: transactions, error, isLoading } = useSWR('/transactions', getTransactions, { refreshInterval: 30000 });
+  const { data: activityData, isLoading: activityLoading } = useSWR('/events/recent', () => getRecentEvents(15), { refreshInterval: 60000 });
   const { data: allDeadlines } = useSWR('/deadlines/all', getAllDeadlines, { refreshInterval: 60000 });
   const { data: allDocuments } = useSWR('/documents/all', getAllDocuments, { refreshInterval: 60000 });
 
-  // Search & Filter state
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<string>('all');
 
-  const totalDeals = transactions?.length ?? 0;
-  const activeDeals = transactions?.filter((t) => t.status === 'active').length ?? 0;
+  const totalDeals       = transactions?.length ?? 0;
+  const activeDeals      = transactions?.filter((t) => t.status === 'active').length ?? 0;
   const closingThisMonth = transactions ? countClosingThisMonth(transactions) : 0;
-  const missedDeadlines = allDeadlines?.filter((d) => d.status === 'missed').length ?? 0;
-  const overdueDocs = allDocuments?.filter((d) => d.status === 'overdue').length ?? 0;
+  const missedDeadlines  = allDeadlines?.filter((d) => d.status === 'missed').length ?? 0;
+  const overdueDocs      = allDocuments?.filter((d) => d.status === 'overdue').length ?? 0;
+  const overdueCount     = missedDeadlines + overdueDocs;
 
-  // Filtered transactions
   const filtered = useMemo(() => {
     if (!transactions) return [];
     return transactions.filter((tx) => {
-      const matchSearch =
-        !search ||
-        tx.address.toLowerCase().includes(search.toLowerCase()) ||
-        tx.property_type.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !search || tx.address.toLowerCase().includes(search.toLowerCase()) || tx.property_type.toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === 'all' || tx.status === statusFilter;
-      const matchType = propertyTypeFilter === 'all' || tx.property_type === propertyTypeFilter;
+      const matchType   = propertyTypeFilter === 'all' || tx.property_type === propertyTypeFilter;
       return matchSearch && matchStatus && matchType;
     });
   }, [transactions, search, statusFilter, propertyTypeFilter]);
@@ -114,144 +145,124 @@ export default function TransactionsPage() {
   }, [transactions]);
 
   return (
-    <div className="p-8">
-      {/* Page Header */}
+    <div className="p-6 md:p-8">
+
+      {/* ── Page Header ── */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Active Deals</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage all your real estate transactions</p>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '0.06em', color: '#f1f5f9' }}>
+            Active Deals
+          </h1>
+          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '2px', letterSpacing: '0.02em' }}>
+            Manage all your real estate transactions
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <NotificationBell />
-          <Link
-            href="/transactions/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            New Transaction
-          </Link>
-        </div>
+        <Link
+          href="/transactions/new"
+          className="inline-flex items-center gap-2 rounded-lg text-white transition-all duration-150 active:scale-95"
+          style={{
+            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+            padding: '0.5625rem 1.125rem',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            boxShadow: '0 2px 12px rgba(59,130,246,0.25)',
+          }}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New Transaction
+        </Link>
       </div>
 
-      {/* Stats Bar - 4 cards now */}
+      {/* ── Stats Bar ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-slate-900">{isLoading ? '—' : activeDeals}</div>
-              <div className="text-xs text-slate-500">Active Deals</div>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
-              <FileCheck className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-slate-900">{isLoading ? '—' : totalDeals}</div>
-              <div className="text-xs text-slate-500">Total Transactions</div>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50">
-              <Calendar className="h-5 w-5 text-orange-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-slate-900">{isLoading ? '—' : closingThisMonth}</div>
-              <div className="text-xs text-slate-500">Closing This Month</div>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-slate-900">{isLoading ? '—' : missedDeadlines + overdueDocs}</div>
-              <div className="text-xs text-slate-500">Overdue Items</div>
-            </div>
-          </div>
-        </div>
+        <StatCard icon={<TrendingUp className="h-5 w-5" />} value={activeDeals}      label="Active Deals"        iconBg="rgba(59,130,246,0.1)"  iconColor="#60a5fa" isLoading={isLoading} />
+        <StatCard icon={<FileCheck className="h-5 w-5" />}  value={totalDeals}       label="Total Transactions"  iconBg="rgba(16,185,129,0.1)"  iconColor="#34d399" isLoading={isLoading} />
+        <StatCard icon={<Calendar className="h-5 w-5" />}   value={closingThisMonth} label="Closing This Month"  iconBg="rgba(249,115,22,0.1)"  iconColor="#fb923c" isLoading={isLoading} />
+        <StatCard icon={<AlertCircle className="h-5 w-5" />} value={overdueCount}    label="Overdue Items"       iconBg="rgba(239,68,68,0.1)"   iconColor="#f87171" isLoading={isLoading} />
       </div>
 
-      {/* Closing Countdown */}
-      {transactions && transactions.length > 0 && (
-        <ClosingCountdown transactions={transactions} />
-      )}
+      {/* ── Closing Countdown ── */}
+      {transactions && transactions.length > 0 && <ClosingCountdown transactions={transactions} />}
 
-      {/* Urgent + Activity panels */}
+      {/* ── Urgent + Activity ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <UrgentPanel transactions={transactions ?? []} isLoading={isLoading} />
         <ActivityFeed events={activityData?.events ?? []} isLoading={activityLoading} />
       </div>
 
-      {/* Search & Filter Bar */}
+      {/* ── Search & Filters ── */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#3d5068' }} />
           <input
             type="text"
             placeholder="Search by address or property type..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full rounded-lg text-sm transition-all duration-150"
+            style={{
+              paddingLeft: '2.25rem', paddingRight: '1rem', paddingTop: '0.5625rem', paddingBottom: '0.5625rem',
+              background: 'var(--bg-surface)',
+              border: '1px solid rgba(148,163,184,0.09)',
+              color: '#f1f5f9',
+              outline: 'none',
+            }}
+            onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
+            onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
           />
         </div>
-        <div className="relative">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="closed">Closed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-        </div>
-        <div className="relative">
-          <select
-            value={propertyTypeFilter}
-            onChange={(e) => setPropertyTypeFilter(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Property Types</option>
-            {propertyTypes.map((pt) => (
-              <option key={pt} value={pt}>{pt.toUpperCase()}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-        </div>
+        {[
+          {
+            value: statusFilter, onChange: setStatusFilter,
+            options: [{ value: 'all', label: 'All Status' }, { value: 'active', label: 'Active' }, { value: 'closed', label: 'Closed' }, { value: 'cancelled', label: 'Cancelled' }],
+          },
+          {
+            value: propertyTypeFilter, onChange: setPropertyTypeFilter,
+            options: [{ value: 'all', label: 'All Types' }, ...propertyTypes.map((pt) => ({ value: pt, label: pt.toUpperCase() }))],
+          },
+        ].map((sel, i) => (
+          <div key={i} className="relative">
+            <select
+              value={sel.value}
+              onChange={(e) => sel.onChange(e.target.value)}
+              className="appearance-none rounded-lg text-sm pr-8 pl-3 py-2.5 transition-all duration-150"
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid rgba(148,163,184,0.09)',
+                color: '#94a3b8',
+                outline: 'none',
+              }}
+            >
+              {sel.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: '#3d5068' }} />
+          </div>
+        ))}
       </div>
 
-      {/* Error State */}
+      {/* ── Error ── */}
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 flex items-center gap-3 mb-6">
-          <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+        <div className="rounded-xl p-4 flex items-center gap-3 mb-6" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <AlertCircle className="h-5 w-5 shrink-0" style={{ color: '#f87171' }} />
           <div>
-            <div className="text-sm font-medium text-red-700">Failed to load transactions</div>
-            <div className="text-xs text-red-600 mt-0.5">{error.message}</div>
+            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#f87171' }}>Failed to load transactions</div>
+            <div style={{ fontSize: '0.75rem', color: '#f87171', opacity: 0.7, marginTop: '1px' }}>{error.message}</div>
           </div>
         </div>
       )}
 
-      {/* Loading State */}
+      {/* ── Loading ── */}
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <Skeleton className="h-5 w-3/4 mb-3" />
-              <Skeleton className="h-8 w-1/3 mb-4" />
-              <Skeleton className="h-4 w-1/2 mb-3" />
-              <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100">
+            <div key={i} className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}>
+              <Skeleton className="h-4 w-3/4 mb-3" />
+              <Skeleton className="h-10 w-1/3 mb-4" />
+              <Skeleton className="h-3 w-1/2 mb-3" />
+              <Skeleton className="h-2 w-full mb-4" />
+              <div className="grid grid-cols-3 gap-2 mt-4 pt-3" style={{ borderTop: '1px solid rgba(148,163,184,0.07)' }}>
                 <Skeleton className="h-8" />
                 <Skeleton className="h-8" />
                 <Skeleton className="h-8" />
@@ -261,40 +272,49 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {/* Deal Grid */}
+      {/* ── Deal Grid ── */}
       {!isLoading && !error && transactions && (
         <>
           {filtered.length === 0 ? (
             <div className="text-center py-20">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 mx-auto mb-4">
-                <TrendingUp className="h-8 w-8 text-slate-400" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}>
+                <TrendingUp className="h-8 w-8" style={{ color: '#2d3f55' }} />
               </div>
               {transactions.length === 0 ? (
                 <>
-                  <h3 className="text-base font-semibold text-slate-900 mb-1">No transactions yet</h3>
-                  <p className="text-sm text-slate-500 mb-2">Add your first transaction to get started.</p>
-                  <p className="text-xs text-slate-400 mb-6 max-w-sm mx-auto">
-                    Once added, the app will automatically email all parties, track document deadlines, and send reminders so you don&apos;t have to.
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.04em' }}>No transactions yet</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#3d5068', marginTop: '4px' }}>Add your first transaction to get started.</p>
+                  <p style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '6px', maxWidth: '28rem', marginLeft: 'auto', marginRight: 'auto' }}>
+                    Once added, the app will automatically email all parties, track document deadlines, and send reminders.
                   </p>
                   <Link
                     href="/transactions/new"
-                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center gap-2 mt-6 rounded-lg text-white transition-all duration-150 active:scale-95"
+                    style={{
+                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      padding: '0.5625rem 1.125rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      boxShadow: '0 2px 12px rgba(59,130,246,0.25)',
+                    }}
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                     New Transaction
                   </Link>
                 </>
               ) : (
                 <>
-                  <h3 className="text-base font-semibold text-slate-900 mb-1">No results found</h3>
-                  <p className="text-sm text-slate-500">Try adjusting your search or filters.</p>
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.04em' }}>No results found</h3>
+                  <p style={{ fontSize: '0.875rem', color: '#3d5068', marginTop: '4px' }}>Try adjusting your search or filters.</p>
                 </>
               )}
             </div>
           ) : (
             <>
               {(search || statusFilter !== 'all' || propertyTypeFilter !== 'all') && (
-                <p className="text-sm text-slate-500 mb-4">
+                <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginBottom: '1rem' }}>
                   Showing {filtered.length} of {transactions.length} transactions
                 </p>
               )}

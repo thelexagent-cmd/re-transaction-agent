@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, Clock, CheckCircle } from 'lucide-react';
-import { daysUntil, formatDate, formatCurrency } from '@/lib/utils';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { daysUntil, formatCurrency } from '@/lib/utils';
 import type { TransactionListItem } from '@/lib/api';
 
 interface UrgentPanelProps {
@@ -13,29 +13,37 @@ interface UrgentPanelProps {
 function UrgentRow({ tx }: { tx: TransactionListItem }) {
   const days = daysUntil(tx.closing_date);
   const isOverdue = days !== null && days < 0;
-  const isToday = days === 0;
-  const isUrgent = days !== null && days <= 3;
+  const isToday   = days === 0;
+  const isUrgent  = days !== null && days <= 3;
 
-  const badgeColor = isOverdue || isToday
-    ? 'bg-red-100 text-red-700'
-    : isUrgent
-    ? 'bg-orange-100 text-orange-700'
-    : 'bg-yellow-100 text-yellow-700';
-
-  const dayLabel = isOverdue
+  const chipColor  = isOverdue || isToday ? '#f87171' : isUrgent ? '#fbbf24' : '#fb923c';
+  const chipBg     = isOverdue || isToday ? 'rgba(239,68,68,0.1)' : isUrgent ? 'rgba(245,158,11,0.1)' : 'rgba(249,115,22,0.1)';
+  const dayLabel   = isOverdue
     ? `${Math.abs(days!)} day${Math.abs(days!) !== 1 ? 's' : ''} overdue`
-    : isToday
-    ? 'Closing today'
-    : `${days} day${days !== 1 ? 's' : ''} left`;
+    : isToday ? 'Closing today'
+    : `${days}d left`;
 
   return (
     <Link href={`/transactions/${tx.id}`} className="block">
-      <div className="flex items-center justify-between py-3 px-1 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer">
+      <div
+        className="flex items-center justify-between py-2.5 px-2 rounded-lg transition-all duration-150 cursor-pointer"
+        style={{ gap: '0.75rem' }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(148,163,184,0.05)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+      >
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-800 truncate">{tx.address}</p>
-          <p className="text-xs text-slate-500 mt-0.5">{formatCurrency(tx.purchase_price ?? null)}</p>
+          <p className="truncate" style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#e2e8f0' }}>{tx.address}</p>
+          <p style={{ fontSize: '0.6875rem', color: '#3d5068', marginTop: '1px' }}>{formatCurrency(tx.purchase_price ?? null)}</p>
         </div>
-        <span className={`ml-3 shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${badgeColor}`}>
+        <span className="shrink-0 rounded-full px-2.5 py-0.5" style={{
+          fontSize: '0.6875rem',
+          fontWeight: 700,
+          color: chipColor,
+          background: chipBg,
+          border: `1px solid ${chipColor}30`,
+          letterSpacing: '0.03em',
+          whiteSpace: 'nowrap',
+        }}>
           {dayLabel}
         </span>
       </div>
@@ -45,42 +53,47 @@ function UrgentRow({ tx }: { tx: TransactionListItem }) {
 
 export function UrgentPanel({ transactions, isLoading }: UrgentPanelProps) {
   const urgent = transactions
-    .filter((t) => {
-      const days = daysUntil(t.closing_date);
-      return days !== null && days <= 7;
-    })
-    .sort((a, b) => {
-      const da = daysUntil(a.closing_date) ?? 999;
-      const db = daysUntil(b.closing_date) ?? 999;
-      return da - db;
-    });
+    .filter((t) => { const d = daysUntil(t.closing_date); return d !== null && d <= 7; })
+    .sort((a, b) => (daysUntil(a.closing_date) ?? 999) - (daysUntil(b.closing_date) ?? 999));
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-5 h-full">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50">
-          <AlertTriangle className="h-4 w-4 text-red-500" />
+    <div className="rounded-2xl p-5 h-full" style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid rgba(148,163,184,0.09)',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+    }}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.15)' }}>
+          <AlertTriangle className="h-4 w-4" style={{ color: '#f87171' }} />
         </div>
-        <h2 className="text-sm font-semibold text-slate-800">Needs Attention</h2>
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.05em', color: '#e2e8f0' }}>
+          Needs Attention
+        </h2>
+        {urgent.length > 0 && (
+          <span className="ml-auto rounded-full px-2 py-0.5" style={{
+            fontSize: '0.625rem', fontWeight: 700, background: 'rgba(239,68,68,0.12)',
+            color: '#f87171', border: '1px solid rgba(239,68,68,0.2)',
+          }}>
+            {urgent.length}
+          </span>
+        )}
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
-          ))}
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <div key={i} className="h-10 lex-skeleton rounded-lg" />)}
         </div>
       ) : urgent.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <CheckCircle className="h-8 w-8 text-green-400 mb-2" />
-          <p className="text-sm font-medium text-slate-600">All clear</p>
-          <p className="text-xs text-slate-400 mt-1">No closings in the next 7 days</p>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full mb-3" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.15)' }}>
+            <CheckCircle className="h-5 w-5" style={{ color: '#34d399' }} />
+          </div>
+          <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#94a3b8' }}>All clear</p>
+          <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>No closings in the next 7 days</p>
         </div>
       ) : (
-        <div className="divide-y divide-slate-100">
-          {urgent.map((tx) => (
-            <UrgentRow key={tx.id} tx={tx} />
-          ))}
+        <div style={{ borderTop: '1px solid rgba(148,163,184,0.07)' }}>
+          {urgent.map((tx) => <UrgentRow key={tx.id} tx={tx} />)}
         </div>
       )}
     </div>

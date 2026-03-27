@@ -1,109 +1,207 @@
 @import "tailwindcss";
+/* Fonts injected via next/font in layout.tsx — no @import needed */
 
+/* ── Design Tokens ─────────────────────────────────────────── */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --bg:           #070d1a;
+  --bg-surface:   #0d1628;
+  --bg-elevated:  #132033;
+  --bg-hover:     #1a2d47;
+
+  --border:         rgba(148, 163, 184, 0.09);
+  --border-subtle:  rgba(148, 163, 184, 0.05);
+  --border-accent:  rgba(59, 130, 246, 0.35);
+
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #4a5568;
+
+  --blue:        #3b82f6;
+  --blue-bright: #60a5fa;
+  --blue-dim:    rgba(59, 130, 246, 0.12);
+  --blue-glow:   rgba(59, 130, 246, 0.20);
+
+  --orange:      #f97316;
+  --orange-dim:  rgba(249, 115, 22, 0.12);
+
+  --green:       #10b981;
+  --green-dim:   rgba(16, 185, 129, 0.12);
+
+  --amber:       #f59e0b;
+  --amber-dim:   rgba(245, 158, 11, 0.12);
+
+  --red:         #ef4444;
+  --red-dim:     rgba(239, 68, 68, 0.12);
+
+  --font-heading: 'Cinzel', Georgia, serif;
+  --font-body:    'Josefin Sans', system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --shadow-card:     0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow:     0 0 0 1px var(--border-accent), 0 8px 32px rgba(59, 130, 246, 0.12);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.5);
 }
+
+/* ── Base ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { height: 100%; scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Dark mode */
-html.dark {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  line-height: 1.25;
 }
 
-html.dark body {
-  background: var(--background);
-  color: var(--foreground);
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: rgba(148,163,184,0.12); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.25); }
+
+/* ── Selection ─────────────────────────────────────────────── */
+::selection { background: var(--blue-dim); color: var(--blue-bright); }
+
+/* ── Focus ─────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* Override Tailwind hardcoded colors in dark mode */
-html.dark .bg-white          { background-color: #1e293b !important; }
-html.dark .bg-slate-50       { background-color: #0f172a !important; }
-html.dark .bg-slate-100      { background-color: #1e293b !important; }
-html.dark .bg-slate-200      { background-color: #334155 !important; }
-
-html.dark .border-slate-100  { border-color: #334155 !important; }
-html.dark .border-slate-200  { border-color: #334155 !important; }
-
-html.dark .text-slate-900    { color: #f1f5f9 !important; }
-html.dark .text-slate-800    { color: #e2e8f0 !important; }
-html.dark .text-slate-700    { color: #cbd5e1 !important; }
-html.dark .text-slate-600    { color: #94a3b8 !important; }
-html.dark .text-slate-500    { color: #64748b !important; }
-
-html.dark input,
-html.dark textarea,
-html.dark select {
-  background-color: #1e293b !important;
-  color: #f1f5f9 !important;
-  border-color: #334155 !important;
+/* ── Reusable Lex Components ───────────────────────────────── */
+.lex-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+.lex-card:hover {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-glow);
 }
 
-html.dark .hover\:bg-slate-50:hover  { background-color: #1e293b !important; }
-html.dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
-
-/* Settings page sidenav */
-html.dark .settings-sidenav {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
+.lex-stat {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  transition: border-color 200ms ease, transform 200ms ease;
+}
+.lex-stat:hover {
+  border-color: rgba(148,163,184,0.18);
+  transform: translateY(-1px);
 }
 
-html.dark .settings-sidenav button.text-slate-600 {
-  color: #94a3b8 !important;
+.lex-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-hover) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: lex-shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes lex-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-html.dark .settings-sidenav button.text-blue-700 {
-  color: #60a5fa !important;
-  background-color: #1e3a5f !important;
+.lex-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lex-badge-green { background: var(--green-dim); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+.lex-badge-amber { background: var(--amber-dim); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+.lex-badge-red   { background: var(--red-dim);   color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+.lex-badge-blue  { background: var(--blue-dim);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
+
+.lex-progress { height: 3px; background: var(--bg-elevated); border-radius: 999px; overflow: hidden; }
+.lex-progress-fill { height: 100%; border-radius: 999px; transition: width 600ms cubic-bezier(0.16,1,0.3,1); }
+
+/* ── Tailwind overrides for dark-first ─────────────────────── */
+.bg-white        { background-color: var(--bg-surface) !important; }
+.bg-slate-50     { background-color: var(--bg) !important; }
+.bg-slate-100    { background-color: var(--bg-elevated) !important; }
+.bg-slate-200    { background-color: var(--bg-hover) !important; }
+
+.border-slate-100 { border-color: var(--border) !important; }
+.border-slate-200 { border-color: var(--border) !important; }
+
+.text-slate-900  { color: var(--text-primary) !important; }
+.text-slate-800  { color: #e2e8f0 !important; }
+.text-slate-700  { color: #cbd5e1 !important; }
+.text-slate-600  { color: var(--text-secondary) !important; }
+.text-slate-500  { color: #64748b !important; }
+.text-slate-400  { color: var(--text-muted) !important; }
+
+input, textarea, select {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+input::placeholder, textarea::placeholder { color: var(--text-muted) !important; }
+
+.hover\:bg-slate-50:hover  { background-color: var(--bg-elevated) !important; }
+.hover\:bg-slate-100:hover { background-color: var(--bg-hover) !important; }
+
+.divide-slate-100 > * + * { border-color: var(--border) !important; }
+.divide-y > * + * { border-color: var(--border) !important; }
+
+/* ── Settings sidenav ──────────────────────────────────────── */
+.settings-sidenav {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border) !important;
+}
+.settings-sidenav button { color: var(--text-secondary) !important; }
+.settings-sidenav button.text-blue-700 {
+  color: var(--blue-bright) !important;
+  background-color: var(--blue-dim) !important;
 }
 
-/* Print / PDF export styles */
+/* ── Print ─────────────────────────────────────────────────── */
 @media print {
-  .no-print {
-    display: none !important;
-  }
+  .no-print { display: none !important; }
+  .print-block { display: block !important; }
+  aside, nav[class*="sidebar"], [class*="sidebar"] { display: none !important; }
+  main { margin-left: 0 !important; padding: 0 !important; }
+  body { background: white !important; color: black !important; font-size: 12px; }
+  .rounded-xl, .rounded-lg { border-radius: 4px !important; }
+  .shadow-sm, .shadow-md { box-shadow: none !important; }
+  [data-print-all] > * { display: block !important; }
+}
 
-  .print-block {
-    display: block !important;
-  }
-
-  /* Hide sidebar on print */
-  aside,
-  nav[class*="sidebar"],
-  [class*="sidebar"] {
-    display: none !important;
-  }
-
-  main {
-    margin-left: 0 !important;
-    padding: 0 !important;
-  }
-
-  body {
-    background: white !important;
-    color: black !important;
-    font-size: 12px;
-  }
-
-  .rounded-xl,
-  .rounded-lg {
-    border-radius: 4px !important;
-  }
-
-  .shadow-sm,
-  .shadow-md {
-    box-shadow: none !important;
-  }
-
-  /* Force all tab content to show on print */
-  [data-print-all] > * {
-    display: block !important;
+/* ── Reduced motion ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
