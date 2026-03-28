@@ -19,12 +19,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.create_index("ix_transactions_user_id", "transactions", ["user_id"])
-    op.create_index("ix_transactions_status", "transactions", ["status"])
-    op.create_index("ix_portal_tokens_token", "portal_tokens", ["token"], unique=True)
-    op.create_index("ix_inspection_items_transaction_id", "inspection_items", ["transaction_id"])
-    op.create_index("ix_compliance_items_transaction_id", "compliance_items", ["transaction_id"])
-    op.create_index("ix_tasks_transaction_id", "tasks", ["transaction_id"])
+    op.execute("CREATE INDEX IF NOT EXISTS ix_transactions_user_id ON transactions (user_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_transactions_status ON transactions (status)")
+    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_portal_tokens_token ON portal_tokens (token)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_inspection_items_transaction_id ON inspection_items (transaction_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_compliance_items_transaction_id ON compliance_items (transaction_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_tasks_transaction_id ON tasks (transaction_id)")
 
 
 def downgrade() -> None:
