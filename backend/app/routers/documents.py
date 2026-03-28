@@ -15,6 +15,7 @@ from app.models.user import User
 from app.schemas.document import DocumentCollectRequest, DocumentResponse, DocumentUploadResponse
 from app.services import storage
 from app.services.doc_classifier import classify_document
+from app.services.trigger_email import fire_document_trigger
 
 router = APIRouter(prefix="/transactions", tags=["documents"])
 
@@ -221,6 +222,7 @@ async def upload_document(
 
     await db.flush()
     await db.refresh(doc)
+    await fire_document_trigger(transaction_id, name, db)
     return doc
 
 

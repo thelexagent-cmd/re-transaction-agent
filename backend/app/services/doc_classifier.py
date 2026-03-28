@@ -65,18 +65,20 @@ async def classify_document(filename: str, content: bytes) -> dict:
     )
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        msg = client.messages.create(
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+        msg = await client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=256,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = msg.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
+
+        # Safely extract JSON — handle fenced or unfenced responses
+        json_match = re.search(r'\{[^{}]*\}', raw, re.DOTALL)
+        if not json_match:
+            logger.warning("No JSON object found in classifier response for '%s'", filename)
+            return fallback
+        raw = json_match.group(0)
 
         result = json.loads(raw)
         doc_type = result.get("doc_type", "Other / Unknown")
@@ -85,7 +87,9 @@ async def classify_document(filename: str, content: bytes) -> dict:
         confidence = result.get("confidence", "low")
         if confidence not in ("high", "medium", "low"):
             confidence = "low"
-        suggested_name = str(result.get("suggested_name", filename)).strip() or filename
+        # Sanitize suggested_name: strip control chars, cap at 500 chars
+        raw_name = str(result.get("suggested_name", filename)).strip() or filename
+        suggested_name = re.sub(r'[\x00-\x1f\x7f]', '', raw_name)[:500].strip() or filename
 
         logger.info("Classified '%s' → %s (%s)", filename, doc_type, confidence)
         return {"doc_type": doc_type, "confidence": confidence, "suggested_name": suggested_name}

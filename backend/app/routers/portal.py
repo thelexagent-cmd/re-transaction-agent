@@ -207,13 +207,14 @@ async def client_upload_document(
 
     Accepts multipart/form-data, uploads to R2, and creates a document record.
     No authentication required. The token itself is the credential.
-    Accepts both 'client' type tokens and any valid unexpired token.
+    Requires a 'client' type token.
     """
     now = datetime.now(timezone.utc)
 
     result = await db.execute(
         select(PortalToken).where(
             PortalToken.token == token,
+            PortalToken.token_type == "client",
             PortalToken.expires_at > now,
         )
     )
@@ -225,6 +226,11 @@ async def client_upload_document(
         )
 
     content = await file.read()
+    if len(content) > 50 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File exceeds the 50 MB limit",
+        )
     filename = file.filename or "upload"
     user_provided_name = document_name.strip()
     classification = await classify_document(filename, content)
@@ -421,6 +427,11 @@ async def lender_upload_document(
         )
 
     content = await file.read()
+    if len(content) > 50 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File exceeds the 50 MB limit",
+        )
     filename = file.filename or "upload"
     user_provided_name = document_name.strip()
     classification = await classify_document(filename, content)

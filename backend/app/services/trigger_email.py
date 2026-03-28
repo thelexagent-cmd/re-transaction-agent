@@ -14,6 +14,7 @@ import re
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.email_template import EmailTemplate
 from app.models.transaction import Transaction
@@ -40,7 +41,6 @@ RECIPIENT_ROLES = {"buyer", "seller", "buyers_agent", "listing_agent"}
 DOC_TRIGGERS: list[tuple[str, str]] = [
     ("inspection", "Inspection Results — Repair Request"),
     ("clear to close", "Clear to Close"),
-    ("commitment", "Clear to Close"),
     ("closing disclosure", "Clear to Close"),
 ]
 
@@ -77,7 +77,9 @@ async def fire_status_trigger(transaction_id: int, new_status: str, db: AsyncSes
 
     try:
         tx_result = await db.execute(
-            select(Transaction).where(Transaction.id == transaction_id)
+            select(Transaction)
+            .where(Transaction.id == transaction_id)
+            .options(selectinload(Transaction.parties))
         )
         tx = tx_result.scalar_one_or_none()
         if not tx:
@@ -143,7 +145,9 @@ async def fire_document_trigger(transaction_id: int, document_name: str, db: Asy
 
     try:
         tx_result = await db.execute(
-            select(Transaction).where(Transaction.id == transaction_id)
+            select(Transaction)
+            .where(Transaction.id == transaction_id)
+            .options(selectinload(Transaction.parties))
         )
         tx = tx_result.scalar_one_or_none()
         if not tx:

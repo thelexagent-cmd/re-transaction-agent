@@ -1,11 +1,15 @@
 """Authentication endpoints — register, login, current-user lookup, and first-time setup."""
 
+import logging
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
+logger = logging.getLogger(__name__)
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 import bcrypt
-from jose import jwt
+from jose import JWTError, jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import func, select
@@ -27,9 +31,7 @@ from app.schemas.auth import (
     UserResponse,
 )
 
-# ── In-memory password reset token store ─────────────────────────────────────
-# { token: { "user_id": int, "expires_at": datetime } }
-_reset_tokens: dict[str, dict] = {}
+_FRONTEND_URL = os.getenv("FRONTEND_URL", "https://frontend-rose-ten-64.vercel.app")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
@@ -515,6 +517,26 @@ def _create_access_token(user_id: int) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
+def _create_reset_token(email: str) -> str:
+    expire = datetime.now(tz=timezone.utc) + timedelta(minutes=30)
+    payload = {"sub": email, "type": "password_reset", "exp": expire}
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+
+
+def _verify_reset_token(token: str) -> str:
+    """Decode a password reset JWT and return the email, or raise HTTPException."""
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        if payload.get("type") != "password_reset":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
+        email: str = payload.get("sub", "")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
+        return email
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> User:
@@ -584,7 +606,9 @@ async def update_me(
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/minute")
 async def change_password(
+    request: Request,
     body: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -600,7 +624,12 @@ async def change_password(
 
 
 @router.post("/forgot-password")
-async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)) -> dict:
+@limiter.limit("5/minute")
+async def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
     """Send a password reset email.
 
     Always returns 200 regardless of whether the email is registered to avoid
@@ -610,12 +639,8 @@ async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depend
     user = result.scalar_one_or_none()
 
     if user is not None:
-        token = secrets.token_urlsafe(32)
-        _reset_tokens[token] = {
-            "user_id": user.id,
-            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=30),
-        }
-        reset_link = f"https://frontend-rose-ten-64.vercel.app/reset-password?token={token}"
+        token = _create_reset_token(user.email)
+        reset_link = f"{_FRONTEND_URL}/reset-password?token={token}"
         html_body = (
             f"<p>Hello {user.full_name},</p>"
             f"<p>You requested a password reset for your Lex Transaction Agent account.</p>"
@@ -632,38 +657,33 @@ async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depend
         )
         from app.services.email_service import EmailService
         svc = EmailService()
-        await svc.send(
-            to_email=user.email,
-            to_name=user.full_name,
-            subject="Reset your Lex Transaction Agent password",
-            html_body=html_body,
-            text_body=text_body,
-        )
+        try:
+            await svc.send(
+                to_email=user.email,
+                to_name=user.full_name,
+                subject="Reset your Lex Transaction Agent password",
+                html_body=html_body,
+                text_body=text_body,
+            )
+        except Exception as exc:
+            logger.warning("Failed to send password reset email to '%s': %s", user.email, exc)
 
     return {"message": "If that email is registered, a reset link has been sent."}
 
 
 @router.post("/reset-password")
-async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)) -> dict:
-    """Reset a user's password using a valid reset token."""
-    token_data = _reset_tokens.get(body.token)
-    if token_data is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset link",
-        )
+@limiter.limit("5/minute")
+async def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Reset a user's password using a valid JWT reset token."""
+    email = _verify_reset_token(body.token)  # raises 400 if invalid/expired
 
-    if datetime.now(timezone.utc) > token_data["expires_at"]:
-        del _reset_tokens[body.token]
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset link",
-        )
-
-    result = await db.execute(select(User).where(User.id == token_data["user_id"]))
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is None:
-        del _reset_tokens[body.token]
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset link",
@@ -671,8 +691,6 @@ async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(
 
     user.hashed_password = _hash_password(body.new_password)
     await db.commit()
-
-    del _reset_tokens[body.token]
 
     return {"message": "Password reset successfully."}
 
