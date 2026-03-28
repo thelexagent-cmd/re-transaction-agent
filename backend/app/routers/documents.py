@@ -14,6 +14,7 @@ from app.models.transaction import Transaction
 from app.models.user import User
 from app.schemas.document import DocumentCollectRequest, DocumentResponse, DocumentUploadResponse
 from app.services import storage
+from app.services.doc_classifier import classify_document
 
 router = APIRouter(prefix="/transactions", tags=["documents"])
 
@@ -190,7 +191,14 @@ async def upload_document(
         )
 
     filename = file.filename or "upload"
-    name = document_name.strip() or filename
+    user_provided_name = document_name.strip()
+    classification = await classify_document(filename, content)
+    if user_provided_name:
+        name = user_provided_name
+    elif classification["confidence"] in ("high", "medium"):
+        name = classification["suggested_name"]
+    else:
+        name = filename
 
     storage_key = await storage.upload_document(transaction_id, filename, content)
 

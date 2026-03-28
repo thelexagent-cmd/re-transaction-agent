@@ -35,6 +35,7 @@ from app.schemas.transaction import (
     TransactionUpdate,
 )
 from app.services import storage
+from app.services.trigger_email import fire_status_trigger
 
 
 # ── Inline request schemas for new endpoints ─────────────────────────────────
@@ -422,6 +423,7 @@ async def update_transaction(
     """
     txn = await _require_transaction_ownership(transaction_id, current_user.id, db)
 
+    old_status = txn.status
     if body.status is not None:
         txn.status = body.status
     if body.closing_date is not None:
@@ -445,6 +447,10 @@ async def update_transaction(
 
     db.add(txn)
     await db.flush()
+
+    # Fire status-change trigger email (never crashes — all errors caught inside)
+    if body.status is not None and str(body.status) != str(old_status):
+        await fire_status_trigger(transaction_id, str(body.status), db)
 
     # Reload with relationships for the response
     result = await db.execute(

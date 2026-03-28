@@ -16,11 +16,15 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.models.document import Document
+from app.models.document import Document, DocumentStatus
+from app.models.event import Event
 from app.models.portal_token import PortalToken
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.services import storage
+from app.services.doc_classifier import classify_document
+from app.services.email_service import notify_broker
+from app.services.trigger_email import fire_document_trigger
 
 router = APIRouter(tags=["portal"])
 logger = logging.getLogger(__name__)
@@ -222,7 +226,14 @@ async def client_upload_document(
 
     content = await file.read()
     filename = file.filename or "upload"
-    name = document_name.strip() or filename
+    user_provided_name = document_name.strip()
+    classification = await classify_document(filename, content)
+    if user_provided_name:
+        name = user_provided_name
+    elif classification["confidence"] in ("high", "medium"):
+        name = classification["suggested_name"]
+    else:
+        name = filename
 
     storage_key = await storage.upload_document(
         portal_token.transaction_id, filename, content
@@ -231,15 +242,38 @@ async def client_upload_document(
     doc = Document(
         transaction_id=portal_token.transaction_id,
         name=name,
-        phase=1,  # General / early phase for client uploads
+        phase=1,
         responsible_party_role="client",
         storage_key=storage_key,
+        status=DocumentStatus.collected,
+        collected_at=datetime.now(timezone.utc),
     )
     db.add(doc)
+
+    event = Event(
+        transaction_id=portal_token.transaction_id,
+        event_type="document_uploaded",
+        description=f"'{name}' uploaded via client portal and marked received.",
+    )
+    db.add(event)
     await db.flush()
     await db.refresh(doc)
 
-    logger.info("Client uploaded document '%s' for transaction %s", name, portal_token.transaction_id)
+    tx_result = await db.execute(select(Transaction).where(Transaction.id == portal_token.transaction_id))
+    txn = tx_result.scalar_one_or_none()
+    address = txn.address if txn else "your transaction"
+    try:
+        await notify_broker(
+            portal_token.transaction_id,
+            subject=f"New Document Received: {name} — {address}",
+            message=f"Your client uploaded '{name}' for {address}. It has been marked as received.",
+            db=db,
+        )
+    except Exception:
+        logger.warning("Failed to send broker notification for client upload '%s'", name)
+
+    await fire_document_trigger(portal_token.transaction_id, name, db)
+    logger.info("Client uploaded document '%s' for transaction %s — auto-collected", name, portal_token.transaction_id)
 
     return {
         "id": doc.id,
@@ -388,24 +422,56 @@ async def lender_upload_document(
 
     content = await file.read()
     filename = file.filename or "upload"
-    name = document_name.strip() or filename
+    user_provided_name = document_name.strip()
+    classification = await classify_document(filename, content)
+    if user_provided_name:
+        name = user_provided_name
+    elif classification["confidence"] in ("high", "medium"):
+        name = classification["suggested_name"]
+    else:
+        name = filename
 
     storage_key = await storage.upload_document(
         portal_token.transaction_id, filename, content
     )
 
+    lender_name = portal_token.lender_name or "Lender"
+
     doc = Document(
         transaction_id=portal_token.transaction_id,
         name=name,
-        phase=5,  # Financing phase
+        phase=5,
         responsible_party_role="lender",
         storage_key=storage_key,
+        status=DocumentStatus.collected,
+        collected_at=datetime.now(timezone.utc),
     )
     db.add(doc)
+
+    event = Event(
+        transaction_id=portal_token.transaction_id,
+        event_type="document_uploaded",
+        description=f"'{name}' uploaded via lender portal by {lender_name} and marked received.",
+    )
+    db.add(event)
     await db.flush()
     await db.refresh(doc)
 
-    logger.info("Lender uploaded document '%s' for transaction %s", name, portal_token.transaction_id)
+    tx_result = await db.execute(select(Transaction).where(Transaction.id == portal_token.transaction_id))
+    txn = tx_result.scalar_one_or_none()
+    address = txn.address if txn else "your transaction"
+    try:
+        await notify_broker(
+            portal_token.transaction_id,
+            subject=f"New Document Received: {name} — {address}",
+            message=f"{lender_name} uploaded '{name}' for {address}. It has been marked as received.",
+            db=db,
+        )
+    except Exception:
+        logger.warning("Failed to send broker notification for lender upload '%s'", name)
+
+    await fire_document_trigger(portal_token.transaction_id, name, db)
+    logger.info("Lender uploaded document '%s' for transaction %s — auto-collected", name, portal_token.transaction_id)
 
     return {
         "id": doc.id,
