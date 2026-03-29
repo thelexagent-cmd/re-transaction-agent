@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { login } from '@/lib/api';
 import { setToken, isAuthenticated } from '@/lib/auth';
-import { Loader2, Sun, Moon, ArrowRight, Building2, CheckCircle2 } from 'lucide-react';
+import { Loader2, Sun, Moon, ArrowRight, Building2, TrendingUp, Clock, FileCheck, DollarSign } from 'lucide-react';
 
+// ── Theme Toggle ─────────────────────────────────────────────
 function ThemeToggle() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
@@ -25,30 +26,49 @@ function ThemeToggle() {
   }
 
   return (
-    <button
-      onClick={toggle}
-      aria-label="Toggle theme"
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: '36px', height: '36px', borderRadius: '10px',
-        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-        color: 'var(--text-secondary)', cursor: 'pointer',
-        transition: 'all 150ms',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-accent)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+    <button onClick={toggle} aria-label="Toggle theme" style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: '34px', height: '34px', borderRadius: '10px',
+      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+      color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 150ms',
+    }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-accent)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
     >
-      {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
     </button>
   );
 }
 
-const FEATURES = [
-  'Automated deadline tracking',
-  'Document collection pipeline',
-  'Commission calculator',
-  'Client portal sharing',
-];
+// ── Floating stat card ────────────────────────────────────────
+function StatCard({ icon, label, value, sub, delay, accent }: {
+  icon: React.ReactNode; label: string; value: string; sub: string; delay: string; accent: string;
+}) {
+  return (
+    <div className="animate-fade-up" style={{
+      animationDelay: delay,
+      padding: '1rem 1.25rem',
+      borderRadius: '14px',
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.07)',
+      backdropFilter: 'blur(12px)',
+      display: 'flex', alignItems: 'center', gap: '0.875rem',
+    }}>
+      <div style={{
+        width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: accent,
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.125rem', fontWeight: 500 }}>{label}</div>
+        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>{value}</div>
+      </div>
+      <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', textAlign: 'right', flexShrink: 0 }}>{sub}</div>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -77,239 +97,222 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-sans)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-sans)', position: 'relative', overflow: 'hidden', background: 'var(--bg)' }}>
 
-      {/* ── Left Panel ── */}
-      <div
-        className="hidden lg:flex"
-        style={{
-          flex: '0 0 48%',
-          position: 'relative',
-          overflow: 'hidden',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '2.5rem',
-        }}
-      >
-        {/* Gradient mesh background */}
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 0,
-          background: `
-            radial-gradient(ellipse 80% 70% at 10% 30%, rgba(99,102,241,0.2) 0%, transparent 60%),
-            radial-gradient(ellipse 60% 60% at 90% 80%, rgba(59,130,246,0.15) 0%, transparent 60%),
-            radial-gradient(ellipse 50% 40% at 60% 10%, rgba(139,92,246,0.1) 0%, transparent 60%),
-            var(--bg-surface)
-          `,
-        }} />
+      {/* ── Left panel ── */}
+      <div className="hidden lg:flex" style={{
+        flex: '0 0 52%',
+        position: 'relative',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '2.5rem',
+        overflow: 'hidden',
+      }}>
+        {/* Deep bg */}
+        <div style={{ position: 'absolute', inset: 0, background: '#05080f' }} />
 
-        {/* Subtle grid overlay */}
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 1, opacity: 0.03,
-          backgroundImage: 'linear-gradient(var(--text-primary) 1px, transparent 1px), linear-gradient(90deg, var(--text-primary) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
-        }} />
+        {/* Gradient blobs */}
+        <div style={{ position: 'absolute', top: '-10%', left: '-5%', width: '70%', height: '70%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)', filter: 'blur(40px)' }} />
+        <div style={{ position: 'absolute', bottom: '5%', right: '-10%', width: '60%', height: '60%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)', filter: 'blur(50px)' }} />
+        <div style={{ position: 'absolute', top: '40%', left: '40%', width: '40%', height: '40%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', filter: 'blur(60px)' }} />
 
-        {/* Glowing orbs */}
-        <div style={{ position: 'absolute', top: '20%', left: '15%', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(99,102,241,0.08)', filter: 'blur(60px)', zIndex: 1 }} />
-        <div style={{ position: 'absolute', bottom: '25%', right: '10%', width: '160px', height: '160px', borderRadius: '50%', background: 'rgba(59,130,246,0.07)', filter: 'blur(50px)', zIndex: 1 }} />
+        {/* Grid texture */}
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.025, backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-        {/* Content */}
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Fade-right bleed — blurs the divider */}
+        <div style={{ position: 'absolute', top: 0, right: 0, width: '160px', height: '100%', background: 'linear-gradient(to right, transparent 0%, var(--bg) 100%)', zIndex: 10, pointerEvents: 'none' }} />
+
+        {/* ── Content ── */}
+        <div style={{ position: 'relative', zIndex: 5 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <div style={{
+              width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '40px', height: '40px', borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              boxShadow: '0 4px 16px rgba(99,102,241,0.35)',
+              background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
+              boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
             }}>
-              <Building2 className="h-5 w-5 text-white" />
+              <Building2 className="h-4 w-4 text-white" />
             </div>
-            <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-              LEX
-            </span>
+            <span style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.03em' }}>LEX</span>
           </div>
         </div>
 
-        {/* Hero text */}
-        <div style={{ position: 'relative', zIndex: 2 }} className="animate-fade-up">
-          <div style={{
+        <div style={{ position: 'relative', zIndex: 5 }}>
+          {/* Tag */}
+          <div className="animate-fade-up" style={{
             display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-            padding: '0.3rem 0.75rem', borderRadius: '999px',
-            background: 'var(--accent-dim)', border: '1px solid var(--border-accent)',
-            fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-bright)',
-            marginBottom: '1.5rem',
+            padding: '0.25rem 0.75rem', borderRadius: '999px',
+            background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
+            fontSize: '0.7rem', fontWeight: 700, color: '#a5b4fc',
+            letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1.25rem',
           }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
-            Real Estate Transaction Agent
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#818cf8' }} />
+            Transaction Intelligence
           </div>
 
-          <h1 style={{
-            fontSize: 'clamp(2rem, 3.5vw, 2.75rem)',
-            fontWeight: 800,
-            color: 'var(--text-primary)',
-            letterSpacing: '-0.04em',
-            lineHeight: 1.1,
-            marginBottom: '1.25rem',
+          {/* Headline */}
+          <h1 className="animate-fade-up" style={{
+            animationDelay: '0.05s',
+            fontSize: 'clamp(2.25rem, 3.8vw, 3rem)',
+            fontWeight: 900,
+            color: '#fff',
+            letterSpacing: '-0.05em',
+            lineHeight: 1.05,
+            marginBottom: '1.125rem',
           }}>
-            Close deals faster.<br />
+            Every deal.<br />
             <span style={{
-              background: 'linear-gradient(135deg, #818cf8, #60a5fa)',
+              background: 'linear-gradient(90deg, #a5b4fc 0%, #93c5fd 50%, #c4b5fd 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
             }}>
-              Stay in control.
+              Under control.
             </span>
           </h1>
 
-          <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '2rem', maxWidth: '380px' }}>
-            Every deadline, document, and party in one place. Built for agents who move fast.
+          <p className="animate-fade-up" style={{
+            animationDelay: '0.1s',
+            fontSize: '0.9375rem', color: 'rgba(255,255,255,0.45)',
+            lineHeight: 1.65, marginBottom: '2rem', maxWidth: '340px',
+          }}>
+            Deadlines, documents, commissions, and parties — all in one place, automatically tracked.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {FEATURES.map((f, i) => (
-              <div key={f} className="animate-fade-up" style={{ animationDelay: `${0.1 + i * 0.07}s`, display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: 'var(--accent-bright)' }} />
-                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{f}</span>
-              </div>
-            ))}
+          {/* Live-looking stat cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', maxWidth: '380px' }}>
+            <StatCard delay="0.15s" accent="rgba(99,102,241,0.2)" label="Active Transactions" value="12 deals" sub="3 closing this week"
+              icon={<TrendingUp className="h-4 w-4" style={{ color: '#818cf8' }} />} />
+            <StatCard delay="0.2s" accent="rgba(245,158,11,0.15)" label="Upcoming Deadlines" value="5 this week" sub="2 need attention"
+              icon={<Clock className="h-4 w-4" style={{ color: '#fbbf24' }} />} />
+            <StatCard delay="0.25s" accent="rgba(16,185,129,0.15)" label="Docs Collected" value="84%" sub="↑ 12% this month"
+              icon={<FileCheck className="h-4 w-4" style={{ color: '#34d399' }} />} />
+            <StatCard delay="0.3s" accent="rgba(59,130,246,0.15)" label="Pipeline Value" value="$4.2M" sub="Across active deals"
+              icon={<DollarSign className="h-4 w-4" style={{ color: '#60a5fa' }} />} />
           </div>
         </div>
 
-        {/* Bottom */}
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+        <div style={{ position: 'relative', zIndex: 5 }}>
+          <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.02em' }}>
             © 2026 Lex · Built for real estate professionals
           </p>
         </div>
       </div>
 
-      {/* ── Divider ── */}
-      <div className="hidden lg:block" style={{ width: '1px', background: 'var(--border)', flexShrink: 0 }} />
-
-      {/* ── Right Panel ── */}
+      {/* ── Right panel ── */}
       <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        position: 'relative',
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '2rem', position: 'relative',
+        background: 'var(--bg)',
       }}>
-
-        {/* Theme toggle top-right */}
+        {/* Theme toggle */}
         <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }}>
           <ThemeToggle />
         </div>
 
         {/* Mobile logo */}
         <div className="flex lg:hidden items-center gap-2 mb-10">
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '36px', height: '36px', borderRadius: '10px',
-            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-          }}>
+          <div style={{ width: '34px', height: '34px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #6366f1, #4338ca)' }}>
             <Building2 className="h-4 w-4 text-white" />
           </div>
           <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>LEX</span>
         </div>
 
-        {/* Form card */}
-        <div
-          className="w-full animate-fade-up"
-          style={{ maxWidth: '400px', animationDelay: '0.1s' }}
-        >
+        {/* Form */}
+        <div className="w-full animate-fade-up" style={{ maxWidth: '380px', animationDelay: '0.08s' }}>
           <div style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.625rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginBottom: '0.375rem' }}>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.04em', marginBottom: '0.375rem' }}>
               Welcome back
             </h2>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              Sign in to your account to continue
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
+              Sign in to your workspace
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
 
-            {/* Email */}
             <div>
-              <label htmlFor="email" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
-                Email address
+              <label htmlFor="email" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                Email
               </label>
               <input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="email" type="email" required autoComplete="email"
+                value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="lex-input"
-                style={{ borderRadius: '10px' }}
+                style={{
+                  width: '100%', padding: '0.7rem 0.9rem',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px', color: 'var(--text-primary)',
+                  fontSize: '0.9rem', outline: 'none',
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'border-color 150ms, box-shadow 150ms',
+                }}
+                onFocus={(e) => { e.target.style.borderColor = 'rgba(99,102,241,0.5)'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
+                onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
 
-            {/* Password */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                <label htmlFor="password" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <label htmlFor="password" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                   Password
                 </label>
-                <Link href="/forgot-password" style={{ fontSize: '0.8rem', color: 'var(--accent-bright)', textDecoration: 'none', fontWeight: 500 }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.8')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
-                  Forgot password?
+                <Link href="/forgot-password" style={{ fontSize: '0.78rem', color: 'var(--accent-bright)', textDecoration: 'none', fontWeight: 500 }}>
+                  Forgot?
                 </Link>
               </div>
               <input
-                id="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="lex-input"
-                style={{ borderRadius: '10px' }}
+                id="password" type="password" required autoComplete="current-password"
+                value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{
+                  width: '100%', padding: '0.7rem 0.9rem',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px', color: 'var(--text-primary)',
+                  fontSize: '0.9rem', outline: 'none',
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'border-color 150ms, box-shadow 150ms',
+                }}
+                onFocus={(e) => { e.target.style.borderColor = 'rgba(99,102,241,0.5)'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
+                onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
 
-            {/* Error */}
             {error && (
-              <div style={{
-                padding: '0.75rem 1rem', borderRadius: '10px',
-                background: 'var(--red-dim)', border: '1px solid rgba(239,68,68,0.2)',
-                fontSize: '0.8125rem', color: '#f87171',
-              }}>
+              <div style={{ padding: '0.75rem 1rem', borderRadius: '10px', background: 'var(--red-dim)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.8125rem', color: '#f87171' }}>
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
-              type="submit"
-              disabled={loading}
+              type="submit" disabled={loading}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
                 width: '100%', padding: '0.75rem 1rem', marginTop: '0.25rem',
-                background: loading ? 'var(--accent-dim)' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                color: loading ? 'var(--accent-bright)' : '#fff',
-                fontSize: '0.9rem', fontWeight: 700,
-                borderRadius: '10px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : '0 4px 20px rgba(99,102,241,0.35)',
+                background: loading ? 'var(--bg-elevated)' : 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
+                color: loading ? 'var(--text-muted)' : '#fff',
+                fontSize: '0.9rem', fontWeight: 700, letterSpacing: '-0.01em',
+                borderRadius: '10px', border: loading ? '1px solid var(--border)' : 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: loading ? 'none' : '0 4px 20px rgba(99,102,241,0.4)',
                 transition: 'all 150ms',
-                letterSpacing: '-0.01em',
               }}
-              onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(99,102,241,0.45)'; } }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = loading ? 'none' : '0 4px 20px rgba(99,102,241,0.35)'; }}
+              onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(99,102,241,0.5)'; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = loading ? 'none' : '0 4px 20px rgba(99,102,241,0.4)'; }}
             >
-              {loading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Signing in...</>
-              ) : (
-                <>Sign in <ArrowRight className="h-4 w-4" /></>
-              )}
+              {loading
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Signing in...</>
+                : <>Sign in <ArrowRight className="h-4 w-4" /></>
+              }
             </button>
           </form>
+
+          <p style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Transaction management for real estate professionals
+          </p>
         </div>
       </div>
     </div>
