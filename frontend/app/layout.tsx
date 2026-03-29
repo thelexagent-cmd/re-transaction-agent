@@ -1,19 +1,12 @@
 import type { Metadata } from 'next';
-import { Cinzel, Josefin_Sans } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 
-const cinzel = Cinzel({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-heading',
-  display: 'swap',
-});
-
-const josefinSans = Josefin_Sans({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
+  weight: ['300', '400', '500', '600', '700', '800'],
   style: ['normal', 'italic'],
-  variable: '--font-body',
+  variable: '--font-sans',
   display: 'swap',
 });
 
@@ -28,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`h-full ${cinzel.variable} ${josefinSans.variable}`}>
+    <html lang="en" className={`h-full ${plusJakarta.variable}`}>
       <body className="h-full">{children}</body>
     </html>
   );
