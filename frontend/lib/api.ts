@@ -126,6 +126,24 @@ async function authFetch(path: string, options: RequestInit = {}): Promise<Respo
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 
+export async function register(data: {
+  email: string;
+  password: string;
+  full_name: string;
+  brokerage_name?: string;
+}): Promise<UserProfile> {
+  const res = await fetch(`${API_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function login(email: string, password: string): Promise<{ access_token: string; token_type: string }> {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
