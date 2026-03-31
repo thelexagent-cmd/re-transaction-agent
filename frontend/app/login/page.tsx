@@ -224,11 +224,13 @@ export default function LoginPage() {
   }, []);
 
   // ── Canvas fluid energy field ─────────────────────────────────────────────
-  // Single continuous aura rendered via canvas.
-  // Control points move on noise-driven paths (overlapping sine/cosine harmonics).
-  // Each point emits a large soft radial gradient — all overlap with 'screen' blending
-  // to produce ONE unified glowing field, not individual orbs.
-  // Mouse influence: slowly warps the noise offset (gravity distortion, not tracking).
+  // One unified glowing field rendered on canvas via 'screen' blending.
+  //
+  // Key design: a single FIELD CENTER lerps toward the cursor (slow, ~2%/frame).
+  // All control points are rendered relative to that center + noise offset.
+  // → The whole cloud drifts toward wherever the cursor is.
+  // → Noise keeps each layer flowing even when the cursor is still.
+  // → No anchor to screen center — no snap-back.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -241,10 +243,12 @@ export default function LoginPage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Mouse influence state — lagged, not immediate
     const mouse = mouseRef.current;
-    mouse.x = W * 0.5;
-    mouse.y = H * 0.5;
+
+    // Field center starts at screen center, then drifts toward cursor
+    let fcx = W * 0.5;
+    let fcy = H * 0.5;
+
     mouse.targetX = W * 0.5;
     mouse.targetY = H * 0.5;
 
@@ -253,7 +257,6 @@ export default function LoginPage() {
     const onMouseMove = (e: MouseEvent) => {
       mouse.targetX = e.clientX;
       mouse.targetY = e.clientY;
-      // Custom cursor
       if (cursorRef.current) {
         cursorRef.current.style.transform = `translate(${e.clientX - 5}px, ${e.clientY - 5}px)`;
       }
@@ -272,46 +275,39 @@ export default function LoginPage() {
     function animate() {
       const t = (performance.now() - t0) * 0.001; // seconds
 
-      // Lag mouse influence — eases toward real position (feels like gravity, not tracking)
-      mouse.x += (mouse.targetX - mouse.x) * 0.032;
-      mouse.y += (mouse.targetY - mouse.y) * 0.032;
-
-      // Normalized mouse offset from center (–1 to 1)
-      const mxN = (mouse.x / W - 0.5) * 2;
-      const myN = (mouse.y / H - 0.5) * 2;
+      // ── Field center lerps toward cursor (2% per frame = smooth, lagged) ──
+      // This makes the entire aura cloud slowly drift to wherever the cursor is.
+      fcx += (mouse.targetX - fcx) * 0.022;
+      fcy += (mouse.targetY - fcy) * 0.022;
 
       ctx!.clearRect(0, 0, W, H);
       ctx!.globalCompositeOperation = 'screen';
 
-      FIELD_POINTS.forEach((pt, i) => {
-        // ── Noise-driven base position ──
-        // Two overlapping sine/cosine layers per axis at different frequencies.
-        // Unique phase and speed per point → complex non-repeating paths.
-        const noiseX =
-          Math.sin(t * 0.31 * pt.spd + pt.phase)                * W * 0.22
-        + Math.cos(t * 0.17 * pt.spd + pt.phase * 1.618)        * W * 0.12
-        + Math.sin(t * 0.09 * pt.spd + pt.phase * 2.72 + 0.5)   * W * 0.07;
+      FIELD_POINTS.forEach((pt) => {
+        // ── Noise offset relative to field center ──
+        // Three frequency layers per axis → complex, organic, non-repeating paths.
+        // Spread is fraction of viewport so points cluster around fcx/fcy.
+        const spread = Math.min(W, H) * 0.28;
 
-        const noiseY =
-          Math.cos(t * 0.27 * pt.spd + pt.phase * 0.73)         * H * 0.18
-        + Math.sin(t * 0.19 * pt.spd + pt.phase * 2.14)         * H * 0.10
-        + Math.cos(t * 0.11 * pt.spd + pt.phase * 1.41 + 1.2)   * H * 0.06;
+        const nx =
+          Math.sin(t * 0.33 * pt.spd + pt.phase)              * spread
+        + Math.cos(t * 0.19 * pt.spd + pt.phase * 1.618)      * spread * 0.45
+        + Math.sin(t * 0.11 * pt.spd + pt.phase * 2.72 + 0.5) * spread * 0.20;
 
-        // ── Mouse gravity — distorts the field, doesn't control it ──
-        // Alternating signs per point so the field BENDS toward cursor, not follows it.
-        const mWarpSign = (i % 2 === 0) ? 1 : -0.6;
-        const mWarpX = mxN * W * 0.09 * mWarpSign;
-        const mWarpY = myN * H * 0.07 * mWarpSign;
+        const ny =
+          Math.cos(t * 0.28 * pt.spd + pt.phase * 0.73)       * spread * 0.85
+        + Math.sin(t * 0.21 * pt.spd + pt.phase * 2.14)       * spread * 0.38
+        + Math.cos(t * 0.13 * pt.spd + pt.phase * 1.41 + 1.2) * spread * 0.18;
 
-        const px = W * pt.bx + noiseX + mWarpX;
-        const py = H * pt.by + noiseY + mWarpY;
+        const px = fcx + nx;
+        const py = fcy + ny;
 
         // ── Radial gradient — large, soft, diffuse ──
         const [r, g, b] = pt.color;
         const grad = ctx!.createRadialGradient(px, py, 0, px, py, pt.r);
-        grad.addColorStop(0.00, `rgba(${r},${g},${b},0.22)`);
-        grad.addColorStop(0.30, `rgba(${r},${g},${b},0.12)`);
-        grad.addColorStop(0.65, `rgba(${r},${g},${b},0.04)`);
+        grad.addColorStop(0.00, `rgba(${r},${g},${b},0.26)`);
+        grad.addColorStop(0.35, `rgba(${r},${g},${b},0.13)`);
+        grad.addColorStop(0.70, `rgba(${r},${g},${b},0.04)`);
         grad.addColorStop(1.00, `rgba(${r},${g},${b},0.00)`);
 
         ctx!.fillStyle = grad;
