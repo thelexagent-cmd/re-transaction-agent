@@ -5,8 +5,121 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { login } from '@/lib/api';
 import { setToken, isAuthenticated } from '@/lib/auth';
-import { Loader2, Sun, Moon, ArrowRight, Building2, TrendingUp, Clock, FileCheck, DollarSign } from 'lucide-react';
+import { Loader2, Sun, Moon, ArrowRight } from 'lucide-react';
 
+const TYPING_TEXT = "Stop chasing paperwork. Start closing deals.";
+
+// ── Logo — city skyline matching reference design ─────────────────────────────
+function LexLogo() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+
+      {/* Badge */}
+      <div style={{
+        width: '46px', height: '46px',
+        borderRadius: '12px',
+        background: 'linear-gradient(160deg, #060C24 0%, #0D1B4B 50%, #0A1A44 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        boxShadow: '0 2px 20px rgba(30,94,255,0.40), inset 0 1px 0 rgba(100,180,255,0.10)',
+        border: '1px solid rgba(59,130,246,0.25)',
+      }}>
+        <svg width="34" height="30" viewBox="0 0 34 30" fill="none" aria-hidden="true">
+          <defs>
+            {/* Gradient for each building — deep blue → bright cyan */}
+            <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#67E8F9" stopOpacity="0.95"/>
+              <stop offset="45%" stopColor="#38BDF8" stopOpacity="0.90"/>
+              <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0.85"/>
+            </linearGradient>
+            <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.88"/>
+              <stop offset="50%" stopColor="#3B82F6" stopOpacity="0.80"/>
+              <stop offset="100%" stopColor="#1E40AF" stopOpacity="0.75"/>
+            </linearGradient>
+            <linearGradient id="bg3" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#BAE6FD" stopOpacity="0.95"/>
+              <stop offset="40%" stopColor="#60A5FA" stopOpacity="0.90"/>
+              <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0.80"/>
+            </linearGradient>
+            <linearGradient id="bg4" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7DD3FC" stopOpacity="0.85"/>
+              <stop offset="55%" stopColor="#2563EB" stopOpacity="0.78"/>
+              <stop offset="100%" stopColor="#1E3A8A" stopOpacity="0.72"/>
+            </linearGradient>
+            <linearGradient id="bg5" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#A5F3FC" stopOpacity="0.80"/>
+              <stop offset="50%" stopColor="#38BDF8" stopOpacity="0.72"/>
+              <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0.65"/>
+            </linearGradient>
+          </defs>
+
+          {/* Ground shadow */}
+          <ellipse cx="17" cy="29.5" rx="15" ry="1.2" fill="rgba(30,94,255,0.22)"/>
+
+          {/* B1 — left short */}
+          <rect x="0"  y="18" width="5"  height="11" rx="0.5" fill="url(#bg1)"/>
+          {/* Window highlight */}
+          <rect x="1.5" y="19.5" width="1.5" height="2" rx="0.25" fill="rgba(255,255,255,0.50)"/>
+
+          {/* B2 — medium-tall */}
+          <rect x="6"  y="10" width="6"  height="19" rx="0.5" fill="url(#bg2)"/>
+          {/* Windows */}
+          <rect x="7.2" y="12" width="1.5" height="2"   rx="0.25" fill="rgba(255,255,255,0.45)"/>
+          <rect x="9.2" y="12" width="1.5" height="2"   rx="0.25" fill="rgba(255,255,255,0.35)"/>
+          <rect x="7.2" y="16" width="1.5" height="1.5" rx="0.25" fill="rgba(255,255,255,0.30)"/>
+
+          {/* B3 — tallest center */}
+          <rect x="13" y="2"  width="8"  height="27" rx="0.5" fill="url(#bg3)"/>
+          {/* Glass facade highlight — left strip */}
+          <rect x="14" y="3"  width="1.8" height="26" rx="0.5" fill="rgba(255,255,255,0.12)"/>
+          {/* Windows */}
+          <rect x="16.5" y="5"  width="1.8" height="2.5" rx="0.25" fill="rgba(255,255,255,0.50)"/>
+          <rect x="16.5" y="9"  width="1.8" height="2.5" rx="0.25" fill="rgba(255,255,255,0.40)"/>
+          <rect x="16.5" y="13" width="1.8" height="2.5" rx="0.25" fill="rgba(255,255,255,0.35)"/>
+          <rect x="16.5" y="17" width="1.8" height="2.5" rx="0.25" fill="rgba(255,255,255,0.28)"/>
+
+          {/* B4 — medium right */}
+          <rect x="22" y="8"  width="6"  height="21" rx="0.5" fill="url(#bg4)"/>
+          {/* Windows */}
+          <rect x="23.2" y="10" width="1.5" height="2" rx="0.25" fill="rgba(255,255,255,0.42)"/>
+          <rect x="25.2" y="10" width="1.5" height="2" rx="0.25" fill="rgba(255,255,255,0.32)"/>
+          <rect x="23.2" y="14" width="1.5" height="2" rx="0.25" fill="rgba(255,255,255,0.28)"/>
+
+          {/* B5 — small far right */}
+          <rect x="29" y="16" width="5"  height="13" rx="0.5" fill="url(#bg5)"/>
+          <rect x="30.2" y="17.5" width="1.5" height="2" rx="0.25" fill="rgba(255,255,255,0.38)"/>
+        </svg>
+      </div>
+
+      {/* Wordmark */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <span style={{
+          fontSize: '1.4rem', fontWeight: 900,
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.055em',
+          lineHeight: 1,
+          fontFamily: 'var(--font-sans)',
+          transition: 'color 0.3s ease',
+        }}>
+          Lex
+        </span>
+        <span style={{
+          fontSize: '0.5rem', fontWeight: 700,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          lineHeight: 1,
+          transition: 'color 0.3s ease',
+        }}>
+          Transaction AI
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
 function ThemeToggle() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   useEffect(() => {
@@ -22,200 +135,200 @@ function ThemeToggle() {
     localStorage.setItem('lex-theme', next);
   }
   return (
-    <button onClick={toggle} aria-label="Toggle theme" style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      width: '34px', height: '34px', borderRadius: '10px',
-      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-      color: 'rgba(255,255,255,0.4)', cursor: 'pointer', transition: 'all 150ms',
-    }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+    <button
+      onClick={toggle}
+      aria-label="Toggle theme"
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: '34px', height: '34px', borderRadius: '10px',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
+        color: 'var(--text-secondary)',
+        cursor: 'pointer',
+        transition: 'border-color 150ms, color 150ms, background 0.3s ease',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(30,94,255,0.4)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
     >
       {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
     </button>
   );
 }
 
-function StatCard({ icon, label, value, sub, delay, color }: {
-  icon: React.ReactNode; label: string; value: string; sub: string; delay: string; color: string;
-}) {
-  return (
-    <div className="animate-fade-up" style={{
-      animationDelay: delay,
-      padding: '0.7rem 0.875rem',
-      borderRadius: '10px',
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.06)',
-      display: 'flex', alignItems: 'center', gap: '0.625rem',
-      transition: 'all 200ms',
-    }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
-    >
-      <div style={{ width: '30px', height: '30px', borderRadius: '8px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: color }}>
-        {icon}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.3)', marginBottom: '0.1rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
-        <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>{value}</div>
-      </div>
-      <div style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.25)', textAlign: 'right', flexShrink: 0, lineHeight: 1.4 }}>{sub}</div>
-    </div>
-  );
-}
+// ── Field control point config ────────────────────────────────────────────────
+// These drive the canvas fluid simulation — not DOM elements
+const FIELD_POINTS = [
+  { bx: 0.15, by: 0.30, phase: 0.00, spd: 0.28, r: 580, color: [99,  102, 241] as const },
+  { bx: 0.50, by: 0.55, phase: 1.26, spd: 0.22, r: 650, color: [59,  130, 246] as const },
+  { bx: 0.80, by: 0.25, phase: 2.51, spd: 0.34, r: 540, color: [139, 92,  246] as const },
+  { bx: 0.35, by: 0.80, phase: 3.77, spd: 0.19, r: 620, color: [20,  184, 166] as const },
+  { bx: 0.70, by: 0.65, phase: 5.03, spd: 0.31, r: 490, color: [99,  102, 241] as const },
+  { bx: 0.20, by: 0.60, phase: 0.63, spd: 0.25, r: 560, color: [59,  130, 246] as const },
+  { bx: 0.60, by: 0.15, phase: 1.88, spd: 0.38, r: 500, color: [139, 92,  246] as const },
+  { bx: 0.85, by: 0.75, phase: 4.40, spd: 0.21, r: 600, color: [20,  184, 166] as const },
+];
 
-// Spotlight that follows mouse on the left panel
-function SpotlightPanel({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ x: 50, y: 40 });
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const handler = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      setPos({
-        x: ((e.clientX - rect.left) / rect.width) * 100,
-        y: ((e.clientY - rect.top) / rect.height) * 100,
-      });
-    };
-    el.addEventListener('mousemove', handler);
-    return () => el.removeEventListener('mousemove', handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="hidden lg:flex" style={{
-      flex: '0 0 50%',
-      position: 'relative',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      padding: '3rem 2.75rem',
-      overflow: 'hidden',
-      background: '#050810',
-    }}>
-      {/* Animated grid */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 0,
-        backgroundImage: `
-          linear-gradient(rgba(99,102,241,0.07) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(99,102,241,0.07) 1px, transparent 1px)
-        `,
-        backgroundSize: '48px 48px',
-      }} />
-
-      {/* Spotlight glow following mouse */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
-        background: `radial-gradient(600px circle at ${pos.x}% ${pos.y}%, rgba(99,102,241,0.12) 0%, transparent 60%)`,
-        transition: 'background 0.05s ease',
-      }} />
-
-      {/* Corner glow accent */}
-      <div style={{
-        position: 'absolute', top: '-20%', left: '-10%', zIndex: 0,
-        width: '60%', height: '60%', borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)',
-        filter: 'blur(60px)',
-        animation: 'aurora1 14s ease-in-out infinite',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: '-15%', right: '-5%', zIndex: 0,
-        width: '50%', height: '50%', borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)',
-        filter: 'blur(70px)',
-        animation: 'aurora2 18s ease-in-out infinite',
-      }} />
-
-      {/* Right-edge fade into right panel */}
-      <div style={{
-        position: 'absolute', top: 0, right: 0, width: '80px', height: '100%', zIndex: 20,
-        background: 'linear-gradient(to right, transparent, var(--bg))',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Logo */}
-      <div style={{ position: 'absolute', top: '2.25rem', left: '2.75rem', zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '9px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'linear-gradient(135deg, #6366f1, #4338ca)',
-            boxShadow: '0 0 20px rgba(99,102,241,0.5)',
-          }}>
-            <Building2 className="h-3.5 w-3.5 text-white" />
-          </div>
-          <span style={{ fontSize: '0.9375rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.03em' }}>LEX</span>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{ position: 'absolute', bottom: '1.75rem', left: '2.75rem', zIndex: 10 }}>
-        <p style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.02em' }}>© 2026 Lex · Real estate transaction intelligence</p>
-      </div>
-
-      {/* Main content */}
-      <div style={{ position: 'relative', zIndex: 10 }}>
-        {/* Badge */}
-        <div className="animate-fade-up" style={{
-          display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-          padding: '0.2rem 0.65rem', borderRadius: '999px',
-          background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)',
-          fontSize: '0.625rem', fontWeight: 700, color: '#a5b4fc',
-          letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '1rem',
-        }}>
-          <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#818cf8', display: 'inline-block' }} />
-          Transaction Intelligence
-        </div>
-
-        <h1 className="animate-fade-up" style={{
-          animationDelay: '0.05s',
-          fontSize: 'clamp(1.75rem, 2.8vw, 2.5rem)', fontWeight: 900,
-          color: '#fff', letterSpacing: '-0.05em', lineHeight: 1.06, marginBottom: '0.875rem',
-        }}>
-          Every deal.<br />
-          <span style={{
-            background: 'linear-gradient(100deg, #a5b4fc 0%, #93c5fd 50%, #c4b5fd 100%)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          }}>
-            Under control.
-          </span>
-        </h1>
-
-        <p className="animate-fade-up" style={{
-          animationDelay: '0.1s',
-          fontSize: '0.8125rem', color: 'rgba(255,255,255,0.35)',
-          lineHeight: 1.7, marginBottom: '1.5rem', maxWidth: '280px',
-        }}>
-          Deadlines, documents, commissions — tracked automatically so nothing slips.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: '320px' }}>
-          <StatCard delay="0.15s" color="rgba(99,102,241,0.15)" label="Active Transactions" value="12 deals" sub="3 closing this week"
-            icon={<TrendingUp className="h-3.5 w-3.5" style={{ color: '#818cf8' }} />} />
-          <StatCard delay="0.2s" color="rgba(245,158,11,0.12)" label="Upcoming Deadlines" value="5 this week" sub="2 need attention"
-            icon={<Clock className="h-3.5 w-3.5" style={{ color: '#fbbf24' }} />} />
-          <StatCard delay="0.25s" color="rgba(16,185,129,0.12)" label="Docs Collected" value="84%" sub="↑ 12% this month"
-            icon={<FileCheck className="h-3.5 w-3.5" style={{ color: '#34d399' }} />} />
-          <StatCard delay="0.3s" color="rgba(59,130,246,0.12)" label="Pipeline Value" value="$4.2M" sub="Across active deals"
-            icon={<DollarSign className="h-3.5 w-3.5" style={{ color: '#60a5fa' }} />} />
-        </div>
-      </div>
-
-      {children}
-    </div>
-  );
-}
-
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+
+  // Intro stage machine
+  const [stage, setStage]             = useState<'typing' | 'fading' | 'ready'>('typing');
+  const [displayText, setDisplayText] = useState('');
+  const [showCursor, setShowCursor]   = useState(true);
+
+  // Refs
+  const mouseRef  = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const rafRef    = useRef<number>(0);
+
+  const blinkRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isAuthenticated()) router.replace('/transactions');
   }, [router]);
+
+  // ── Typing intro ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    let i = 0;
+    const typeInterval = setInterval(() => {
+      i++;
+      setDisplayText(TYPING_TEXT.slice(0, i));
+      if (i >= TYPING_TEXT.length) {
+        clearInterval(typeInterval);
+        let blinks = 0;
+        blinkRef.current = setInterval(() => {
+          setShowCursor(prev => !prev);
+          blinks++;
+          if (blinks >= 4) {
+            clearInterval(blinkRef.current!);
+            blinkRef.current = null;
+            setShowCursor(false);
+            setStage('fading');
+            fadeTimerRef.current = setTimeout(() => setStage('ready'), 650);
+          }
+        }, 210);
+      }
+    }, 38);
+    return () => {
+      clearInterval(typeInterval);
+      if (blinkRef.current)     clearInterval(blinkRef.current);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    };
+  }, []);
+
+  // ── Canvas fluid energy field ─────────────────────────────────────────────
+  // Single continuous aura rendered via canvas.
+  // Control points move on noise-driven paths (overlapping sine/cosine harmonics).
+  // Each point emits a large soft radial gradient — all overlap with 'screen' blending
+  // to produce ONE unified glowing field, not individual orbs.
+  // Mouse influence: slowly warps the noise offset (gravity distortion, not tracking).
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let W = window.innerWidth;
+    let H = window.innerHeight;
+    canvas.width  = W;
+    canvas.height = H;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Mouse influence state — lagged, not immediate
+    const mouse = mouseRef.current;
+    mouse.x = W * 0.5;
+    mouse.y = H * 0.5;
+    mouse.targetX = W * 0.5;
+    mouse.targetY = H * 0.5;
+
+    const t0 = performance.now();
+
+    const onMouseMove = (e: MouseEvent) => {
+      mouse.targetX = e.clientX;
+      mouse.targetY = e.clientY;
+      // Custom cursor
+      if (cursorRef.current) {
+        cursorRef.current.style.transform = `translate(${e.clientX - 5}px, ${e.clientY - 5}px)`;
+      }
+    };
+
+    const onResize = () => {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width  = W;
+      canvas.height = H;
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('resize',    onResize);
+
+    function animate() {
+      const t = (performance.now() - t0) * 0.001; // seconds
+
+      // Lag mouse influence — eases toward real position (feels like gravity, not tracking)
+      mouse.x += (mouse.targetX - mouse.x) * 0.032;
+      mouse.y += (mouse.targetY - mouse.y) * 0.032;
+
+      // Normalized mouse offset from center (–1 to 1)
+      const mxN = (mouse.x / W - 0.5) * 2;
+      const myN = (mouse.y / H - 0.5) * 2;
+
+      ctx!.clearRect(0, 0, W, H);
+      ctx!.globalCompositeOperation = 'screen';
+
+      FIELD_POINTS.forEach((pt, i) => {
+        // ── Noise-driven base position ──
+        // Two overlapping sine/cosine layers per axis at different frequencies.
+        // Unique phase and speed per point → complex non-repeating paths.
+        const noiseX =
+          Math.sin(t * 0.31 * pt.spd + pt.phase)                * W * 0.22
+        + Math.cos(t * 0.17 * pt.spd + pt.phase * 1.618)        * W * 0.12
+        + Math.sin(t * 0.09 * pt.spd + pt.phase * 2.72 + 0.5)   * W * 0.07;
+
+        const noiseY =
+          Math.cos(t * 0.27 * pt.spd + pt.phase * 0.73)         * H * 0.18
+        + Math.sin(t * 0.19 * pt.spd + pt.phase * 2.14)         * H * 0.10
+        + Math.cos(t * 0.11 * pt.spd + pt.phase * 1.41 + 1.2)   * H * 0.06;
+
+        // ── Mouse gravity — distorts the field, doesn't control it ──
+        // Alternating signs per point so the field BENDS toward cursor, not follows it.
+        const mWarpSign = (i % 2 === 0) ? 1 : -0.6;
+        const mWarpX = mxN * W * 0.09 * mWarpSign;
+        const mWarpY = myN * H * 0.07 * mWarpSign;
+
+        const px = W * pt.bx + noiseX + mWarpX;
+        const py = H * pt.by + noiseY + mWarpY;
+
+        // ── Radial gradient — large, soft, diffuse ──
+        const [r, g, b] = pt.color;
+        const grad = ctx!.createRadialGradient(px, py, 0, px, py, pt.r);
+        grad.addColorStop(0.00, `rgba(${r},${g},${b},0.22)`);
+        grad.addColorStop(0.30, `rgba(${r},${g},${b},0.12)`);
+        grad.addColorStop(0.65, `rgba(${r},${g},${b},0.04)`);
+        grad.addColorStop(1.00, `rgba(${r},${g},${b},0.00)`);
+
+        ctx!.fillStyle = grad;
+        ctx!.fillRect(0, 0, W, H);
+      });
+
+      rafRef.current = requestAnimationFrame(animate);
+    }
+
+    rafRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('resize',    onResize);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -233,111 +346,243 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-sans)', background: 'var(--bg)' }}>
+    <div style={{
+      position: 'relative', minHeight: '100vh',
+      background: 'var(--bg)',
+      backgroundImage: 'radial-gradient(var(--border-subtle) 1px, transparent 1px)',
+      backgroundSize: '28px 28px',
+      fontFamily: 'var(--font-sans)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden', cursor: 'none',
+      transition: 'background 0.3s ease',
+    }}>
 
-      <SpotlightPanel>{null}</SpotlightPanel>
+      {/* ── Custom cursor ── */}
+      <div ref={cursorRef} style={{
+        position: 'fixed', left: 0, top: 0,
+        width: '10px', height: '10px', borderRadius: '50%',
+        background: 'rgba(30,94,255,0.45)',
+        boxShadow: '0 0 8px rgba(30,94,255,0.25)',
+        pointerEvents: 'none', zIndex: 9999,
+        willChange: 'transform',
+      }} />
 
-      {/* ── RIGHT PANEL ── */}
+      {/* ── Canvas fluid energy field — single continuous aura ── */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: 'fixed', left: 0, top: 0,
+          width: '100%', height: '100%',
+          pointerEvents: 'none', zIndex: 0,
+        }}
+      />
+
+      {/* ── Theme toggle ── */}
+      <div style={{ position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 100 }}>
+        <ThemeToggle />
+      </div>
+
+      {/* ── INTRO OVERLAY — typing text, fades as form appears ── */}
+      {stage !== 'ready' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 20,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '2rem', pointerEvents: 'none',
+          opacity: stage === 'fading' ? 0 : 1,
+          transition: 'opacity 0.65s ease',
+        }}>
+          <div style={{
+            position: 'absolute',
+            width: '560px', height: '160px',
+            background: 'radial-gradient(ellipse, rgba(30,94,255,0.08) 0%, transparent 70%)',
+            filter: 'blur(40px)', pointerEvents: 'none',
+          }} />
+          <p style={{
+            position: 'relative',
+            fontSize: 'clamp(1.5rem, 3.5vw, 2.5rem)',
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.03em',
+            lineHeight: 1.2,
+            textAlign: 'center',
+            maxWidth: '720px',
+            transition: 'color 0.3s ease',
+          }}>
+            {displayText}
+            {showCursor && (
+              <span style={{ color: '#1E5EFF', marginLeft: '2px' }}>|</span>
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* ── MAIN CONTENT — fades up as intro exits ── */}
       <div style={{
-        flex: '0 0 50%',
+        position: 'relative', zIndex: 10,
         display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        padding: '2rem', position: 'relative',
-        background: 'var(--bg)',
+        alignItems: 'center', width: '100%',
+        padding: '2rem',
+        opacity: stage === 'typing' ? 0 : 1,
+        transform: stage === 'typing' ? 'translateY(16px)' : 'translateY(0)',
+        transition: 'opacity 0.7s ease, transform 0.7s ease',
+        pointerEvents: stage === 'typing' ? 'none' : 'auto',
       }}>
-        <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }}>
-          <ThemeToggle />
+
+        {/* Settled tagline */}
+        <p style={{
+          marginBottom: '1.5rem',
+          fontSize: '0.8125rem',
+          color: 'var(--text-secondary)',
+          letterSpacing: '0.01em',
+          textAlign: 'center',
+          transition: 'color 0.3s ease',
+        }}>
+          {TYPING_TEXT}
+        </p>
+
+        {/* Logo */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          <LexLogo />
         </div>
 
-        {/* Mobile logo */}
-        <div className="flex lg:hidden items-center gap-2 mb-10">
-          <div style={{ width: '32px', height: '32px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #6366f1, #4338ca)' }}>
-            <Building2 className="h-3.5 w-3.5 text-white" />
-          </div>
-          <span style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>LEX</span>
-        </div>
-
-        <div className="w-full animate-fade-up" style={{ maxWidth: '340px', animationDelay: '0.08s' }}>
+        {/* Glass form card */}
+        <div style={{
+          width: '100%', maxWidth: '380px',
+          background: 'var(--glass-bg)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: '20px',
+          padding: '2rem',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          transition: 'background 0.3s ease, border-color 0.3s ease',
+        }}>
           <div style={{ marginBottom: '1.75rem' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.04em', marginBottom: '0.3rem' }}>
+            <h2 style={{
+              fontSize: '1.5rem', fontWeight: 800,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.04em', marginBottom: '0.3rem',
+              transition: 'color 0.3s ease',
+            }}>
               Welcome back
             </h2>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', transition: 'color 0.3s ease' }}>
               Sign in to your workspace
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
             <div>
-              <label htmlFor="email" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+              <label htmlFor="email" style={{
+                display: 'block', fontSize: '0.75rem', fontWeight: 600,
+                color: 'var(--text-secondary)', marginBottom: '0.4rem',
+                transition: 'color 0.3s ease',
+              }}>
                 Email
               </label>
-              <input id="email" type="email" required autoComplete="email"
+              <input
+                id="email" type="email" required autoComplete="email"
                 value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                className="lex-input"
                 style={{
-                  width: '100%', padding: '0.625rem 0.875rem',
-                  background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                  borderRadius: '9px', color: 'var(--text-primary)',
-                  fontSize: '0.8125rem', outline: 'none', fontFamily: 'var(--font-sans)',
-                  transition: 'border-color 150ms, box-shadow 150ms',
+                  width: '100%', padding: '0.65rem 0.875rem',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8125rem',
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'border-color 150ms, box-shadow 150ms, background 0.3s ease, color 0.3s ease',
+                  cursor: 'text',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = 'rgba(99,102,241,0.5)'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
-                onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                onFocus={(e) => { e.target.style.borderColor = 'rgba(30,94,255,0.5)'; e.target.style.boxShadow = '0 0 0 3px rgba(30,94,255,0.1)'; }}
+                onBlur={(e)  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
 
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                <label htmlFor="password" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Password</label>
-                <Link href="/forgot-password" style={{ fontSize: '0.72rem', color: '#818cf8', textDecoration: 'none', fontWeight: 500 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <label htmlFor="password" style={{
+                  fontSize: '0.75rem', fontWeight: 600,
+                  color: 'var(--text-secondary)', transition: 'color 0.3s ease',
+                }}>
+                  Password
+                </label>
+                <Link href="/forgot-password" style={{
+                  fontSize: '0.72rem', color: '#1E5EFF',
+                  textDecoration: 'none', fontWeight: 500, cursor: 'pointer',
+                }}>
                   Forgot?
                 </Link>
               </div>
-              <input id="password" type="password" required autoComplete="current-password"
+              <input
+                id="password" type="password" required autoComplete="current-password"
                 value={password} onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                className="lex-input"
                 style={{
-                  width: '100%', padding: '0.625rem 0.875rem',
-                  background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                  borderRadius: '9px', color: 'var(--text-primary)',
-                  fontSize: '0.8125rem', outline: 'none', fontFamily: 'var(--font-sans)',
-                  transition: 'border-color 150ms, box-shadow 150ms',
+                  width: '100%', padding: '0.65rem 0.875rem',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8125rem',
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'border-color 150ms, box-shadow 150ms, background 0.3s ease, color 0.3s ease',
+                  cursor: 'text',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = 'rgba(99,102,241,0.5)'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
-                onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                onFocus={(e) => { e.target.style.borderColor = 'rgba(30,94,255,0.5)'; e.target.style.boxShadow = '0 0 0 3px rgba(30,94,255,0.1)'; }}
+                onBlur={(e)  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
 
             {error && (
-              <div style={{ padding: '0.625rem 0.875rem', borderRadius: '9px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.75rem', color: '#f87171' }}>
+              <div style={{
+                padding: '0.625rem 0.875rem', borderRadius: '9px',
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                fontSize: '0.75rem', color: '#f87171',
+              }}>
                 {error}
               </div>
             )}
 
-            <button type="submit" disabled={loading} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-              width: '100%', padding: '0.675rem', marginTop: '0.125rem',
-              background: loading ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
-              color: loading ? 'rgba(255,255,255,0.3)' : '#fff',
-              fontSize: '0.8125rem', fontWeight: 700, letterSpacing: '-0.01em',
-              borderRadius: '9px', border: loading ? '1px solid rgba(255,255,255,0.06)' : 'none',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              boxShadow: loading ? 'none' : '0 0 24px rgba(99,102,241,0.35)',
-              transition: 'all 150ms',
-            }}
-              onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 32px rgba(99,102,241,0.5)'; } }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = loading ? 'none' : '0 0 24px rgba(99,102,241,0.35)'; }}
+            <button
+              type="submit" disabled={loading}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                width: '100%', padding: '0.7rem', marginTop: '0.25rem',
+                background: loading
+                  ? 'var(--bg-hover)'
+                  : 'linear-gradient(135deg, #1E5EFF 0%, #0A3FCC 100%)',
+                color: loading ? 'var(--text-muted)' : '#fff',
+                fontSize: '0.8125rem', fontWeight: 700, letterSpacing: '-0.01em',
+                borderRadius: '10px',
+                border: loading ? '1px solid var(--border)' : 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: loading ? 'none' : '0 0 20px rgba(30,94,255,0.30)',
+                transition: 'all 150ms',
+              }}
+              onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 28px rgba(30,94,255,0.48)'; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = loading ? 'none' : '0 0 20px rgba(30,94,255,0.30)'; }}
             >
-              {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Signing in...</> : <>Sign in <ArrowRight className="h-3.5 w-3.5" /></>}
+              {loading
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Signing in...</>
+                : <>Sign in <ArrowRight className="h-3.5 w-3.5" /></>
+              }
             </button>
+
           </form>
 
-          <p style={{ marginTop: '1.75rem', textAlign: 'center', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+          <p style={{
+            marginTop: '1.5rem', textAlign: 'center', fontSize: '0.68rem',
+            color: 'var(--text-muted)', transition: 'color 0.3s ease',
+          }}>
             Transaction management for real estate professionals
           </p>
         </div>
       </div>
+
     </div>
   );
 }

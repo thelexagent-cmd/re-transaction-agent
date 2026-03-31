@@ -359,6 +359,15 @@ input::placeholder, textarea::placeholder { color: var(--text-muted) !important;
   to   { transform: rotate(360deg); }
 }
 
+/* ── Login page inputs ──────────────────────────────────────── */
+.lex-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.55;
+}
+.lex-input:focus {
+  outline: none;
+}
+
 /* ── Reduced motion ─────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
