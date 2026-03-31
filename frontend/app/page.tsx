@@ -186,33 +186,23 @@ export default function LandingPage() {
 
   // ── Theme-aware colors ────────────────────────────────────────────────────
   const isLight = theme === 'light';
-  const navBg          = isLight ? 'rgba(248,249,252,0.85)' : 'rgba(8,12,20,0.75)';
-  const navBorder      = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
-  const navLogoText    = isLight ? '#0f1624' : '#f0f4ff';
-  const navSignIn      = isLight ? 'rgba(15,22,36,0.65)' : 'rgba(240,244,255,0.70)';
-  const headlineColor  = isLight ? '#0f1624' : '#f0f4ff';
-  const subColor       = isLight ? '#5a6478' : 'rgba(240,244,255,0.55)';
-  const taglineColor   = isLight ? '#9ba5b5' : 'rgba(240,244,255,0.25)';
-  const badgeText      = isLight ? '#1E5EFF' : '#60a5fa';
-  const badgeBg        = isLight ? 'rgba(30,94,255,0.08)' : 'rgba(30,94,255,0.12)';
-  const secondBtnBg    = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)';
-  const secondBtnBorder= isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)';
-  const secondBtnColor = isLight ? '#0f1624' : 'rgba(240,244,255,0.85)';
+  // Only non-CSS-var colors (backgrounds, borders, accents)
+  const navBg          = isLight ? 'rgba(248,249,252,0.90)' : 'rgba(8,12,20,0.75)';
+  const navBorder      = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)';
+  const badgeText      = isLight ? '#1D4ED8' : '#60a5fa';
+  const badgeBg        = isLight ? 'rgba(30,94,255,0.07)' : 'rgba(30,94,255,0.12)';
+  const secondBtnBg    = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
+  const secondBtnBorder= isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.10)';
   const dotColor       = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
-  const sectionBorder  = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
+  const sectionBorder  = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.05)';
   const cardBg         = isLight ? 'rgba(255,255,255,0.85)' : 'rgba(14,20,32,0.60)';
-  const cardBorder     = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+  const cardBorder     = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)';
   const cardBgHover    = isLight ? 'rgba(255,255,255,1.0)' : 'rgba(14,20,32,0.80)';
-  const cardBorderHover= isLight ? 'rgba(30,94,255,0.20)' : 'rgba(30,94,255,0.25)';
-  const cardTitle      = isLight ? '#0f1624' : '#f0f4ff';
-  const cardDesc       = isLight ? '#5a6478' : 'rgba(240,244,255,0.45)';
-  const gradFrom       = isLight ? '#1E5EFF' : '#60a5fa';
+  const cardBorderHover= isLight ? 'rgba(30,94,255,0.25)' : 'rgba(30,94,255,0.30)';
+  // Gradient colors for headline text — dark enough for both modes
+  const gradFrom       = isLight ? '#1D4ED8' : '#60a5fa';
   const gradMid        = isLight ? '#6366f1' : '#a78bfa';
-  const gradTo         = isLight ? '#0891b2' : '#2FE6DE';
-  const featHeading    = isLight ? '#0f1624' : '#f0f4ff';
-  const featSubtext    = isLight ? '#5a6478' : 'rgba(240,244,255,0.45)';
-  const footerH2       = isLight ? '#0f1624' : '#f0f4ff';
-  const footerP        = isLight ? '#5a6478' : 'rgba(240,244,255,0.45)';
+  const gradTo         = isLight ? '#0369A1' : '#2FE6DE';
 
   return (
     <div style={{
@@ -267,7 +257,7 @@ export default function LandingPage() {
               <rect x="29" y="16" width="5"  height="13" rx="0.5" fill="url(#navlg)"/>
             </svg>
           </div>
-          <span style={{ fontSize: '1.1rem', fontWeight: 900, letterSpacing: '-0.05em', color: navLogoText, transition: 'color 0.3s ease' }}>
+          <span style={{ fontSize: '1.1rem', fontWeight: 900, letterSpacing: '-0.05em', color: 'var(--text-primary)' }}>
             Lex
           </span>
         </div>
@@ -281,7 +271,7 @@ export default function LandingPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: '32px', height: '32px', borderRadius: '8px',
               background: 'transparent', border: `1px solid ${navBorder}`,
-              color: navSignIn, cursor: 'pointer',
+              color: 'var(--text-secondary)', cursor: 'pointer',
               transition: 'border-color 150ms, color 150ms',
             }}
           >
@@ -289,9 +279,8 @@ export default function LandingPage() {
           </button>
 
           <Link href="/login" style={{
-            fontSize: '0.8125rem', fontWeight: 600, color: navSignIn,
+            fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)',
             textDecoration: 'none', padding: '0.45rem 1rem',
-            transition: 'color 150ms',
           }}>
             Sign in
           </Link>
@@ -335,7 +324,7 @@ export default function LandingPage() {
             width: '6px', height: '6px', borderRadius: '50%',
             background: '#1E5EFF', boxShadow: '0 0 8px rgba(30,94,255,0.6)',
           }} />
-          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: badgeText, letterSpacing: '0.04em', transition: 'color 0.3s ease' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: badgeText, letterSpacing: '0.04em' }}>
             AI-POWERED REAL ESTATE PLATFORM
           </span>
         </div>
@@ -346,11 +335,10 @@ export default function LandingPage() {
           fontWeight: 900,
           letterSpacing: '-0.05em',
           lineHeight: 1.05,
-          color: headlineColor,
+          color: 'var(--text-primary)',
           maxWidth: '860px',
           marginBottom: '1.5rem',
-          transition: 'color 0.3s ease',
-          minHeight: '1.05em', // prevent layout shift while typing
+          minHeight: '1.05em',
         }}>
           {visiblePart1}
           {visiblePart2 && (
@@ -381,13 +369,13 @@ export default function LandingPage() {
         {/* Subheading — fades in after typing starts */}
         <p style={{
           fontSize: 'clamp(1rem, 2vw, 1.2rem)',
-          color: subColor,
+          color: 'var(--text-secondary)',
           maxWidth: '560px',
           lineHeight: 1.65,
           marginBottom: '2.75rem',
           opacity: typed > 10 ? 1 : 0,
           transform: typed > 10 ? 'translateY(0)' : 'translateY(8px)',
-          transition: 'opacity 0.6s ease, transform 0.6s ease, color 0.3s ease',
+          transition: 'opacity 0.6s ease, transform 0.6s ease',
         }}>
           Lex manages every transaction from contract to closing — deadlines, documents, commissions, and client communication — powered by Claude AI.
         </p>
@@ -416,10 +404,10 @@ export default function LandingPage() {
             padding: '0.85rem 1.75rem',
             background: secondBtnBg,
             border: `1px solid ${secondBtnBorder}`,
-            color: secondBtnColor, fontWeight: 600, fontSize: '0.9375rem',
+            color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.9375rem',
             borderRadius: '12px', textDecoration: 'none',
             backdropFilter: 'blur(8px)',
-            transition: 'background 150ms, border-color 150ms, color 0.3s ease',
+            transition: 'background 150ms, border-color 150ms',
           }}>
             Sign in
           </Link>
@@ -428,12 +416,11 @@ export default function LandingPage() {
         <p style={{
           marginTop: '2.5rem',
           fontSize: '0.75rem',
-          color: taglineColor,
+          color: 'var(--text-muted)',
           letterSpacing: '0.02em',
-          transition: 'color 0.3s ease',
           opacity: typingDone ? 1 : 0,
-          transition2: 'opacity 0.5s ease',
-        } as React.CSSProperties}>
+          transition: 'opacity 0.5s ease',
+        }}>
           Built for Miami brokers. Works for anyone.
         </p>
       </section>
@@ -449,17 +436,15 @@ export default function LandingPage() {
         <h2 style={{
           fontSize: 'clamp(1.6rem, 3vw, 2.4rem)',
           fontWeight: 800, letterSpacing: '-0.04em',
-          color: featHeading, textAlign: 'center',
+          color: 'var(--text-primary)', textAlign: 'center',
           marginBottom: '0.75rem',
-          transition: 'color 0.3s ease',
         }}>
           Everything in one place
         </h2>
         <p style={{
-          textAlign: 'center', color: featSubtext,
+          textAlign: 'center', color: 'var(--text-secondary)',
           fontSize: '0.9375rem',
           maxWidth: '460px', margin: '0 auto 3.5rem',
-          transition: 'color 0.3s ease',
         }}>
           Every tool a transaction coordinator needs — no spreadsheets, no missed deadlines.
         </p>
@@ -500,14 +485,12 @@ export default function LandingPage() {
               </div>
               <h3 style={{
                 fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em',
-                color: cardTitle, marginBottom: '0.4rem',
-                transition: 'color 0.3s ease',
+                color: 'var(--text-primary)', marginBottom: '0.4rem',
               }}>
                 {f.title}
               </h3>
               <p style={{
-                fontSize: '0.8125rem', color: cardDesc, lineHeight: 1.6,
-                transition: 'color 0.3s ease',
+                fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.6,
               }}>
                 {f.desc}
               </p>
@@ -527,15 +510,13 @@ export default function LandingPage() {
         <h2 style={{
           fontSize: 'clamp(1.8rem, 4vw, 3rem)',
           fontWeight: 900, letterSpacing: '-0.04em',
-          color: footerH2, marginBottom: '1rem',
-          transition: 'color 0.3s ease',
+          color: 'var(--text-primary)', marginBottom: '1rem',
         }}>
           Ready to close more deals?
         </h2>
         <p style={{
-          color: footerP, fontSize: '1rem',
+          color: 'var(--text-secondary)', fontSize: '1rem',
           marginBottom: '2rem',
-          transition: 'color 0.3s ease',
         }}>
           Get started in minutes. No setup required.
         </p>
