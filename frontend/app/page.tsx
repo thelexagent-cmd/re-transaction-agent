@@ -2,8 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, FileText, Clock, Users, TrendingUp, Shield, Zap } from 'lucide-react';
+import { ArrowRight, FileText, Clock, Users, TrendingUp, Shield, Zap, Sun, Moon } from 'lucide-react';
 
+// ── Typing text ───────────────────────────────────────────────────────────────
+const HEADLINE_PART1 = "Stop chasing paperwork. ";
+const HEADLINE_PART2 = "Start closing deals.";
+const FULL_HEADLINE  = HEADLINE_PART1 + HEADLINE_PART2;
+
+// ── Canvas field points ───────────────────────────────────────────────────────
 const FIELD_POINTS = [
   { phase: 0.00, spd: 0.20, r: 700, color: [99,  102, 241] as const },
   { phase: 1.57, spd: 0.15, r: 800, color: [59,  130, 246] as const },
@@ -13,51 +19,74 @@ const FIELD_POINTS = [
   { phase: 2.40, spd: 0.17, r: 680, color: [59,  130, 246] as const },
 ];
 
+// ── Features ──────────────────────────────────────────────────────────────────
 const FEATURES = [
-  {
-    icon: FileText,
-    title: 'AI Contract Parsing',
-    desc: 'Upload any contract PDF and Lex extracts all parties, deadlines, and key terms automatically.',
-  },
-  {
-    icon: Clock,
-    title: 'Deadline Intelligence',
-    desc: 'Never miss a critical date. Automated alerts at 3 days and 1 day before every deadline.',
-  },
-  {
-    icon: Users,
-    title: 'Client Portals',
-    desc: 'Send buyers, sellers, and lenders a secure magic-link portal to upload docs and track progress.',
-  },
-  {
-    icon: TrendingUp,
-    title: 'Deal Health Score',
-    desc: 'Real-time 0–100 score for every transaction, powered by Claude AI.',
-  },
-  {
-    icon: Shield,
-    title: 'Compliance & FIRPTA',
-    desc: 'Built-in compliance checklists and automatic FIRPTA withholding calculations.',
-  },
-  {
-    icon: Zap,
-    title: 'Automation Workflows',
-    desc: 'Status triggers, document collection, and multilingual broker emails — running 24/7.',
-  },
+  { icon: FileText,   title: 'AI Contract Parsing',    desc: 'Upload any contract PDF and Lex extracts all parties, deadlines, and key terms automatically.' },
+  { icon: Clock,      title: 'Deadline Intelligence',  desc: 'Never miss a critical date. Automated alerts at 3 days and 1 day before every deadline.' },
+  { icon: Users,      title: 'Client Portals',         desc: 'Send buyers, sellers, and lenders a secure magic-link portal to upload docs and track progress.' },
+  { icon: TrendingUp, title: 'Deal Health Score',      desc: 'Real-time 0–100 score for every transaction, powered by Claude AI.' },
+  { icon: Shield,     title: 'Compliance & FIRPTA',    desc: 'Built-in compliance checklists and automatic FIRPTA withholding calculations.' },
+  { icon: Zap,        title: 'Automation Workflows',   desc: 'Status triggers, document collection, and multilingual broker emails — running 24/7.' },
 ];
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef  = useRef({ targetX: 0, targetY: 0 });
   const rafRef    = useRef<number>(0);
-  const [visible, setVisible] = useState(false);
 
+  const [theme, setTheme]         = useState<'dark' | 'light'>('dark');
+  const [visible, setVisible]     = useState(false);
+  const [typed, setTyped]         = useState(0);
+  const [typingDone, setTypingDone] = useState(false);
+  const [showCursor, setShowCursor] = useState(true);
+
+  // ── Theme init ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Fade in on mount
-    const t = setTimeout(() => setVisible(true), 80);
-    return () => clearTimeout(t);
+    const stored = localStorage.getItem('lex-theme') as 'dark' | 'light' | null;
+    const initial = stored ?? 'dark';
+    setTheme(initial);
+    document.documentElement.setAttribute('data-theme', initial);
+    setTimeout(() => setVisible(true), 80);
   }, []);
 
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('lex-theme', next);
+  }
+
+  // ── Typing animation ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!visible) return;
+    // Small delay before typing starts so page is settled
+    const startDelay = setTimeout(() => {
+      let i = 0;
+      const typeInterval = setInterval(() => {
+        i++;
+        setTyped(i);
+        if (i >= FULL_HEADLINE.length) {
+          clearInterval(typeInterval);
+          setTypingDone(true);
+          // Blink cursor 3 times then hide
+          let blinks = 0;
+          const blinkInterval = setInterval(() => {
+            setShowCursor(prev => !prev);
+            blinks++;
+            if (blinks >= 6) {
+              clearInterval(blinkInterval);
+              setShowCursor(false);
+            }
+          }, 250);
+        }
+      }, 45);
+      return () => clearInterval(typeInterval);
+    }, 400);
+    return () => clearTimeout(startDelay);
+  }, [visible]);
+
+  // ── Canvas aura ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -72,14 +101,17 @@ export default function LandingPage() {
 
     const mouse = mouseRef.current;
     let fcx = W * 0.5;
-    let fcy = H * 0.42;
+    let fcy = H * 0.4;
     mouse.targetX = W * 0.5;
-    mouse.targetY = H * 0.42;
+    mouse.targetY = H * 0.4;
 
     const t0 = performance.now();
 
     const onMouseMove = (e: MouseEvent) => { mouse.targetX = e.clientX; mouse.targetY = e.clientY; };
-    const onResize = () => { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; };
+    const onResize = () => {
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W; canvas.height = H;
+    };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('resize',    onResize);
@@ -87,34 +119,51 @@ export default function LandingPage() {
     function animate() {
       const t = (performance.now() - t0) * 0.001;
       const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-      const alphaScale = isLight ? 0.15 : 0.85;
 
+      // Autonomous drift + cursor influence
       const driftX = W * 0.06 * Math.sin(t * 0.14 + 1.0);
       const driftY = H * 0.05 * Math.cos(t * 0.11 + 0.5);
       fcx += ((mouse.targetX + driftX) - fcx) * 0.007;
       fcy += ((mouse.targetY + driftY) - fcy) * 0.007;
 
       ctx!.clearRect(0, 0, W, H);
-      ctx!.globalCompositeOperation = 'screen';
 
       FIELD_POINTS.forEach((pt) => {
-        const spread = Math.min(W, H) * 0.32;
+        const spread = Math.min(W, H) * 0.30;
         const nx =
           Math.sin(t * 0.30 * pt.spd + pt.phase)              * spread
-        + Math.cos(t * 0.17 * pt.spd + pt.phase * 1.618)      * spread * 0.42;
+        + Math.cos(t * 0.17 * pt.spd + pt.phase * 1.618)      * spread * 0.42
+        + Math.sin(t * 0.10 * pt.spd + pt.phase * 2.72 + 0.5) * spread * 0.18;
         const ny =
           Math.cos(t * 0.25 * pt.spd + pt.phase * 0.73)       * spread * 0.80
-        + Math.sin(t * 0.19 * pt.spd + pt.phase * 2.14)       * spread * 0.35;
+        + Math.sin(t * 0.19 * pt.spd + pt.phase * 2.14)       * spread * 0.35
+        + Math.cos(t * 0.12 * pt.spd + pt.phase * 1.41 + 1.2) * spread * 0.15;
 
         const px = fcx + nx;
         const py = fcy + ny;
         const [r, g, b] = pt.color;
-        const grad = ctx!.createRadialGradient(px, py, 0, px, py, pt.r);
-        grad.addColorStop(0.00, `rgba(${r},${g},${b},${0.12 * alphaScale})`);
-        grad.addColorStop(0.40, `rgba(${r},${g},${b},${0.06 * alphaScale})`);
-        grad.addColorStop(1.00, `rgba(${r},${g},${b},0.00)`);
-        ctx!.fillStyle = grad;
-        ctx!.fillRect(0, 0, W, H);
+
+        if (isLight) {
+          // Light mode: use normal blending with soft tinted gradients
+          // Colors are more saturated/dark to show against white
+          ctx!.globalCompositeOperation = 'source-over';
+          const grad = ctx!.createRadialGradient(px, py, 0, px, py, pt.r);
+          grad.addColorStop(0.00, `rgba(${r},${g},${b},0.07)`);
+          grad.addColorStop(0.40, `rgba(${r},${g},${b},0.03)`);
+          grad.addColorStop(1.00, `rgba(${r},${g},${b},0.00)`);
+          ctx!.fillStyle = grad;
+          ctx!.fillRect(0, 0, W, H);
+        } else {
+          // Dark mode: screen blending for additive glow
+          ctx!.globalCompositeOperation = 'screen';
+          const grad = ctx!.createRadialGradient(px, py, 0, px, py, pt.r);
+          grad.addColorStop(0.00, `rgba(${r},${g},${b},0.15)`);
+          grad.addColorStop(0.35, `rgba(${r},${g},${b},0.07)`);
+          grad.addColorStop(0.70, `rgba(${r},${g},${b},0.02)`);
+          grad.addColorStop(1.00, `rgba(${r},${g},${b},0.00)`);
+          ctx!.fillStyle = grad;
+          ctx!.fillRect(0, 0, W, H);
+        }
       });
 
       rafRef.current = requestAnimationFrame(animate);
@@ -126,17 +175,54 @@ export default function LandingPage() {
       window.removeEventListener('resize',    onResize);
       cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Derived typed headline ───────────────────────────────────────────────────
+  const visiblePart1  = FULL_HEADLINE.slice(0, Math.min(typed, HEADLINE_PART1.length));
+  const visiblePart2  = typed > HEADLINE_PART1.length
+    ? FULL_HEADLINE.slice(HEADLINE_PART1.length, typed)
+    : '';
+  const stillTyping   = typed < FULL_HEADLINE.length;
+
+  // ── Theme-aware colors ────────────────────────────────────────────────────
+  const isLight = theme === 'light';
+  const navBg          = isLight ? 'rgba(248,249,252,0.85)' : 'rgba(8,12,20,0.75)';
+  const navBorder      = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
+  const navLogoText    = isLight ? '#0f1624' : '#f0f4ff';
+  const navSignIn      = isLight ? 'rgba(15,22,36,0.65)' : 'rgba(240,244,255,0.70)';
+  const headlineColor  = isLight ? '#0f1624' : '#f0f4ff';
+  const subColor       = isLight ? '#5a6478' : 'rgba(240,244,255,0.55)';
+  const taglineColor   = isLight ? '#9ba5b5' : 'rgba(240,244,255,0.25)';
+  const badgeText      = isLight ? '#1E5EFF' : '#60a5fa';
+  const badgeBg        = isLight ? 'rgba(30,94,255,0.08)' : 'rgba(30,94,255,0.12)';
+  const secondBtnBg    = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.05)';
+  const secondBtnBorder= isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)';
+  const secondBtnColor = isLight ? '#0f1624' : 'rgba(240,244,255,0.85)';
+  const dotColor       = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
+  const sectionBorder  = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.05)';
+  const cardBg         = isLight ? 'rgba(255,255,255,0.85)' : 'rgba(14,20,32,0.60)';
+  const cardBorder     = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+  const cardBgHover    = isLight ? 'rgba(255,255,255,1.0)' : 'rgba(14,20,32,0.80)';
+  const cardBorderHover= isLight ? 'rgba(30,94,255,0.20)' : 'rgba(30,94,255,0.25)';
+  const cardTitle      = isLight ? '#0f1624' : '#f0f4ff';
+  const cardDesc       = isLight ? '#5a6478' : 'rgba(240,244,255,0.45)';
+  const gradFrom       = isLight ? '#1E5EFF' : '#60a5fa';
+  const gradMid        = isLight ? '#6366f1' : '#a78bfa';
+  const gradTo         = isLight ? '#0891b2' : '#2FE6DE';
+  const featHeading    = isLight ? '#0f1624' : '#f0f4ff';
+  const featSubtext    = isLight ? '#5a6478' : 'rgba(240,244,255,0.45)';
+  const footerH2       = isLight ? '#0f1624' : '#f0f4ff';
+  const footerP        = isLight ? '#5a6478' : 'rgba(240,244,255,0.45)';
 
   return (
     <div style={{
       minHeight: '100vh',
       background: 'var(--bg)',
-      backgroundImage: 'radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)',
+      backgroundImage: `radial-gradient(${dotColor} 1px, transparent 1px)`,
       backgroundSize: '22px 22px',
       fontFamily: 'var(--font-sans)',
       color: 'var(--text-primary)',
-      overflow: 'hidden auto',
+      overflowX: 'hidden',
       transition: 'background 0.3s ease',
     }}>
 
@@ -147,17 +233,18 @@ export default function LandingPage() {
         pointerEvents: 'none', zIndex: 0,
       }} />
 
-      {/* Nav */}
+      {/* ── Nav ── */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '1.1rem 2.5rem',
-        background: 'rgba(8,12,20,0.7)',
+        background: navBg,
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        borderBottom: `1px solid ${navBorder}`,
+        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}>
-        {/* Logo wordmark */}
+        {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <div style={{
             width: '32px', height: '32px', borderRadius: '8px',
@@ -168,26 +255,41 @@ export default function LandingPage() {
           }}>
             <svg width="22" height="20" viewBox="0 0 34 30" fill="none">
               <defs>
-                <linearGradient id="nlg3" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="navlg" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#BAE6FD" stopOpacity="0.95"/>
                   <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0.85"/>
                 </linearGradient>
               </defs>
-              <rect x="0"  y="18" width="5"  height="11" rx="0.5" fill="url(#nlg3)"/>
-              <rect x="6"  y="10" width="6"  height="19" rx="0.5" fill="url(#nlg3)"/>
-              <rect x="13" y="2"  width="8"  height="27" rx="0.5" fill="url(#nlg3)"/>
-              <rect x="22" y="8"  width="6"  height="21" rx="0.5" fill="url(#nlg3)"/>
-              <rect x="29" y="16" width="5"  height="13" rx="0.5" fill="url(#nlg3)"/>
+              <rect x="0"  y="18" width="5"  height="11" rx="0.5" fill="url(#navlg)"/>
+              <rect x="6"  y="10" width="6"  height="19" rx="0.5" fill="url(#navlg)"/>
+              <rect x="13" y="2"  width="8"  height="27" rx="0.5" fill="url(#navlg)"/>
+              <rect x="22" y="8"  width="6"  height="21" rx="0.5" fill="url(#navlg)"/>
+              <rect x="29" y="16" width="5"  height="13" rx="0.5" fill="url(#navlg)"/>
             </svg>
           </div>
-          <span style={{ fontSize: '1.1rem', fontWeight: 900, letterSpacing: '-0.05em', color: '#f0f4ff' }}>
+          <span style={{ fontSize: '1.1rem', fontWeight: 900, letterSpacing: '-0.05em', color: navLogoText, transition: 'color 0.3s ease' }}>
             Lex
           </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '32px', height: '32px', borderRadius: '8px',
+              background: 'transparent', border: `1px solid ${navBorder}`,
+              color: navSignIn, cursor: 'pointer',
+              transition: 'border-color 150ms, color 150ms',
+            }}
+          >
+            {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
+
           <Link href="/login" style={{
-            fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(240,244,255,0.7)',
+            fontSize: '0.8125rem', fontWeight: 600, color: navSignIn,
             textDecoration: 'none', padding: '0.45rem 1rem',
             transition: 'color 150ms',
           }}>
@@ -207,7 +309,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero */}
+      {/* ── Hero ── */}
       <section style={{
         position: 'relative', zIndex: 10,
         display: 'flex', flexDirection: 'column',
@@ -224,54 +326,79 @@ export default function LandingPage() {
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
           padding: '0.35rem 0.9rem', borderRadius: '100px',
-          background: 'rgba(30,94,255,0.12)',
+          background: badgeBg,
           border: '1px solid rgba(30,94,255,0.25)',
           marginBottom: '2rem',
+          transition: 'background 0.3s ease',
         }}>
           <span style={{
             width: '6px', height: '6px', borderRadius: '50%',
-            background: '#1E5EFF',
-            boxShadow: '0 0 8px #1E5EFF',
+            background: '#1E5EFF', boxShadow: '0 0 8px rgba(30,94,255,0.6)',
           }} />
-          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#60a5fa', letterSpacing: '0.04em' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: badgeText, letterSpacing: '0.04em', transition: 'color 0.3s ease' }}>
             AI-POWERED REAL ESTATE PLATFORM
           </span>
         </div>
 
-        {/* Headline */}
+        {/* Typed headline */}
         <h1 style={{
           fontSize: 'clamp(2.6rem, 6vw, 5rem)',
           fontWeight: 900,
           letterSpacing: '-0.05em',
           lineHeight: 1.05,
-          color: '#f0f4ff',
+          color: headlineColor,
           maxWidth: '860px',
           marginBottom: '1.5rem',
+          transition: 'color 0.3s ease',
+          minHeight: '1.05em', // prevent layout shift while typing
         }}>
-          Stop chasing paperwork.{' '}
-          <span style={{
-            background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #2FE6DE 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>
-            Start closing deals.
-          </span>
+          {visiblePart1}
+          {visiblePart2 && (
+            <span style={{
+              background: `linear-gradient(135deg, ${gradFrom} 0%, ${gradMid} 50%, ${gradTo} 100%)`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
+              {visiblePart2}
+            </span>
+          )}
+          {/* Blinking cursor during + right after typing */}
+          {(stillTyping || (!typingDone && showCursor) || (typingDone && showCursor)) && (
+            <span style={{
+              display: 'inline-block',
+              width: '3px', height: '0.85em',
+              background: '#1E5EFF',
+              borderRadius: '2px',
+              marginLeft: '4px',
+              verticalAlign: 'middle',
+              opacity: showCursor ? 1 : 0,
+              transition: 'opacity 80ms',
+            }} />
+          )}
         </h1>
 
-        {/* Subheading */}
+        {/* Subheading — fades in after typing starts */}
         <p style={{
           fontSize: 'clamp(1rem, 2vw, 1.2rem)',
-          color: 'rgba(240,244,255,0.55)',
+          color: subColor,
           maxWidth: '560px',
           lineHeight: 1.65,
           marginBottom: '2.75rem',
+          opacity: typed > 10 ? 1 : 0,
+          transform: typed > 10 ? 'translateY(0)' : 'translateY(8px)',
+          transition: 'opacity 0.6s ease, transform 0.6s ease, color 0.3s ease',
         }}>
           Lex manages every transaction from contract to closing — deadlines, documents, commissions, and client communication — powered by Claude AI.
         </p>
 
         {/* CTAs */}
-        <div style={{ display: 'flex', gap: '0.875rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{
+          display: 'flex', gap: '0.875rem', flexWrap: 'wrap', justifyContent: 'center',
+          opacity: typed > 20 ? 1 : 0,
+          transform: typed > 20 ? 'translateY(0)' : 'translateY(8px)',
+          transition: 'opacity 0.6s ease 0.1s, transform 0.6s ease 0.1s',
+        }}>
           <Link href="/register" style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
             padding: '0.85rem 1.75rem',
@@ -287,29 +414,31 @@ export default function LandingPage() {
           <Link href="/login" style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
             padding: '0.85rem 1.75rem',
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'rgba(240,244,255,0.85)', fontWeight: 600, fontSize: '0.9375rem',
+            background: secondBtnBg,
+            border: `1px solid ${secondBtnBorder}`,
+            color: secondBtnColor, fontWeight: 600, fontSize: '0.9375rem',
             borderRadius: '12px', textDecoration: 'none',
             backdropFilter: 'blur(8px)',
-            transition: 'background 150ms, border-color 150ms',
+            transition: 'background 150ms, border-color 150ms, color 0.3s ease',
           }}>
             Sign in
           </Link>
         </div>
 
-        {/* Tagline */}
         <p style={{
           marginTop: '2.5rem',
           fontSize: '0.75rem',
-          color: 'rgba(240,244,255,0.25)',
+          color: taglineColor,
           letterSpacing: '0.02em',
-        }}>
+          transition: 'color 0.3s ease',
+          opacity: typingDone ? 1 : 0,
+          transition2: 'opacity 0.5s ease',
+        } as React.CSSProperties}>
           Built for Miami brokers. Works for anyone.
         </p>
       </section>
 
-      {/* Features */}
+      {/* ── Features ── */}
       <section style={{
         position: 'relative', zIndex: 10,
         maxWidth: '1080px', margin: '0 auto',
@@ -320,15 +449,17 @@ export default function LandingPage() {
         <h2 style={{
           fontSize: 'clamp(1.6rem, 3vw, 2.4rem)',
           fontWeight: 800, letterSpacing: '-0.04em',
-          color: '#f0f4ff', textAlign: 'center',
+          color: featHeading, textAlign: 'center',
           marginBottom: '0.75rem',
+          transition: 'color 0.3s ease',
         }}>
           Everything in one place
         </h2>
         <p style={{
-          textAlign: 'center', color: 'rgba(240,244,255,0.45)',
-          fontSize: '0.9375rem', marginBottom: '3.5rem',
+          textAlign: 'center', color: featSubtext,
+          fontSize: '0.9375rem',
           maxWidth: '460px', margin: '0 auto 3.5rem',
+          transition: 'color 0.3s ease',
         }}>
           Every tool a transaction coordinator needs — no spreadsheets, no missed deadlines.
         </p>
@@ -340,40 +471,43 @@ export default function LandingPage() {
         }}>
           {FEATURES.map((f) => (
             <div key={f.title} style={{
-              background: 'rgba(14,20,32,0.6)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: cardBg,
+              border: `1px solid ${cardBorder}`,
               borderRadius: '16px',
               padding: '1.5rem',
               backdropFilter: 'blur(12px)',
-              transition: 'border-color 200ms, background 200ms',
+              WebkitBackdropFilter: 'blur(12px)',
+              boxShadow: isLight ? '0 2px 12px rgba(0,0,0,0.06)' : 'none',
+              transition: 'border-color 200ms, background 200ms, box-shadow 200ms',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(30,94,255,0.25)';
-              e.currentTarget.style.background = 'rgba(14,20,32,0.75)';
+              e.currentTarget.style.borderColor = cardBorderHover;
+              e.currentTarget.style.background  = cardBgHover;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-              e.currentTarget.style.background = 'rgba(14,20,32,0.6)';
+              e.currentTarget.style.borderColor = cardBorder;
+              e.currentTarget.style.background  = cardBg;
             }}
             >
               <div style={{
                 width: '38px', height: '38px', borderRadius: '10px',
-                background: 'rgba(30,94,255,0.12)',
-                border: '1px solid rgba(30,94,255,0.2)',
+                background: isLight ? 'rgba(30,94,255,0.08)' : 'rgba(30,94,255,0.12)',
+                border: `1px solid ${isLight ? 'rgba(30,94,255,0.15)' : 'rgba(30,94,255,0.20)'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginBottom: '1rem',
               }}>
-                <f.icon style={{ width: '17px', height: '17px', color: '#60a5fa' }} />
+                <f.icon style={{ width: '17px', height: '17px', color: isLight ? '#1E5EFF' : '#60a5fa' }} />
               </div>
               <h3 style={{
                 fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em',
-                color: '#f0f4ff', marginBottom: '0.4rem',
+                color: cardTitle, marginBottom: '0.4rem',
+                transition: 'color 0.3s ease',
               }}>
                 {f.title}
               </h3>
               <p style={{
-                fontSize: '0.8125rem', color: 'rgba(240,244,255,0.45)',
-                lineHeight: 1.6,
+                fontSize: '0.8125rem', color: cardDesc, lineHeight: 1.6,
+                transition: 'color 0.3s ease',
               }}>
                 {f.desc}
               </p>
@@ -382,24 +516,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer CTA */}
+      {/* ── Footer CTA ── */}
       <section style={{
         position: 'relative', zIndex: 10,
         textAlign: 'center', padding: '4rem 2rem 6rem',
-        borderTop: '1px solid rgba(255,255,255,0.05)',
+        borderTop: `1px solid ${sectionBorder}`,
         opacity: visible ? 1 : 0,
-        transition: 'opacity 1s ease 0.5s',
+        transition: 'opacity 1s ease 0.5s, border-color 0.3s ease',
       }}>
         <h2 style={{
           fontSize: 'clamp(1.8rem, 4vw, 3rem)',
           fontWeight: 900, letterSpacing: '-0.04em',
-          color: '#f0f4ff', marginBottom: '1rem',
+          color: footerH2, marginBottom: '1rem',
+          transition: 'color 0.3s ease',
         }}>
           Ready to close more deals?
         </h2>
         <p style={{
-          color: 'rgba(240,244,255,0.45)', fontSize: '1rem',
+          color: footerP, fontSize: '1rem',
           marginBottom: '2rem',
+          transition: 'color 0.3s ease',
         }}>
           Get started in minutes. No setup required.
         </p>
