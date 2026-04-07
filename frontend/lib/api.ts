@@ -8,7 +8,7 @@ export type TransactionListItem = {
   id: number;
   address: string;
   property_type: string;
-  status: 'active' | 'closed' | 'cancelled';
+  status: 'active' | 'under_contract' | 'inspection' | 'financing' | 'clear_to_close' | 'closed' | 'cancelled';
   purchase_price?: number | null;
   closing_date?: string | null;
   contract_execution_date?: string | null;

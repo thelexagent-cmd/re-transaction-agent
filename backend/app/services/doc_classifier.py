@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import os
+import re
 
 import anthropic
 import pdfplumber
@@ -67,7 +68,7 @@ async def classify_document(filename: str, content: bytes) -> dict:
     try:
         client = anthropic.AsyncAnthropic(api_key=api_key)
         msg = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model="claude-haiku-4-5",
             max_tokens=256,
             messages=[{"role": "user", "content": prompt}],
         )

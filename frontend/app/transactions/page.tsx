@@ -11,7 +11,7 @@ import { ActivityFeed } from '@/components/activity-feed';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DealHealthScore } from '@/components/deal-health-score';
 import {
-  Plus, AlertCircle, TrendingUp, Calendar, FileCheck,
+  Plus, AlertCircle, TrendingUp,
   Search, ChevronDown, Timer,
 } from 'lucide-react';
 import type { TransactionListItem } from '@/lib/api';
@@ -35,14 +35,14 @@ function ClosingCountdown({ transactions }: { transactions: TransactionListItem[
   return (
     <div className="rounded-2xl p-5 mb-6" style={{
       background: 'var(--bg-surface)',
-      border: '1px solid rgba(148,163,184,0.09)',
+      border: '1px solid var(--border)',
       boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
     }}>
       <div className="flex items-center gap-2.5 mb-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)' }}>
           <Timer className="h-4 w-4" style={{ color: '#60a5fa' }} />
         </div>
-        <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.05em', color: '#e2e8f0' }}>
+        <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
           Next Closings
         </h3>
       </div>
@@ -63,7 +63,7 @@ function ClosingCountdown({ transactions }: { transactions: TransactionListItem[
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
               >
-                <div className="truncate mb-1.5" style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>{tx.address}</div>
+                <div className="truncate mb-1.5" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{tx.address}</div>
                 <div className="flex items-baseline gap-1">
                   <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', fontWeight: 700, color, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                     {days}
@@ -72,7 +72,7 @@ function ClosingCountdown({ transactions }: { transactions: TransactionListItem[
                     {isToday ? 'TODAY' : days === 1 ? 'day left' : 'days left'}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginTop: '4px' }}>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                   Closes {formatDate(tx.closing_date)}
                 </div>
               </div>
@@ -85,28 +85,45 @@ function ClosingCountdown({ transactions }: { transactions: TransactionListItem[
 }
 
 // ── Stat Card ──────────────────────────────────────────────────
-function StatCard({ icon, value, label, iconBg, iconColor, isLoading }: {
-  icon: React.ReactNode;
+function StatCard({ value, label, accentColor, isLoading }: {
   value: number;
   label: string;
-  iconBg: string;
-  iconColor: string;
+  accentColor: string;
   isLoading: boolean;
 }) {
   return (
-    <div className="lex-stat">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ background: iconBg, border: `1px solid ${iconColor}25`, color: iconColor }}>
-          {icon}
-        </div>
-        <div>
-          {isLoading
-            ? <Skeleton className="h-7 w-12 mb-1" />
-            : <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.625rem', fontWeight: 700, color: '#f1f5f9', lineHeight: 1, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-          }
-          <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginTop: '2px', letterSpacing: '0.03em' }}>{label}</div>
-        </div>
+    <div style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border)',
+      borderTop: `2px solid ${accentColor}`,
+      borderRadius: '6px',
+      padding: '14px 16px 12px',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+    }}>
+      <div style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: '0.475rem',
+        fontWeight: 700,
+        letterSpacing: '0.14em',
+        color: accentColor,
+        marginBottom: '6px',
+      }}>
+        {label.toUpperCase()}
       </div>
+      {isLoading
+        ? <Skeleton className="h-8 w-12" />
+        : <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '2rem',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            lineHeight: 1,
+            letterSpacing: '-0.03em',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {value}
+          </div>
+      }
     </div>
   );
 }
@@ -123,7 +140,7 @@ export default function TransactionsPage() {
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<string>('all');
 
   const totalDeals       = transactions?.length ?? 0;
-  const activeDeals      = transactions?.filter((t) => t.status === 'active').length ?? 0;
+  const activeDeals      = transactions?.filter((t) => t.status !== 'closed' && t.status !== 'cancelled').length ?? 0;
   const closingThisMonth = transactions ? countClosingThisMonth(transactions) : 0;
   const missedDeadlines  = allDeadlines?.filter((d) => d.status === 'missed').length ?? 0;
   const overdueDocs      = allDocuments?.filter((d) => d.status === 'overdue').length ?? 0;
@@ -150,10 +167,10 @@ export default function TransactionsPage() {
       {/* ── Page Header ── */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '0.06em', color: '#f1f5f9' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '0.06em', color: 'var(--text-primary)' }}>
             Active Deals
           </h1>
-          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '2px', letterSpacing: '0.02em' }}>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '2px', letterSpacing: '0.02em' }}>
             Manage all your real estate transactions
           </p>
         </div>
@@ -177,10 +194,10 @@ export default function TransactionsPage() {
 
       {/* ── Stats Bar ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={<TrendingUp className="h-5 w-5" />} value={activeDeals}      label="Active Deals"        iconBg="rgba(59,130,246,0.1)"  iconColor="#60a5fa" isLoading={isLoading} />
-        <StatCard icon={<FileCheck className="h-5 w-5" />}  value={totalDeals}       label="Total Transactions"  iconBg="rgba(16,185,129,0.1)"  iconColor="#34d399" isLoading={isLoading} />
-        <StatCard icon={<Calendar className="h-5 w-5" />}   value={closingThisMonth} label="Closing This Month"  iconBg="rgba(249,115,22,0.1)"  iconColor="#fb923c" isLoading={isLoading} />
-        <StatCard icon={<AlertCircle className="h-5 w-5" />} value={overdueCount}    label="Overdue Items"       iconBg="rgba(239,68,68,0.1)"   iconColor="#f87171" isLoading={isLoading} />
+        <StatCard value={activeDeals}      label="Active Deals"       accentColor="#60a5fa" isLoading={isLoading} />
+        <StatCard value={totalDeals}       label="Total Transactions" accentColor="#34d399" isLoading={isLoading} />
+        <StatCard value={closingThisMonth} label="Closing This Month" accentColor="#fb923c" isLoading={isLoading} />
+        <StatCard value={overdueCount}     label="Overdue Items"      accentColor="#f87171" isLoading={isLoading} />
       </div>
 
       {/* ── Closing Countdown ── */}
@@ -195,7 +212,7 @@ export default function TransactionsPage() {
       {/* ── Search & Filters ── */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#3d5068' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--text-muted)' }} />
           <input
             type="text"
             placeholder="Search by address or property type..."
@@ -205,8 +222,8 @@ export default function TransactionsPage() {
             style={{
               paddingLeft: '2.25rem', paddingRight: '1rem', paddingTop: '0.5625rem', paddingBottom: '0.5625rem',
               background: 'var(--bg-surface)',
-              border: '1px solid rgba(148,163,184,0.09)',
-              color: '#f1f5f9',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
               outline: 'none',
             }}
             onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
@@ -216,7 +233,7 @@ export default function TransactionsPage() {
         {[
           {
             value: statusFilter, onChange: setStatusFilter,
-            options: [{ value: 'all', label: 'All Status' }, { value: 'active', label: 'Active' }, { value: 'closed', label: 'Closed' }, { value: 'cancelled', label: 'Cancelled' }],
+            options: [{ value: 'all', label: 'All Status' }, { value: 'active', label: 'Active' }, { value: 'under_contract', label: 'Under Contract' }, { value: 'inspection', label: 'Inspection' }, { value: 'financing', label: 'Financing' }, { value: 'clear_to_close', label: 'Clear to Close' }, { value: 'closed', label: 'Closed' }, { value: 'cancelled', label: 'Cancelled' }],
           },
           {
             value: propertyTypeFilter, onChange: setPropertyTypeFilter,
@@ -230,14 +247,14 @@ export default function TransactionsPage() {
               className="appearance-none rounded-lg text-sm pr-8 pl-3 py-2.5 transition-all duration-150"
               style={{
                 background: 'var(--bg-surface)',
-                border: '1px solid rgba(148,163,184,0.09)',
-                color: '#94a3b8',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
                 outline: 'none',
               }}
             >
               {sel.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: '#3d5068' }} />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
           </div>
         ))}
       </div>
@@ -257,7 +274,7 @@ export default function TransactionsPage() {
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}>
+            <div key={i} className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
               <Skeleton className="h-4 w-3/4 mb-3" />
               <Skeleton className="h-10 w-1/3 mb-4" />
               <Skeleton className="h-3 w-1/2 mb-3" />
@@ -277,14 +294,14 @@ export default function TransactionsPage() {
         <>
           {filtered.length === 0 ? (
             <div className="text-center py-20">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}>
-                <TrendingUp className="h-8 w-8" style={{ color: '#2d3f55' }} />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                <TrendingUp className="h-8 w-8" style={{ color: 'var(--text-muted)' }} />
               </div>
               {transactions.length === 0 ? (
                 <>
-                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.04em' }}>No transactions yet</h3>
-                  <p style={{ fontSize: '0.875rem', color: '#3d5068', marginTop: '4px' }}>Add your first transaction to get started.</p>
-                  <p style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '6px', maxWidth: '28rem', marginLeft: 'auto', marginRight: 'auto' }}>
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>No transactions yet</h3>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '4px' }}>Add your first transaction to get started.</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', maxWidth: '28rem', marginLeft: 'auto', marginRight: 'auto' }}>
                     Once added, the app will automatically email all parties, track document deadlines, and send reminders.
                   </p>
                   <Link
@@ -306,15 +323,15 @@ export default function TransactionsPage() {
                 </>
               ) : (
                 <>
-                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.04em' }}>No results found</h3>
-                  <p style={{ fontSize: '0.875rem', color: '#3d5068', marginTop: '4px' }}>Try adjusting your search or filters.</p>
+                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>No results found</h3>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '4px' }}>Try adjusting your search or filters.</p>
                 </>
               )}
             </div>
           ) : (
             <>
               {(search || statusFilter !== 'all' || propertyTypeFilter !== 'all') && (
-                <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginBottom: '1rem' }}>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                   Showing {filtered.length} of {transactions.length} transactions
                 </p>
               )}

@@ -11,6 +11,10 @@ from app.database import Base
 
 class TransactionStatus(str, enum.Enum):
     active = "active"
+    under_contract = "under_contract"
+    inspection = "inspection"
+    financing = "financing"
+    clear_to_close = "clear_to_close"
     closed = "closed"
     cancelled = "cancelled"
 

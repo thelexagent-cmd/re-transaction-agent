@@ -6,6 +6,7 @@ logged as an Event.  Failures are caught per-party — one bad address does not
 prevent other parties from receiving their intro.
 """
 
+import logging
 from datetime import date
 
 from sqlalchemy import select
@@ -21,6 +22,8 @@ from app.services.extractor import extract_contract_data
 from app.services.naming import normalize_name
 from app.services.parser import extract_text
 from app.services.timeline import generate_timeline
+
+logger = logging.getLogger(__name__)
 
 # Map extracted party keys → Party model roles
 _PARTY_ROLE_MAP: dict[str, PartyRole] = {
@@ -145,7 +148,21 @@ async def process_contract(
 
     closing_date = _parse_date(dates.get("closing_date"))
     if closing_date:
-        transaction.closing_date = closing_date
+        if closing_date < date.today():
+            logger.warning(
+                "Contract parser returned a past closing date (%s) for transaction %d — skipping write",
+                closing_date.isoformat(), transaction_id,
+            )
+            db.add(Event(
+                transaction_id=transaction_id,
+                event_type="invalid_closing_date",
+                description=(
+                    f"Parsed closing date {closing_date.isoformat()} is in the past and was not saved. "
+                    f"Please update the closing date manually."
+                ),
+            ))
+        else:
+            transaction.closing_date = closing_date
 
     execution_date = _parse_date(dates.get("contract_execution_date"))
     if execution_date:

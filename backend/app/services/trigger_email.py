@@ -42,6 +42,8 @@ DOC_TRIGGERS: list[tuple[str, str]] = [
     ("inspection", "Inspection Results — Repair Request"),
     ("clear to close", "Clear to Close"),
     ("closing disclosure", "Clear to Close"),
+    ("commitment letter", "Document Request — Lender"),
+    ("proof of insurance", "Document Request — Lender"),
 ]
 
 
@@ -131,12 +133,26 @@ async def fire_status_trigger(transaction_id: int, new_status: str, db: AsyncSes
         logger.error("fire_status_trigger failed for tx %d: %s", transaction_id, exc)
 
 
-async def fire_document_trigger(transaction_id: int, document_name: str, db: AsyncSession) -> None:
-    """Called when a document is received. Sends a trigger email if the doc name matches."""
-    name_lower = document_name.lower()
+async def fire_document_trigger(
+    transaction_id: int,
+    document_name: str,
+    db: AsyncSession,
+    doc_type: str | None = None,
+) -> None:
+    """Called when a document is received. Sends a trigger email if the doc name matches.
+
+    Checks both ``document_name`` (display name / user-provided) and the
+    structured ``doc_type`` returned by the classifier so that canonical type
+    strings like "Commitment Letter" are matched reliably even when the display
+    name differs.
+    """
+    candidates = [document_name.lower()]
+    if doc_type:
+        candidates.append(doc_type.lower())
+
     template_name = None
     for keyword, tmpl in DOC_TRIGGERS:
-        if keyword in name_lower:
+        if any(keyword in c for c in candidates):
             template_name = tmpl
             break
 

@@ -222,7 +222,7 @@ async def upload_document(
 
     await db.commit()
     await db.refresh(doc)
-    await fire_document_trigger(transaction_id, name, db)
+    await fire_document_trigger(transaction_id, name, db, doc_type=classification["doc_type"])
     return doc
 
 

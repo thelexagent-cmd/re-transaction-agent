@@ -73,11 +73,11 @@ def analyze(
             "FIRPTA withholding exempt under IRS §1445(b)(5)."
         )
         action_items.append("Obtain buyer's written statement of intent to use as primary residence.")
-    elif purchase_price <= 1_000_000 and buyer_intends_primary_residence:
+    elif purchase_price < 1_000_000 and buyer_intends_primary_residence:
         rate = FEDERAL_WITHHOLDING_RATE_REDUCED
         withholding = purchase_price * rate
         notes.append(
-            f"Purchase price ${purchase_price:,.0f} between $300k-$1M with buyer primary residence intent — "
+            f"Purchase price ${purchase_price:,.0f} between $300k and $999,999 with buyer primary residence intent — "
             f"reduced 10% withholding rate applies."
         )
         action_items.append("Obtain buyer's written statement of intent to use as primary residence.")

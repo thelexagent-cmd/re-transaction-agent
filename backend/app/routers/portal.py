@@ -136,6 +136,12 @@ async def get_portal_view(
         )
 
     txn = portal_token.transaction
+    if txn is None:
+        logger.warning("get_portal_view: token %s has no associated transaction", token[:8])
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Portal link is invalid or has expired.",
+        )
 
     # Return curated view (no sensitive broker data)
     deadlines = [
@@ -144,7 +150,7 @@ async def get_portal_view(
             "due_date": d.due_date.isoformat(),
             "status": d.status,
         }
-        for d in sorted(txn.deadlines, key=lambda x: x.due_date)
+        for d in sorted(txn.deadlines or [], key=lambda x: x.due_date)
     ]
 
     # Only show non-dismissed client-facing events
@@ -154,7 +160,7 @@ async def get_portal_view(
             "description": e.description,
             "created_at": e.created_at.isoformat(),
         }
-        for e in sorted(txn.events, key=lambda x: x.created_at, reverse=True)
+        for e in sorted(txn.events or [], key=lambda x: x.created_at, reverse=True)
         if not e.dismissed
     ][:10]
 
@@ -163,13 +169,13 @@ async def get_portal_view(
             "role": p.role,
             "full_name": p.full_name,
         }
-        for p in txn.parties
+        for p in (txn.parties or [])
     ]
 
     # Pending documents (client-visible, non-sensitive)
     pending_docs = [
         {"name": d.name, "phase": d.phase, "status": d.status}
-        for d in txn.documents
+        for d in (txn.documents or [])
         if d.status in ("pending", "overdue")
     ]
 
@@ -231,6 +237,11 @@ async def client_upload_document(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File exceeds the 50 MB limit",
         )
+    if content[:4] != b"%PDF":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only PDF files are accepted (file does not appear to be a valid PDF)",
+        )
     filename = file.filename or "upload"
     user_provided_name = document_name.strip()
     classification = await classify_document(filename, content)
@@ -278,7 +289,7 @@ async def client_upload_document(
     except Exception:
         logger.warning("Failed to send broker notification for client upload '%s'", name)
 
-    await fire_document_trigger(portal_token.transaction_id, name, db)
+    await fire_document_trigger(portal_token.transaction_id, name, db, doc_type=classification["doc_type"])
     logger.info("Client uploaded document '%s' for transaction %s — auto-collected", name, portal_token.transaction_id)
 
     return {
@@ -368,6 +379,12 @@ async def get_lender_portal_view(
         )
 
     txn = portal_token.transaction
+    if txn is None:
+        logger.warning("get_lender_portal_view: token %s has no associated transaction", token[:8])
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lender portal link is invalid or has expired.",
+        )
 
     # Filter documents relevant to lender
     uploaded_docs = [
@@ -377,17 +394,17 @@ async def get_lender_portal_view(
             "status": doc.status,
             "uploaded_at": doc.collected_at.isoformat() if doc.collected_at else doc.created_at.isoformat(),
         }
-        for doc in txn.documents
+        for doc in (txn.documents or [])
     ]
 
     return {
         "transaction": {
             "id": txn.id,
-            "address": txn.address,
-            "status": txn.status,
+            "address": txn.address or "",
+            "status": txn.status or "",
             "closing_date": txn.closing_date.isoformat() if txn.closing_date else None,
         },
-        "lender_name": portal_token.lender_name,
+        "lender_name": portal_token.lender_name or "",
         "required_docs": [
             "Commitment Letter",
             "Clear to Close",
@@ -431,6 +448,11 @@ async def lender_upload_document(
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File exceeds the 50 MB limit",
+        )
+    if content[:4] != b"%PDF":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only PDF files are accepted (file does not appear to be a valid PDF)",
         )
     filename = file.filename or "upload"
     user_provided_name = document_name.strip()
@@ -481,7 +503,7 @@ async def lender_upload_document(
     except Exception:
         logger.warning("Failed to send broker notification for lender upload '%s'", name)
 
-    await fire_document_trigger(portal_token.transaction_id, name, db)
+    await fire_document_trigger(portal_token.transaction_id, name, db, doc_type=classification["doc_type"])
     logger.info("Lender uploaded document '%s' for transaction %s — auto-collected", name, portal_token.transaction_id)
 
     return {
