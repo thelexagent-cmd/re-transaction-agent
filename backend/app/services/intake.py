@@ -103,9 +103,17 @@ async def process_contract(
     Raises:
         ValueError: If the transaction is not found or extraction fails.
     """
-    # 1. Verify transaction exists
+    # 1. Verify transaction exists — acquire row-level lock immediately.
+    #
+    # with_for_update() issues SELECT ... FOR UPDATE in PostgreSQL.
+    # Any concurrent call to process_contract() for the same transaction_id
+    # will block here until this call commits or rolls back.
+    # This prevents two simultaneous re-parses from producing duplicate
+    # document/deadline records (read-then-write race condition).
     result = await db.execute(
-        select(Transaction).where(Transaction.id == transaction_id)
+        select(Transaction)
+        .where(Transaction.id == transaction_id)
+        .with_for_update()
     )
     transaction = result.scalar_one_or_none()
     if transaction is None:
@@ -187,13 +195,15 @@ async def process_contract(
     existing_deadlines_result = await db.execute(
         select(Deadline).where(Deadline.transaction_id == transaction_id)
     )
+    # Normalize names with .strip() so minor whitespace differences (e.g. from
+    # an older version of the generator) don't silently skip the upsert.
     existing_deadlines: dict[str, Deadline] = {
-        d.name: d for d in existing_deadlines_result.scalars().all()
+        d.name.strip(): d for d in existing_deadlines_result.scalars().all()
     }
-    new_deadline_names = {item["name"] for item in timeline_items}
+    new_deadline_names = {item["name"].strip() for item in timeline_items}
 
     for item in timeline_items:
-        name = item["name"]
+        name = item["name"].strip()
         if name in existing_deadlines:
             existing_deadlines[name].due_date = item["due_date"]
             db.add(existing_deadlines[name])
@@ -205,6 +215,7 @@ async def process_contract(
             ))
 
     for name, deadline in existing_deadlines.items():
+        # name is already stripped (from dict comprehension above)
         if name not in new_deadline_names and not deadline.alert_t3_sent and not deadline.alert_t1_sent:
             await db.delete(deadline)
 
@@ -227,18 +238,25 @@ async def process_contract(
     )
     all_existing = existing_docs_result.scalars().all()
 
+    # Normalize names with .strip() — same reason as deadlines above.
+    # If a document name somehow appears in both protected and pending (data bug),
+    # protected wins: we never discard a collected file.
     protected_docs: dict[str, Document] = {
-        doc.name: doc
+        doc.name.strip(): doc
         for doc in all_existing
         if doc.status == DocumentStatus.collected or doc.storage_key is not None
     }
     pending_docs: dict[str, Document] = {
-        doc.name: doc
+        doc.name.strip(): doc
         for doc in all_existing
         if doc.status != DocumentStatus.collected and doc.storage_key is None
+        and doc.name.strip() not in {
+            d.name.strip() for d in all_existing
+            if d.status == DocumentStatus.collected or d.storage_key is not None
+        }
     }
 
-    new_checklist_names = {item["name"] for item in checklist}
+    new_checklist_names = {item["name"].strip() for item in checklist}
 
     # Detect conflicts: collected doc no longer required by new contract version
     orphaned = [name for name in protected_docs if name not in new_checklist_names]
@@ -257,7 +275,7 @@ async def process_contract(
         ))
 
     for doc_data in checklist:
-        name = doc_data["name"]
+        name = doc_data["name"].strip()
         if name in protected_docs:
             # Already collected — only update due_date if it changed, never touch status or file
             existing = protected_docs[name]
@@ -281,7 +299,8 @@ async def process_contract(
                 due_date=doc_data["due_date"],
             ))
 
-    # Remove stale pending items that are no longer in the new checklist
+    # Remove stale pending items no longer in the new checklist
+    # (name keys in pending_docs are already stripped)
     for name, doc in pending_docs.items():
         if name not in new_checklist_names:
             await db.delete(doc)
