@@ -33,6 +33,9 @@ class Deadline(Base):
     )
     alert_t3_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     alert_t1_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Stable normalized matching key — populated by intake.py via normalize_name().
+    # NULL on rows created before migration 0014; backfilled on first re-parse.
+    canonical_key: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

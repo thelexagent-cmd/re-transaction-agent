@@ -18,6 +18,7 @@ from app.models.party import Party, PartyRole
 from app.models.transaction import PropertyType, Transaction
 from app.services.checklist import generate_checklist
 from app.services.extractor import extract_contract_data
+from app.services.naming import normalize_name
 from app.services.parser import extract_text
 from app.services.timeline import generate_timeline
 
@@ -195,28 +196,37 @@ async def process_contract(
     existing_deadlines_result = await db.execute(
         select(Deadline).where(Deadline.transaction_id == transaction_id)
     )
-    # Normalize names with .strip() so minor whitespace differences (e.g. from
-    # an older version of the generator) don't silently skip the upsert.
+    # Build lookup dict keyed by canonical_key.
+    # - If canonical_key is already populated (new rows): use it directly.
+    # - If NULL (rows from before migration 0014): compute normalize_name(name) as fallback.
+    # This ensures existing data is matched correctly without a bulk backfill.
+    def _deadline_key(d: Deadline) -> str:
+        return d.canonical_key if d.canonical_key else normalize_name(d.name)
+
     existing_deadlines: dict[str, Deadline] = {
-        d.name.strip(): d for d in existing_deadlines_result.scalars().all()
+        _deadline_key(d): d for d in existing_deadlines_result.scalars().all()
     }
-    new_deadline_names = {item["name"].strip() for item in timeline_items}
+    new_deadline_names = {normalize_name(item["name"]) for item in timeline_items}
 
     for item in timeline_items:
-        name = item["name"].strip()
-        if name in existing_deadlines:
-            existing_deadlines[name].due_date = item["due_date"]
-            db.add(existing_deadlines[name])
+        key = normalize_name(item["name"])
+        if key in existing_deadlines:
+            existing = existing_deadlines[key]
+            existing.due_date = item["due_date"]
+            # Backfill canonical_key on existing rows that predate migration 0014
+            if not existing.canonical_key:
+                existing.canonical_key = key
+            db.add(existing)
         else:
             db.add(Deadline(
                 transaction_id=transaction_id,
-                name=name,
+                name=item["name"],
+                canonical_key=normalize_name(item["name"]),
                 due_date=item["due_date"],
             ))
 
-    for name, deadline in existing_deadlines.items():
-        # name is already stripped (from dict comprehension above)
-        if name not in new_deadline_names and not deadline.alert_t3_sent and not deadline.alert_t1_sent:
+    for key, deadline in existing_deadlines.items():
+        if key not in new_deadline_names and not deadline.alert_t3_sent and not deadline.alert_t1_sent:
             await db.delete(deadline)
 
     # 7. Merge document checklist — NEVER delete collected documents or files
@@ -238,28 +248,30 @@ async def process_contract(
     )
     all_existing = existing_docs_result.scalars().all()
 
-    # Normalize names with .strip() — same reason as deadlines above.
-    # If a document name somehow appears in both protected and pending (data bug),
-    # protected wins: we never discard a collected file.
+    # Same canonical_key strategy as deadlines — use stored key when available,
+    # compute normalize_name(name) as fallback for pre-0014 rows.
+    # Protected wins over pending on key collision (never discard a collected file).
+    def _doc_key(d: Document) -> str:
+        return d.canonical_key if d.canonical_key else normalize_name(d.name)
+
     protected_docs: dict[str, Document] = {
-        doc.name.strip(): doc
+        _doc_key(doc): doc
         for doc in all_existing
         if doc.status == DocumentStatus.collected or doc.storage_key is not None
     }
+    protected_keys = set(protected_docs.keys())
     pending_docs: dict[str, Document] = {
-        doc.name.strip(): doc
+        _doc_key(doc): doc
         for doc in all_existing
-        if doc.status != DocumentStatus.collected and doc.storage_key is None
-        and doc.name.strip() not in {
-            d.name.strip() for d in all_existing
-            if d.status == DocumentStatus.collected or d.storage_key is not None
-        }
+        if doc.status != DocumentStatus.collected
+        and doc.storage_key is None
+        and _doc_key(doc) not in protected_keys
     }
 
-    new_checklist_names = {item["name"].strip() for item in checklist}
+    new_checklist_names = {normalize_name(item["name"]) for item in checklist}
 
     # Detect conflicts: collected doc no longer required by new contract version
-    orphaned = [name for name in protected_docs if name not in new_checklist_names]
+    orphaned = [key for key in protected_docs if key not in new_checklist_names]
     if orphaned:
         sample = ", ".join(orphaned[:5])
         suffix = f" (+{len(orphaned) - 5} more)" if len(orphaned) > 5 else ""
@@ -275,35 +287,39 @@ async def process_contract(
         ))
 
     for doc_data in checklist:
-        name = doc_data["name"].strip()
-        if name in protected_docs:
-            # Already collected — only update due_date if it changed, never touch status or file
-            existing = protected_docs[name]
+        key = normalize_name(doc_data["name"])
+        if key in protected_docs:
+            # Already collected — only update due_date if changed, backfill canonical_key
+            existing = protected_docs[key]
             if doc_data["due_date"] != existing.due_date:
                 existing.due_date = doc_data["due_date"]
-                db.add(existing)
-        elif name in pending_docs:
-            # Still pending — update phase/due_date in case contract dates changed
-            existing = pending_docs[name]
+            if not existing.canonical_key:
+                existing.canonical_key = key
+            db.add(existing)
+        elif key in pending_docs:
+            # Pending — update phase/due_date, backfill canonical_key
+            existing = pending_docs[key]
             existing.phase = doc_data["phase"]
             existing.due_date = doc_data["due_date"]
+            if not existing.canonical_key:
+                existing.canonical_key = key
             db.add(existing)
         else:
-            # Net-new checklist item — insert
+            # Net-new checklist item
             db.add(Document(
                 transaction_id=doc_data["transaction_id"],
                 phase=doc_data["phase"],
                 name=doc_data["name"],
+                canonical_key=key,
                 status=DocumentStatus.pending,
                 responsible_party_role=doc_data["responsible_party_role"],
                 due_date=doc_data["due_date"],
             ))
 
     # Remove stale pending items no longer in the new checklist
-    # (name keys in pending_docs are already stripped)
-    for name, doc in pending_docs.items():
-        if name not in new_checklist_names:
-            await db.delete(doc)
+    for key, doc in pending_docs.items():
+        if key not in new_checklist_names:
+                await db.delete(doc)
 
     # 8. Log event
     compliance = extracted.get("compliance_flags", {})
