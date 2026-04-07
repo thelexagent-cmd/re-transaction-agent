@@ -12,6 +12,9 @@ export type TransactionListItem = {
   purchase_price?: number | null;
   closing_date?: string | null;
   contract_execution_date?: string | null;
+  commission_status?: string | null;
+  commission_disbursed_at?: string | null;
+  commission_notes?: string | null;
   created_at: string;
   updated_at: string;
 };

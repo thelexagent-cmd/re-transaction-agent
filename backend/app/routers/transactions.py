@@ -446,9 +446,10 @@ async def update_transaction(
         txn.emd_notes = body.emd_notes
 
     db.add(txn)
-    await db.flush()
+    await db.commit()
 
-    # Fire status-change trigger email (never crashes — all errors caught inside)
+    # Fire status-change trigger email AFTER commit so the SELECT inside
+    # fire_status_trigger reads guaranteed-fresh data (closing_date, price, etc.)
     if body.status is not None and str(body.status) != str(old_status):
         await fire_status_trigger(transaction_id, str(body.status), db)
 

@@ -119,13 +119,19 @@ async def check_deadlines(db: AsyncSession) -> int:
             db.add(dl)
             fired += len(events_to_add)
 
-        # Dispatch broker alert emails (best-effort)
-        for ev in events_to_add:
-            if ev.event_type == "broker_alert":
-                await _notify_broker_safe(dl.transaction_id, dl.name, ev.description, db)
+            # Commit this deadline's flag updates + events BEFORE sending emails.
+            # This prevents duplicate emails on Celery retry: if the task crashes
+            # after emailing but before commit, the next retry would re-send.
+            # By committing first, the alert_t3_sent / alert_t1_sent / missed
+            # flags are persisted and the re-run skips already-handled deadlines.
+            await db.commit()
+
+            # Dispatch broker alert emails (best-effort, after commit)
+            for ev in events_to_add:
+                if ev.event_type == "broker_alert":
+                    await _notify_broker_safe(dl.transaction_id, dl.name, ev.description, db)
 
     if fired > 0:
-        await db.commit()
         logger.info("Deadline check complete: %d alert event(s) fired.", fired)
     else:
         logger.debug("Deadline check complete: no alerts needed.")

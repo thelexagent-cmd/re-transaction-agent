@@ -139,6 +139,9 @@ class TransactionListItem(BaseModel):
     emd_due_date: date | None = None
     emd_received: bool = False
     emd_notes: str | None = None
+    commission_status: str | None = None
+    commission_disbursed_at: datetime | None = None
+    commission_notes: str | None = None
     created_at: datetime
     updated_at: datetime
 

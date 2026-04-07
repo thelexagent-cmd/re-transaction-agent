@@ -220,7 +220,7 @@ async def upload_document(
     )
     db.add(event)
 
-    await db.flush()
+    await db.commit()
     await db.refresh(doc)
     await fire_document_trigger(transaction_id, name, db)
     return doc
