@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { clearToken } from '@/lib/auth';
 import { getMe } from '@/lib/api';
@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, LogOut, Building2, CalendarClock, FileText,
   Plus, BarChart3, Menu, X, Users, Mail, DollarSign, Bell,
-  CheckSquare, Settings,
+  CheckSquare, Settings, Sun, Moon, ChevronUp, CreditCard,
+  Sliders, HelpCircle, User,
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notification-center';
 
@@ -23,7 +24,6 @@ const navItems = [
   { href: '/commission',   label: 'Commission',       icon: DollarSign },
   { href: '/reports',      label: 'Reports',          icon: BarChart3 },
   { href: '/templates',    label: 'Email Templates',  icon: Mail },
-  { href: '/settings',     label: 'Settings',         icon: Settings },
 ];
 
 export function Sidebar() {
@@ -31,12 +31,40 @@ export function Sidebar() {
   const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const { data: user } = useSWR('/auth/me', getMe, { revalidateOnFocus: false }) as {
-    data: { full_name?: string; brokerage_name?: string } | undefined;
+    data: { full_name?: string; brokerage_name?: string; avatar_url?: string | null; email?: string } | undefined;
   };
 
   useEffect(() => { setIsMobileOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('lex-theme') as 'dark' | 'light' | null;
+    setTheme(stored ?? 'dark');
+  }, []);
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    }
+    if (profileOpen) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [profileOpen]);
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('lex-theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+  }
 
   function handleLogout() {
     clearToken();
@@ -47,14 +75,22 @@ export function Sidebar() {
     ? user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'L';
 
+  const profileMenuItems = [
+    { icon: User,       label: 'Profile',         href: '/settings?section=profile' },
+    { icon: Sliders,    label: 'Personalization',  href: '/settings?section=preferences' },
+    { icon: Settings,   label: 'Settings',         href: '/settings' },
+    { icon: CreditCard, label: 'Upgrade Plan',     href: '/settings?section=billing' },
+    { icon: HelpCircle, label: 'Help',             href: '/help' },
+  ];
+
   const sidebarContent = (
     <aside className="flex h-full w-64 flex-col" style={{
-      background: 'linear-gradient(180deg, #060c18 0%, #07101f 100%)',
-      borderRight: '1px solid rgba(148,163,184,0.07)',
+      background: 'var(--bg-surface)',
+      borderRight: '1px solid var(--border)',
     }}>
 
       {/* ── Logo ── */}
-      <div className="flex items-center gap-3 px-5 py-[18px]" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
+      <div className="flex items-center gap-3 px-5 py-[18px]" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{
           background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
           boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
@@ -62,14 +98,14 @@ export function Sidebar() {
           <Building2 className="h-4 w-4 text-white" />
         </div>
         <div>
-          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.1em', color: '#f1f5f9' }}>
+          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-primary)' }}>
             LEX
           </div>
-          <div style={{ fontSize: '0.625rem', color: '#475569', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.625rem', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             Transaction Agent
           </div>
         </div>
-        <button onClick={() => setIsMobileOpen(false)} className="ml-auto md:hidden" aria-label="Close menu" style={{ color: '#475569' }}>
+        <button onClick={() => setIsMobileOpen(false)} className="ml-auto md:hidden" aria-label="Close menu" style={{ color: 'var(--text-muted)' }}>
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -96,7 +132,7 @@ export function Sidebar() {
 
       {/* ── Nav ── */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        <p style={{ padding: '0.5rem 0.75rem 0.375rem', fontSize: '0.6rem', fontWeight: 700, color: '#2d3f55', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+        <p style={{ padding: '0.5rem 0.75rem 0.375rem', fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
           Menu
         </p>
         {navItems.map((item) => {
@@ -106,16 +142,15 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                'flex items-center gap-3 rounded-lg py-2 text-sm transition-all duration-150',
-                isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'
-              )}
+              className="flex items-center gap-3 rounded-lg py-2 text-sm transition-all duration-150"
               style={isActive
-                ? { background: 'rgba(59,130,246,0.1)', borderLeft: '2px solid #3b82f6', paddingLeft: '10px', paddingRight: '12px' }
-                : { borderLeft: '2px solid transparent', paddingLeft: '10px', paddingRight: '12px' }
+                ? { background: 'rgba(59,130,246,0.1)', borderLeft: '2px solid #3b82f6', paddingLeft: '10px', paddingRight: '12px', color: 'var(--text-primary)' }
+                : { borderLeft: '2px solid transparent', paddingLeft: '10px', paddingRight: '12px', color: 'var(--text-secondary)' }
               }
+              onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+              onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
             >
-              <Icon className="h-4 w-4 shrink-0" style={isActive ? { color: '#60a5fa' } : {}} />
+              <Icon className="h-4 w-4 shrink-0" style={isActive ? { color: '#60a5fa' } : { color: 'inherit' }} />
               <span style={{ fontSize: '0.8125rem', fontWeight: isActive ? 600 : 400 }}>{item.label}</span>
             </Link>
           );
@@ -123,12 +158,31 @@ export function Sidebar() {
       </nav>
 
       {/* ── Bottom ── */}
-      <div className="px-3 pb-4 pt-3 space-y-0.5" style={{ borderTop: '1px solid rgba(148,163,184,0.07)' }}>
+      <div className="px-3 pb-4 pt-3 space-y-0.5" style={{ borderTop: '1px solid var(--border)' }}>
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 transition-colors"
+          style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+        >
+          {theme === 'dark'
+            ? <Sun className="h-4 w-4" />
+            : <Moon className="h-4 w-4" />
+          }
+          {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+        </button>
+
+        {/* Notifications */}
         <div className="relative">
           <button
             onClick={() => setNotifOpen((v) => !v)}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-400 hover:text-slate-200 transition-colors"
-            style={{ fontSize: '0.8125rem' }}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 transition-colors"
+            style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
           >
             <Bell className="h-4 w-4" />
             Notifications
@@ -140,35 +194,132 @@ export function Sidebar() {
           )}
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-400 hover:text-red-400 transition-colors"
-          style={{ fontSize: '0.8125rem' }}
-        >
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </button>
+        {/* Profile Card — click to open dropdown */}
+        <div ref={profileRef} className="relative mt-1">
+          <button
+            onClick={() => setProfileOpen((v) => !v)}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-150"
+            style={{
+              background: 'var(--bg-elevated)',
+              border: `1px solid ${profileOpen ? 'rgba(59,130,246,0.35)' : 'var(--border)'}`,
+              cursor: 'pointer',
+            }}
+          >
+            {/* Avatar */}
+            <div
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full overflow-hidden"
+              style={{
+                background: user?.avatar_url ? 'transparent' : 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                fontSize: '0.625rem',
+                fontWeight: 700,
+                color: 'white',
+              }}
+            >
+              {user?.avatar_url
+                ? <img src={user.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : initials
+              }
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <p className="truncate" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {user?.full_name ?? 'Loading...'}
+              </p>
+              <p className="truncate" style={{ fontSize: '0.625rem', color: 'var(--text-muted)' }}>
+                {user?.brokerage_name ?? user?.email ?? ''}
+              </p>
+            </div>
+            <ChevronUp
+              className="h-3.5 w-3.5 shrink-0 transition-transform duration-200"
+              style={{
+                color: 'var(--text-muted)',
+                transform: profileOpen ? 'rotate(0deg)' : 'rotate(180deg)',
+              }}
+            />
+          </button>
 
-        {user?.full_name && (
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mt-1" style={{
-            background: 'rgba(148,163,184,0.04)',
-            border: '1px solid rgba(148,163,184,0.07)',
-          }}>
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white" style={{
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-              fontSize: '0.625rem',
-              fontWeight: 700,
-            }}>
-              {initials}
+          {/* Profile Dropdown */}
+          {profileOpen && (
+            <div
+              className="absolute bottom-full left-0 right-0 mb-2 rounded-xl overflow-hidden z-50"
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                boxShadow: '0 -8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset',
+              }}
+            >
+              {/* User header */}
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full overflow-hidden"
+                    style={{
+                      background: user?.avatar_url ? 'transparent' : 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: 'white',
+                    }}
+                  >
+                    {user?.avatar_url
+                      ? <img src={user.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : initials
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{user?.full_name}</p>
+                    <p className="truncate" style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{user?.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Menu items */}
+              <div className="py-1.5">
+                {profileMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2 transition-all duration-100"
+                      style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', textDecoration: 'none' }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(59,130,246,0.07)';
+                        (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                        (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+                      }}
+                    >
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+
+                <button
+                  onClick={() => { setProfileOpen(false); handleLogout(); }}
+                  className="flex w-full items-center gap-3 px-4 py-2 transition-all duration-100"
+                  style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.07)';
+                    (e.currentTarget as HTMLElement).style.color = '#f87171';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+                  }}
+                >
+                  <LogOut className="h-3.5 w-3.5 shrink-0" />
+                  Log Out
+                </button>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="truncate" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#e2e8f0' }}>{user.full_name}</p>
-              {user.brokerage_name && (
-                <p className="truncate" style={{ fontSize: '0.625rem', color: '#3d5068' }}>{user.brokerage_name}</p>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+
       </div>
     </aside>
   );
@@ -178,7 +329,7 @@ export function Sidebar() {
       <button
         onClick={() => setIsMobileOpen(true)}
         className="fixed top-4 left-4 z-40 flex h-9 w-9 items-center justify-center rounded-lg shadow-md md:hidden"
-        style={{ background: '#060c18', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.1)' }}
+        style={{ background: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
         aria-label="Open menu"
       >
         <Menu className="h-5 w-5" />

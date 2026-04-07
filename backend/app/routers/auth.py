@@ -600,6 +600,8 @@ async def update_me(
         current_user.full_name = body.full_name
     if body.brokerage_name is not None:
         current_user.brokerage_name = body.brokerage_name
+    if body.avatar_url is not None:
+        current_user.avatar_url = body.avatar_url
     await db.commit()
     await db.refresh(current_user)
     return current_user

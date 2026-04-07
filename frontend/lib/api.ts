@@ -165,6 +165,7 @@ export type UserProfile = {
   email: string;
   full_name: string;
   brokerage_name: string | null;
+  avatar_url?: string | null;
   created_at: string;
 };
 
@@ -173,7 +174,7 @@ export async function getMe(): Promise<UserProfile> {
   return res.json();
 }
 
-export async function updateMe(data: { full_name?: string; brokerage_name?: string | null }): Promise<UserProfile> {
+export async function updateMe(data: { full_name?: string; brokerage_name?: string | null; avatar_url?: string | null }): Promise<UserProfile> {
   const res = await authFetch('/auth/me', {
     method: 'PATCH',
     body: JSON.stringify(data),

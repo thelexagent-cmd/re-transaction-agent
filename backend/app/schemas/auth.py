@@ -54,12 +54,14 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     brokerage_name: str | None
+    avatar_url: str | None = None
     created_at: datetime
 
 
 class UpdateProfileRequest(BaseModel):
     full_name: str | None = None
     brokerage_name: str | None = None
+    avatar_url: str | None = None
 
     @field_validator("full_name")
     @classmethod

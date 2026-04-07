@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR, { mutate } from 'swr';
 import { getMe, updateMe, changePassword } from '@/lib/api';
 import type { UserProfile } from '@/lib/api';
@@ -20,14 +21,14 @@ type Section = 'profile' | 'password' | 'preferences' | 'branding' | 'billing';
 
 const cardStyle = {
   background: 'var(--bg-surface)',
-  border: '1px solid rgba(148,163,184,0.09)',
+  border: '1px solid var(--border)',
   boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
 };
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--bg-elevated)',
-  border: '1px solid rgba(148,163,184,0.09)',
-  color: '#f1f5f9',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
   outline: 'none',
   fontSize: '0.875rem',
   padding: '0.5625rem 0.875rem',
@@ -39,7 +40,7 @@ const inputStyle: React.CSSProperties = {
 function SettingsCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl p-6" style={cardStyle}>
-      <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '1.25rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>{title}</h2>
+      <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1.25rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em' }}>{title}</h2>
       {children}
     </div>
   );
@@ -76,7 +77,7 @@ function InputField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
+      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</label>
       <div className="relative">
         <input
           type={type}
@@ -140,21 +141,52 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 function ProfileSection({ user }: { user: UserProfile }) {
   const [fullName, setFullName] = useState(user.full_name);
   const [brokerageName, setBrokerageName] = useState(user.brokerage_name ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url ?? '');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url ?? null);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setFullName(user.full_name);
     setBrokerageName(user.brokerage_name ?? '');
-  }, [user.full_name, user.brokerage_name]);
+    setAvatarUrl(user.avatar_url ?? '');
+    setAvatarPreview(user.avatar_url ?? null);
+  }, [user.full_name, user.brokerage_name, user.avatar_url]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setAvatarPreview(dataUrl);
+      setAvatarUrl(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearAvatar() {
+    setAvatarPreview(null);
+    setAvatarUrl('');
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  const initials = fullName
+    ? fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'L';
 
   async function handleSave() {
     setSuccess(''); setError('');
     if (!fullName.trim()) { setError('Full name is required.'); return; }
     setSaving(true);
     try {
-      await updateMe({ full_name: fullName.trim(), brokerage_name: brokerageName.trim() || null });
+      await updateMe({
+        full_name: fullName.trim(),
+        brokerage_name: brokerageName.trim() || null,
+        avatar_url: avatarUrl.trim() || null,
+      });
       await mutate('/auth/me');
       setSuccess('Profile updated successfully.');
     } catch (err: unknown) {
@@ -164,7 +196,83 @@ function ProfileSection({ user }: { user: UserProfile }) {
 
   return (
     <SettingsCard title="Profile">
-      <div className="space-y-4">
+      <div className="space-y-5">
+        {/* Avatar */}
+        <div>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>Profile Picture</label>
+          <div className="flex items-center gap-4">
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full overflow-hidden"
+              style={{
+                background: avatarPreview ? 'transparent' : 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                fontSize: '1.25rem', fontWeight: 700, color: 'white',
+                border: '2px solid var(--border)',
+              }}
+            >
+              {avatarPreview
+                ? <img src={avatarPreview} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : initials
+              }
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  style={{
+                    ...inputStyle,
+                    width: 'auto',
+                    padding: '0.375rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    borderRadius: '0.5rem',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  Upload Photo
+                </button>
+                {avatarPreview && (
+                  <button
+                    type="button"
+                    onClick={clearAvatar}
+                    style={{
+                      padding: '0.375rem 0.75rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      borderRadius: '0.5rem',
+                      background: 'rgba(239,68,68,0.08)',
+                      border: '1px solid rgba(239,68,68,0.2)',
+                      color: '#f87171',
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                JPG, PNG, or GIF. Max 5MB. Or paste a URL below.
+              </p>
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+          </div>
+          <div className="mt-3">
+            <InputField
+              label="Or paste an image URL"
+              value={avatarUrl.startsWith('data:') ? '' : avatarUrl}
+              onChange={(val) => { setAvatarUrl(val); setAvatarPreview(val || null); }}
+              placeholder="https://example.com/photo.jpg"
+            />
+          </div>
+        </div>
+
         <InputField label="Full Name" value={fullName} onChange={setFullName} placeholder="Jane Doe" />
         <InputField label="Email Address" value={user.email} disabled />
         <InputField label="Brokerage Name" value={brokerageName} onChange={setBrokerageName} placeholder="Miami Realty Group" />
@@ -207,7 +315,7 @@ function PasswordSection() {
   }
 
   const eyeBtn = (show: boolean, toggle: () => void) => (
-    <button type="button" onClick={toggle} tabIndex={-1} style={{ color: '#3d5068', transition: 'color 150ms' }}
+    <button type="button" onClick={toggle} tabIndex={-1} style={{ color: 'var(--text-muted)', transition: 'color 150ms' }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#3d5068'; }}
     >
@@ -249,7 +357,7 @@ function PreferencesSection() {
     <SettingsCard title="Preferences">
       <div className="space-y-5">
         <div className="flex flex-col gap-1.5">
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Default Language</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Default Language</label>
           <select
             value={language}
             onChange={(e) => handleLanguage(e.target.value)}
@@ -266,8 +374,8 @@ function PreferencesSection() {
 
         <div className="flex items-center justify-between">
           <div>
-            <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e2e8f0' }}>Notification Sound</p>
-            <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>Play a sound for new alerts and notifications</p>
+            <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>Notification Sound</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Play a sound for new alerts and notifications</p>
           </div>
           <Toggle checked={notifSound} onChange={handleNotifSound} />
         </div>
@@ -285,11 +393,11 @@ function BrandingSection() {
         <span className="inline-flex items-center rounded-full px-3 py-1 mb-4" style={{ fontSize: '0.6875rem', fontWeight: 700, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
           Coming Soon
         </span>
-        <Palette className="h-10 w-10 mb-3" style={{ color: '#2d3f55' }} />
-        <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#4a5568', maxWidth: '24rem' }}>
+        <Palette className="h-10 w-10 mb-3" style={{ color: 'var(--text-muted)' }} />
+        <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', maxWidth: '24rem' }}>
           Custom branding — upload your logo, customize colors, and white-label the client portal.
         </p>
-        <p style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '8px' }}>Your clients will see your brand, not ours.</p>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>Your clients will see your brand, not ours.</p>
       </div>
     </SettingsCard>
   );
@@ -303,22 +411,22 @@ function BillingSection() {
       <div className="space-y-4">
         <div className="flex items-center justify-between rounded-xl px-5 py-4" style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.15)' }}>
           <div>
-            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>Professional Plan</p>
-            <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>Unlimited transactions · Priority support</p>
+            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Professional Plan</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Unlimited transactions · Priority support</p>
           </div>
           <div className="text-right">
             <p style={{ fontSize: '1.25rem', fontWeight: 700, color: '#60a5fa' }}>$49</p>
-            <p style={{ fontSize: '0.75rem', color: '#3d5068' }}>/month</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/month</p>
           </div>
         </div>
         <button
           disabled
           className="inline-flex items-center gap-2 rounded-lg cursor-not-allowed"
-          style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem', fontWeight: 500, background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.09)', color: '#3d5068', opacity: 0.6 }}
+          style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem', fontWeight: 500, background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-muted)', opacity: 0.6 }}
         >
           <CreditCard className="h-4 w-4" />
           Manage Billing
-          <span className="ml-1 rounded-full px-2 py-0.5" style={{ fontSize: '0.625rem', fontWeight: 700, background: 'rgba(148,163,184,0.08)', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Soon</span>
+          <span className="ml-1 rounded-full px-2 py-0.5" style={{ fontSize: '0.625rem', fontWeight: 700, background: 'rgba(148,163,184,0.08)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Soon</span>
         </button>
       </div>
     </SettingsCard>
@@ -336,23 +444,31 @@ const sidebarItems: { id: Section; label: string; icon: React.ElementType }[] = 
 ];
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<Section>('profile');
+  const searchParams = useSearchParams();
+  const sectionParam = searchParams.get('section') as Section | null;
+  const [activeSection, setActiveSection] = useState<Section>(sectionParam ?? 'profile');
   const { data: user, isLoading } = useSWR('/auth/me', getMe, { revalidateOnFocus: false });
+
+  useEffect(() => {
+    if (sectionParam && ['profile', 'password', 'preferences', 'branding', 'billing'].includes(sectionParam)) {
+      setActiveSection(sectionParam);
+    }
+  }, [sectionParam]);
 
   return (
     <div className="p-8">
       <div className="max-w-4xl">
         <div className="mb-8">
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
             Settings
           </h1>
-          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>Manage your account, preferences, and billing</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>Manage your account, preferences, and billing</p>
         </div>
 
         <div className="flex gap-6">
           {/* Settings sidebar nav */}
           <nav className="w-52 shrink-0">
-            <p style={{ padding: '0 0.75rem', marginBottom: '1rem', fontSize: '0.625rem', fontWeight: 700, color: '#2d3f55', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Account</p>
+            <p style={{ padding: '0 0.75rem', marginBottom: '1rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Account</p>
             <div className="space-y-0.5">
               {sidebarItems.map(({ id, label, icon: Icon }) => (
                 <button
