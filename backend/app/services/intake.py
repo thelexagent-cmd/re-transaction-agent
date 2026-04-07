@@ -8,7 +8,7 @@ prevent other parties from receiving their intro.
 
 from datetime import date
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.deadline import Deadline
@@ -171,49 +171,138 @@ async def process_contract(
         party.phone = party_data.get("phone") or None
         db.add(party)
 
-    # 6. Regenerate deadline records
+    # 6. Regenerate deadline records — UPSERT by name, never reset alert flags
+    #
+    # We match on deadline name rather than deleting and recreating because:
+    #   - alert_t3_sent / alert_t1_sent would reset to False on new records
+    #   - Celery would re-fire T-3 and T-1 emails to parties who already received them
+    #
+    # Rules:
+    #   - Existing deadline with same name → update due_date only, keep all flags/status
+    #   - New name not in existing → insert fresh record
+    #   - Existing name not in new timeline AND no alerts fired → delete (truly stale)
+    #   - Existing name not in new timeline BUT alerts already fired → keep (preserve audit trail)
     timeline_items = generate_timeline(extracted)
 
-    await db.execute(
-        delete(Deadline).where(Deadline.transaction_id == transaction_id)
+    existing_deadlines_result = await db.execute(
+        select(Deadline).where(Deadline.transaction_id == transaction_id)
     )
-    for item in timeline_items:
-        db.add(Deadline(
-            transaction_id=transaction_id,
-            name=item["name"],
-            due_date=item["due_date"],
-        ))
+    existing_deadlines: dict[str, Deadline] = {
+        d.name: d for d in existing_deadlines_result.scalars().all()
+    }
+    new_deadline_names = {item["name"] for item in timeline_items}
 
-    # 7. Generate document checklist and (re)populate the documents table
+    for item in timeline_items:
+        name = item["name"]
+        if name in existing_deadlines:
+            existing_deadlines[name].due_date = item["due_date"]
+            db.add(existing_deadlines[name])
+        else:
+            db.add(Deadline(
+                transaction_id=transaction_id,
+                name=name,
+                due_date=item["due_date"],
+            ))
+
+    for name, deadline in existing_deadlines.items():
+        if name not in new_deadline_names and not deadline.alert_t3_sent and not deadline.alert_t1_sent:
+            await db.delete(deadline)
+
+    # 7. Merge document checklist — NEVER delete collected documents or files
+    #
+    # A document is "protected" if it has been collected (status=collected) OR
+    # has a real file in storage (storage_key is not None). These must never be
+    # deleted, overwritten, or have their status changed by a re-parse.
+    #
+    # Merge rules:
+    #   - Protected doc whose name IS in new checklist → update due_date only, preserve everything else
+    #   - Protected doc whose name is NOT in new checklist → keep as-is, log a conflict event
+    #   - Pending doc whose name IS in new checklist → update due_date + phase (dates may have changed)
+    #   - Pending doc whose name is NOT in new checklist → delete (stale pending item)
+    #   - New checklist name not seen before → insert as pending
     checklist = generate_checklist(transaction_id, extracted)
 
-    await db.execute(
-        delete(Document).where(Document.transaction_id == transaction_id)
+    existing_docs_result = await db.execute(
+        select(Document).where(Document.transaction_id == transaction_id)
     )
+    all_existing = existing_docs_result.scalars().all()
+
+    protected_docs: dict[str, Document] = {
+        doc.name: doc
+        for doc in all_existing
+        if doc.status == DocumentStatus.collected or doc.storage_key is not None
+    }
+    pending_docs: dict[str, Document] = {
+        doc.name: doc
+        for doc in all_existing
+        if doc.status != DocumentStatus.collected and doc.storage_key is None
+    }
+
+    new_checklist_names = {item["name"] for item in checklist}
+
+    # Detect conflicts: collected doc no longer required by new contract version
+    orphaned = [name for name in protected_docs if name not in new_checklist_names]
+    if orphaned:
+        sample = ", ".join(orphaned[:5])
+        suffix = f" (+{len(orphaned) - 5} more)" if len(orphaned) > 5 else ""
+        db.add(Event(
+            transaction_id=transaction_id,
+            event_type="contract_conflict",
+            description=(
+                f"Re-parse conflict: {len(orphaned)} previously collected document(s) "
+                f"are not listed in the updated contract checklist. "
+                f"Files have been preserved and require manual review. "
+                f"Affected: {sample}{suffix}."
+            ),
+        ))
+
     for doc_data in checklist:
-        db.add(
-            Document(
+        name = doc_data["name"]
+        if name in protected_docs:
+            # Already collected — only update due_date if it changed, never touch status or file
+            existing = protected_docs[name]
+            if doc_data["due_date"] != existing.due_date:
+                existing.due_date = doc_data["due_date"]
+                db.add(existing)
+        elif name in pending_docs:
+            # Still pending — update phase/due_date in case contract dates changed
+            existing = pending_docs[name]
+            existing.phase = doc_data["phase"]
+            existing.due_date = doc_data["due_date"]
+            db.add(existing)
+        else:
+            # Net-new checklist item — insert
+            db.add(Document(
                 transaction_id=doc_data["transaction_id"],
                 phase=doc_data["phase"],
                 name=doc_data["name"],
                 status=DocumentStatus.pending,
                 responsible_party_role=doc_data["responsible_party_role"],
                 due_date=doc_data["due_date"],
-            )
-        )
+            ))
+
+    # Remove stale pending items that are no longer in the new checklist
+    for name, doc in pending_docs.items():
+        if name not in new_checklist_names:
+            await db.delete(doc)
 
     # 8. Log event
     compliance = extracted.get("compliance_flags", {})
     active_flags = [k for k, v in compliance.items() if v]
     flags_summary = ", ".join(active_flags) if active_flags else "none"
 
+    protected_count = len(protected_docs)
+    conflict_count = len(orphaned)
+    conflict_note = f" {conflict_count} conflict(s) flagged for review." if conflict_count else ""
+
     db.add(Event(
         transaction_id=transaction_id,
         event_type="contract_parsed",
         description=(
-            f"Contract parsed successfully. "
-            f"{len(timeline_items)} deadline(s) generated. "
-            f"{len(checklist)} document(s) added to checklist. "
+            f"Contract re-parsed successfully. "
+            f"{len(timeline_items)} deadline(s) updated. "
+            f"{len(checklist)} checklist item(s) merged "
+            f"({protected_count} collected document(s) preserved).{conflict_note} "
             f"Compliance flags: {flags_summary}."
         ),
     ))
