@@ -109,8 +109,9 @@ async def fire_status_trigger(transaction_id: int, new_status: str, db: AsyncSes
             try:
                 await email_service.send(
                     to_email=party.email,
+                    to_name=party.full_name,
                     subject=subject,
-                    body=body,
+                    html_body=body,
                 )
                 sent_count += 1
                 logger.info(
@@ -186,7 +187,12 @@ async def fire_document_trigger(
             if not party.email:
                 continue
             try:
-                await email_service.send(to_email=party.email, subject=subject, body=body)
+                await email_service.send(
+                    to_email=party.email,
+                    to_name=party.full_name,
+                    subject=subject,
+                    html_body=body,
+                )
                 logger.info(
                     "Auto-email sent (doc trigger): template='%s' to='%s' tx=%d",
                     template_name, party.email, transaction_id,
