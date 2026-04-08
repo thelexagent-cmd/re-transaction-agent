@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { login } from '@/lib/api';
 import { setToken, isAuthenticated } from '@/lib/auth';
 import { Loader2, Sun, Moon, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Turnstile } from '@marsidev/react-turnstile';
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'; // test key (always passes)
 
 // ── Logo ───────────────────────────────────────────────────────────────────────
 function LexLogo() {
@@ -93,6 +96,7 @@ export default function LoginPage() {
   const [error, setError]       = useState('');
   const [theme, setTheme]       = useState<'dark' | 'light'>('dark');
   const [visible, setVisible]   = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
 
   useEffect(() => {
     if (isAuthenticated()) router.replace('/transactions');
@@ -115,7 +119,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const data = await login(email, password);
+      const data = await login(email, password, turnstileToken);
       setToken(data.access_token);
       router.replace('/transactions');
     } catch (err) {
@@ -267,6 +271,16 @@ export default function LoginPage() {
               </div>
             )}
 
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '0.25rem 0' }}>
+              <Turnstile
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={setTurnstileToken}
+                onError={() => setTurnstileToken('')}
+                onExpire={() => setTurnstileToken('')}
+                options={{ theme: theme === 'dark' ? 'dark' : 'light', size: 'normal' }}
+              />
+            </div>
+
             <button
               type="submit" disabled={loading}
               style={{
@@ -301,6 +315,16 @@ export default function LoginPage() {
             <Link href="/register" style={{ color: '#1E5EFF', fontWeight: 600, textDecoration: 'none' }}>
               Create account
             </Link>
+          </p>
+
+          <p style={{
+            marginTop: '0.75rem', textAlign: 'center',
+            fontSize: '0.6875rem', color: 'var(--text-muted)',
+            transition: 'color 0.3s ease',
+          }}>
+            <Link href="/terms" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>Terms of Service</Link>
+            {' · '}
+            <Link href="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>Privacy Policy</Link>
           </p>
 
         </div>

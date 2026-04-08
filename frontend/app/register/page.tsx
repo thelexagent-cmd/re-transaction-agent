@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { register } from '@/lib/api';
 import { setToken } from '@/lib/auth';
 import { Loader2, ArrowRight, Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { Turnstile } from '@marsidev/react-turnstile';
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '1x00000000000000000000AA';
 
 const FIELD_POINTS = [
   { phase: 0.00, spd: 0.28, r: 600, color: [99,  102, 241] as const },
@@ -62,6 +65,7 @@ export default function RegisterPage() {
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState('');
   const [theme, setTheme]               = useState<'dark' | 'light'>('dark');
+  const [turnstileToken, setTurnstileToken] = useState('');
   const [visible, setVisible]           = useState(false);
 
   const mouseRef  = useRef({ targetX: 0, targetY: 0 });
@@ -149,10 +153,10 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await register({ email, password, full_name: fullName, brokerage_name: brokerage || undefined });
+      await register({ email, password, full_name: fullName, brokerage_name: brokerage || undefined, turnstile_token: turnstileToken || undefined });
       // Auto-login after register
       const { login } = await import('@/lib/api');
-      const data = await login(email, password);
+      const data = await login(email, password, turnstileToken || undefined);
       setToken(data.access_token);
       router.replace('/transactions');
     } catch (err) {
@@ -379,6 +383,16 @@ export default function RegisterPage() {
               </div>
             )}
 
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '0.25rem 0' }}>
+              <Turnstile
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={setTurnstileToken}
+                onError={() => setTurnstileToken('')}
+                onExpire={() => setTurnstileToken('')}
+                options={{ theme: theme === 'dark' ? 'dark' : 'light', size: 'normal' }}
+              />
+            </div>
+
             <button
               type="submit" disabled={loading}
               style={{
@@ -413,6 +427,17 @@ export default function RegisterPage() {
             <Link href="/login" style={{ color: '#1E5EFF', fontWeight: 600, textDecoration: 'none' }}>
               Sign in
             </Link>
+          </p>
+
+          <p style={{
+            marginTop: '0.75rem', textAlign: 'center',
+            fontSize: '0.6875rem', color: 'var(--text-muted)',
+            transition: 'color 0.3s ease',
+          }}>
+            By creating an account you agree to our{' '}
+            <Link href="/terms" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>Terms</Link>
+            {' and '}
+            <Link href="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'underline' }}>Privacy Policy</Link>
           </p>
 
         </div>
