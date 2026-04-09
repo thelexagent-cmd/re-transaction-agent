@@ -22,6 +22,8 @@ class EmailTemplateCreate(BaseModel):
     @field_validator("subject")
     @classmethod
     def subject_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Subject is required")
         if len(v) > 500:
             raise ValueError("Subject must be at most 500 characters")
         return v
@@ -29,6 +31,10 @@ class EmailTemplateCreate(BaseModel):
     @field_validator("body")
     @classmethod
     def body_length(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Body is required")
+        if len(v.strip()) < 10:
+            raise ValueError("Body must be at least 10 characters")
         if len(v) > 50000:
             raise ValueError("Body must be at most 50000 characters")
         return v
@@ -56,6 +62,8 @@ class EmailTemplateUpdate(BaseModel):
     @field_validator("body")
     @classmethod
     def body_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v.strip()) < 10:
+            raise ValueError("Body must be at least 10 characters")
         if v is not None and len(v) > 50000:
             raise ValueError("Body must be at most 50000 characters")
         return v

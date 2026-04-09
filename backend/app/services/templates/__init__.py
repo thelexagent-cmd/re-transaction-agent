@@ -13,13 +13,13 @@ Missing variables are left in place (e.g. {broker_name}) rather than raising Key
 from __future__ import annotations
 
 WIRE_FRAUD_WARNING_HTML = (
-    '<div style="background-color:#fff3cd;border:2px solid #ffc107;'
-    'padding:16px;margin:24px 0;border-radius:4px;">'
-    "<p style=\"margin:0;\"><strong>&#9888; Wire Fraud Warning</strong></p>"
-    "<p style=\"margin:8px 0 0;\">Wire instructions will only come directly from "
-    "<strong>{title_company}</strong>. Never wire funds based on instructions "
-    "received via email without first calling the title company to confirm. "
-    "<strong>Wire fraud is the #1 scam in real estate.</strong></p>"
+    '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:16px;margin:16px 0;">'
+    '<strong style="color:#92400e;">&#9888;&#65039; WIRE FRAUD WARNING</strong>'
+    '<p style="color:#92400e;margin:8px 0 0;font-size:13px;line-height:1.6;">'
+    "Wire transfer instructions will NEVER be sent via email. Always verify wire instructions "
+    "by calling your escrow or title officer directly at a phone number you independently verified. "
+    "Do NOT use contact information from any email."
+    "</p>"
     "</div>"
 )
 
@@ -66,10 +66,35 @@ def render_template(name: str, **vars: str) -> tuple[str, str, str]:
 
 def _html_wrap(body: str) -> str:
     return (
-        '<div style="font-family:Arial,sans-serif;max-width:600px;'
-        'margin:0 auto;padding:20px;color:#333;">'
+        '<!DOCTYPE html>'
+        '<html lang="en">'
+        '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>'
+        '<body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;">'
+        '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:32px 16px;">'
+        '<tr><td align="center">'
+        '<table width="100%" style="max-width:580px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">'
+        # Header
+        '<tr><td style="background:linear-gradient(135deg,#0D1B4B 0%,#1E3A8A 100%);padding:28px 32px;">'
+        '<table width="100%" cellpadding="0" cellspacing="0"><tr><td>'
+        '<span style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.04em;">Lex</span>'
+        '<span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.55);letter-spacing:0.14em;text-transform:uppercase;display:block;margin-top:2px;">Transaction AI</span>'
+        '</td></tr></table>'
+        '</td></tr>'
+        # Body
+        '<tr><td style="padding:32px 32px 24px;font-size:15px;line-height:1.7;color:#374151;">'
         + body
-        + "</div>"
+        + '</td></tr>'
+        # Divider
+        '<tr><td style="padding:0 32px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:0;"></td></tr>'
+        # Footer
+        '<tr><td style="padding:20px 32px 28px;">'
+        '<p style="font-size:11px;color:#9ca3af;margin:0;line-height:1.6;">'
+        'This email was sent by Lex Transaction Agent. Please do not reply directly to this email.<br>'
+        'If you have questions, contact your agent directly.'
+        '</p></td></tr>'
+        '</table>'
+        '</td></tr></table>'
+        '</body></html>'
     )
 
 

@@ -40,7 +40,21 @@ async def create_template(
     """Create a new email template for the authenticated broker.
 
     Body: name, subject, body
+    Returns 409 if a template with the same name already exists for this user.
     """
+    # Check for duplicate name
+    existing = await db.execute(
+        select(EmailTemplate).where(
+            EmailTemplate.user_id == current_user.id,
+            EmailTemplate.name == body.name,
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A template with this name already exists.",
+        )
+
     template = EmailTemplate(
         user_id=current_user.id,
         name=body.name,

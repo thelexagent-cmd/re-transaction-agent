@@ -23,8 +23,27 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   if (!checked) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="text-slate-500 text-sm">Loading...</div>
+      <div style={{
+        display: 'flex',
+        height: '100vh',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg)',
+      }}>
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--text-secondary)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ animation: 'spin 1s linear infinite' }}
+        >
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }

@@ -19,8 +19,21 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Lex Transaction Agent',
-  description: 'Real Estate Transaction Management',
+  title: 'Lex Transaction AI — Real Estate CRM',
+  description: 'Manage real estate transactions with AI. Track documents, deadlines, commissions, and automate communications.',
+  icons: {
+    icon: '/favicon.ico',
+  },
+  openGraph: {
+    title: 'Lex Transaction AI',
+    description: 'AI-powered real estate transaction management',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Lex Transaction AI',
+    description: 'AI-powered real estate transaction management',
+  },
 };
 
 export default function RootLayout({

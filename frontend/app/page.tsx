@@ -896,6 +896,105 @@ export default function LandingPage() {
         </Link>
       </section>
 
+      {/* ── Footer ─────────────────────────────────────────────────────────────── */}
+      <footer style={{
+        position: 'relative', zIndex: 10,
+        background: '#060912',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        padding: '3.5rem 2rem 0',
+      }}>
+        <div style={{
+          maxWidth: '1080px', margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '2.5rem',
+          paddingBottom: '3rem',
+        }}>
+          {/* Brand */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <div style={{
+                width: '28px', height: '28px', borderRadius: '7px',
+                background: 'linear-gradient(160deg, #060C24 0%, #0D1B4B 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '1px solid rgba(59,130,246,0.3)',
+              }}>
+                <svg width="18" height="16" viewBox="0 0 34 30" fill="none">
+                  <defs>
+                    <linearGradient id="ftlg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#BAE6FD" stopOpacity="0.95"/>
+                      <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0.85"/>
+                    </linearGradient>
+                  </defs>
+                  <rect x="0"  y="18" width="5"  height="11" rx="0.5" fill="url(#ftlg)"/>
+                  <rect x="6"  y="10" width="6"  height="19" rx="0.5" fill="url(#ftlg)"/>
+                  <rect x="13" y="2"  width="8"  height="27" rx="0.5" fill="url(#ftlg)"/>
+                  <rect x="22" y="8"  width="6"  height="21" rx="0.5" fill="url(#ftlg)"/>
+                  <rect x="29" y="16" width="5"  height="13" rx="0.5" fill="url(#ftlg)"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: '1rem', fontWeight: 900, letterSpacing: '-0.05em', color: 'var(--text-primary)' }}>Lex</span>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              Transaction AI
+            </p>
+          </div>
+
+          {/* Product */}
+          <div>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Product</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {[
+                { label: 'Features', href: '#features' },
+                { label: 'How it Works', href: '#how-it-works' },
+                { label: 'Pricing', href: '#pricing' },
+                { label: 'For Brokers', href: '#features' },
+              ].map(link => (
+                <a key={link.label} href={link.href} style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }}
+                  onMouseEnter={e => { (e.target as HTMLAnchorElement).style.color = 'var(--text-secondary)'; }}
+                  onMouseLeave={e => { (e.target as HTMLAnchorElement).style.color = 'var(--text-muted)'; }}
+                >{link.label}</a>
+              ))}
+            </div>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Legal</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <Link href="/terms" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }}
+                onMouseEnter={e => { (e.target as HTMLAnchorElement).style.color = 'var(--text-secondary)'; }}
+                onMouseLeave={e => { (e.target as HTMLAnchorElement).style.color = 'var(--text-muted)'; }}
+              >Terms of Service</Link>
+              <Link href="/privacy" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }}
+                onMouseEnter={e => { (e.target as HTMLAnchorElement).style.color = 'var(--text-secondary)'; }}
+                onMouseLeave={e => { (e.target as HTMLAnchorElement).style.color = 'var(--text-muted)'; }}
+              >Privacy Policy</Link>
+            </div>
+          </div>
+
+          {/* Contact */}
+          <div>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Contact</h4>
+            <a href="mailto:support@lexai.com" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => { (e.target as HTMLAnchorElement).style.color = 'var(--text-secondary)'; }}
+              onMouseLeave={e => { (e.target as HTMLAnchorElement).style.color = 'var(--text-muted)'; }}
+            >support@lexai.com</a>
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.04)',
+          padding: '1.25rem 0',
+          textAlign: 'center',
+        }}>
+          <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+            &copy; 2026 Lex AI. All rights reserved.
+          </p>
+        </div>
+      </footer>
+
     </div>
   );
 }

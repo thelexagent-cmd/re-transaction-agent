@@ -37,15 +37,24 @@ class PartyCreate(BaseModel):
     def full_name_length(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Full name is required")
-        if len(v) > 200:
-            raise ValueError("Full name must be at most 200 characters")
+        if len(v) > 255:
+            raise ValueError("Full name must be at most 255 characters")
         return v.strip()
+
+    @field_validator("email")
+    @classmethod
+    def email_length(cls, v: EmailStr | None) -> EmailStr | None:
+        if v is not None and len(v) > 255:
+            raise ValueError("Email must be at most 255 characters")
+        return v
 
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
         if v is None or v.strip() == "":
             return None
+        if len(v) > 255:
+            raise ValueError("Phone must be at most 255 characters")
         return _normalize_phone(v)
 
 
@@ -188,6 +197,15 @@ class TransactionUpdate(BaseModel):
     def purchase_price_positive(cls, v: Decimal | None) -> Decimal | None:
         if v is not None and v <= 0:
             raise ValueError("Purchase price must be positive")
+        if v is not None and v >= 100_000_000:
+            raise ValueError("Purchase price must be less than 100,000,000")
+        return v
+
+    @field_validator("notes")
+    @classmethod
+    def notes_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 10000:
+            raise ValueError("Notes must be at most 10000 characters")
         return v
 
 

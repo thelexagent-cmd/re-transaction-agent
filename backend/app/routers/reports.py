@@ -1,17 +1,30 @@
 """Reports router — aggregate analytics for the broker dashboard."""
 
+import json
+import logging
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.transaction import Transaction, TransactionStatus
 from app.models.user import User
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+
+def _default_serializer(obj):
+    """JSON serializer for objects not serializable by default json code."""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
 @router.get("/summary")
@@ -20,6 +33,20 @@ async def get_report_summary(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Return aggregate stats for the broker's transaction portfolio."""
+    # Try Redis cache first
+    cache_key = f"reports:summary:{current_user.id}"
+    try:
+        import redis.asyncio as aioredis  # noqa: PLC0415
+
+        r = aioredis.from_url(settings.redis_url, socket_connect_timeout=2)
+        cached = await r.get(cache_key)
+        if cached is not None:
+            await r.aclose()
+            return json.loads(cached)
+    except Exception:
+        logger.debug("Redis cache miss or unavailable for %s", cache_key)
+        r = None  # type: ignore[assignment]
+
     result = await db.execute(
         select(Transaction).where(Transaction.user_id == current_user.id)
     )
@@ -66,7 +93,7 @@ async def get_report_summary(
                 if t.purchase_price:
                     monthly[ckey]["volume"] += t.purchase_price
 
-    return {
+    response = {
         "total_transactions": total,
         "active": active,
         "closed": closed,
@@ -75,3 +102,16 @@ async def get_report_summary(
         "total_volume": total_volume,
         "monthly_data": list(monthly.values()),
     }
+
+    # Cache result in Redis for 5 minutes
+    try:
+        if r is None:
+            import redis.asyncio as aioredis  # noqa: PLC0415
+
+            r = aioredis.from_url(settings.redis_url, socket_connect_timeout=2)
+        await r.set(cache_key, json.dumps(response, default=_default_serializer), ex=300)
+        await r.aclose()
+    except Exception:
+        logger.debug("Failed to cache report summary for user %s", current_user.id)
+
+    return response

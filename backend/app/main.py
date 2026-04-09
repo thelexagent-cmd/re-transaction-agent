@@ -114,6 +114,7 @@ async def health() -> dict:
 
     db_status = "ok"
     redis_status = "ok"
+    celery_status = "ok"
 
     # Database check
     try:
@@ -134,9 +135,22 @@ async def health() -> dict:
         logger.warning("Health check: Redis unavailable: %s", exc)
         redis_status = "error"
 
-    overall = "ok" if db_status == "ok" and redis_status == "ok" else "degraded"
+    # Celery worker check
+    try:
+        from celery_app import celery_app  # noqa: PLC0415
 
-    response_body = {"status": overall, "db": db_status, "redis": redis_status}
+        inspector = celery_app.control.inspect(timeout=2.0)
+        active_workers = inspector.ping()
+        if not active_workers:
+            celery_status = "degraded"
+    except Exception as exc:
+        logger.warning("Health check: Celery unavailable: %s", exc)
+        celery_status = "degraded"
+
+    all_ok = db_status == "ok" and redis_status == "ok" and celery_status == "ok"
+    overall = "ok" if all_ok else "degraded"
+
+    response_body = {"status": overall, "db": db_status, "redis": redis_status, "celery": celery_status}
 
     # Only fail the health check when the database is unreachable — the app cannot
     # serve any requests without it.  Redis being unavailable degrades background

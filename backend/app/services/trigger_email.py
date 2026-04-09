@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.email_template import EmailTemplate
 from app.models.transaction import Transaction
+from app.services.email_html import wrap_email_html
 from app.services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
@@ -166,7 +167,8 @@ async def fire_status_trigger(transaction_id: int, new_status: str, db: AsyncSes
                     to_email=party.email,
                     to_name=party.full_name,
                     subject=subject,
-                    html_body=body,
+                    html_body=wrap_email_html(body, subject),
+                    text_body=body,
                 )
                 sent_count += 1
                 logger.info(
@@ -246,7 +248,8 @@ async def fire_document_trigger(
                     to_email=party.email,
                     to_name=party.full_name,
                     subject=subject,
-                    html_body=body,
+                    html_body=wrap_email_html(body, subject),
+                    text_body=body,
                 )
                 logger.info(
                     "Auto-email sent (doc trigger): template='%s' to='%s' tx=%d",
