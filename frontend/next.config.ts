@@ -8,6 +8,11 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
 ];
 
+// Ensure production API URL is set
+if (!process.env.NEXT_PUBLIC_API_URL) {
+  process.env.NEXT_PUBLIC_API_URL = 'https://backend-production-bb87.up.railway.app';
+}
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
