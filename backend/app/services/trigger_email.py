@@ -11,6 +11,7 @@ never crashes an upload or update request.
 import asyncio
 import logging
 import re
+from types import SimpleNamespace
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,6 +38,46 @@ STATUS_TRIGGERS: dict[str, str] = {
 # Roles that should receive milestone emails (buyers + sellers, not internal parties)
 RECIPIENT_ROLES = {"buyer", "seller", "buyers_agent", "listing_agent"}
 
+# Fallback templates when broker has not customized email templates.
+# Maps template name -> (subject, body) with {{placeholders}} for _fill_template.
+DEFAULT_TEMPLATES: dict[str, tuple[str, str]] = {
+    "Under Contract Congratulations": (
+        "\U0001f389 Congratulations \u2014 You're Under Contract!",
+        "Hi,\n\n"
+        "Congratulations! You are now officially under contract on {{property_address}}.\n\n"
+        "Your closing date is {{closing_date}}. We will keep you updated on every step.\n\n"
+        "Thank you for trusting us with this transaction.\n\n"
+        "Best regards",
+    ),
+    "Inspection Reminder": (
+        "Inspection Scheduled \u2014 {{property_address}}",
+        "Hi,\n\n"
+        "This is a reminder that an inspection has been scheduled for {{property_address}}.\n\n"
+        "Please make sure the property is accessible and any relevant documentation is ready.\n\n"
+        "If you have questions, don\u2019t hesitate to reach out.\n\n"
+        "Best regards",
+    ),
+    "Clear to Close": (
+        "\u2705 Clear to Close \u2014 {{property_address}}",
+        "Hi,\n\n"
+        "Great news! {{property_address}} has been cleared to close.\n\n"
+        "Your closing date is {{closing_date}}. The title company will reach out with "
+        "final instructions and closing documents.\n\n"
+        "Congratulations on reaching this milestone!\n\n"
+        "Best regards",
+    ),
+    "Post-Closing Thank You": (
+        "Thank You \u2014 {{property_address}} Closing",
+        "Hi,\n\n"
+        "Congratulations on the successful closing of {{property_address}}!\n\n"
+        "Thank you for working with us on this transaction. It was a pleasure helping "
+        "you through the process.\n\n"
+        "If you ever need assistance with future real estate needs, please don\u2019t "
+        "hesitate to reach out.\n\n"
+        "Best regards",
+    ),
+}
+
 # Document name keywords → template to fire
 DOC_TRIGGERS: list[tuple[str, str]] = [
     ("inspection", "Inspection Results — Repair Request"),
@@ -61,14 +102,28 @@ def _fill_template(body: str, tx: Transaction) -> str:
     return body
 
 
-async def _load_template(template_name: str, user_id: int, db: AsyncSession) -> EmailTemplate | None:
+async def _load_template(template_name: str, user_id: int, db: AsyncSession):
+    """Load a broker's custom template, falling back to a built-in default."""
     result = await db.execute(
         select(EmailTemplate).where(
             EmailTemplate.name == template_name,
             EmailTemplate.user_id == user_id,
         )
     )
-    return result.scalar_one_or_none()
+    template = result.scalar_one_or_none()
+    if template is not None:
+        return template
+
+    # Fallback to built-in default if available
+    if template_name in DEFAULT_TEMPLATES:
+        subject, body = DEFAULT_TEMPLATES[template_name]
+        logger.info(
+            "Using default template for '%s' (user %d has no custom template)",
+            template_name, user_id,
+        )
+        return SimpleNamespace(subject=subject, body=body)
+
+    return None
 
 
 async def fire_status_trigger(transaction_id: int, new_status: str, db: AsyncSession) -> None:

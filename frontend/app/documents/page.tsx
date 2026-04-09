@@ -29,10 +29,10 @@ export default function DocumentsPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
           Pending Documents
         </h1>
-        <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>Every document still outstanding across all transactions</p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>Every document still outstanding across all transactions</p>
       </div>
 
       {/* Summary bar */}
@@ -45,11 +45,11 @@ export default function DocumentsPage() {
               <div style={{ fontSize: '0.75rem', color: '#ef4444' }}>Overdue</div>
             </div>
           </div>
-          <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}>
+          <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
             <Clock className="h-5 w-5 shrink-0" style={{ color: '#60a5fa' }} />
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#e2e8f0' }}>{pending.length}</div>
-              <div style={{ fontSize: '0.75rem', color: '#3d5068' }}>Pending</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{pending.length}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Pending</div>
             </div>
           </div>
         </div>
@@ -74,8 +74,8 @@ export default function DocumentsPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.15)' }}>
             <CheckCircle className="h-7 w-7" style={{ color: '#34d399' }} />
           </div>
-          <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#94a3b8' }}>All caught up</p>
-          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>No pending documents across any transaction</p>
+          <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-secondary)' }}>All caught up</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>No pending documents across any transaction</p>
         </div>
       )}
 
@@ -103,8 +103,8 @@ function DocSection({ title, icon, docs, isOverdue }: {
     <div>
       <div className="flex items-center gap-2 mb-3">
         {icon}
-        <h2 style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</h2>
-        <span style={{ fontSize: '0.6875rem', color: '#3d5068' }}>({docs.length})</span>
+        <h2 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</h2>
+        <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>({docs.length})</span>
       </div>
       <div className="space-y-2">
         {docs.map((doc) => (
@@ -119,19 +119,19 @@ function DocSection({ title, icon, docs, isOverdue }: {
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <FileText className="h-4 w-4 shrink-0" style={{ color: '#3d5068' }} />
+                <FileText className="h-4 w-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
                 <div className="min-w-0">
-                  <p className="truncate" style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e2e8f0' }}>{doc.name}</p>
-                  <p className="truncate mt-0.5" style={{ fontSize: '0.75rem', color: '#3d5068' }}>{doc.transaction_address}</p>
+                  <p className="truncate" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>{doc.name}</p>
+                  <p className="truncate mt-0.5" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{doc.transaction_address}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0 ml-4">
                 {doc.responsible_party_role && (
-                  <span className="hidden sm:block" style={{ fontSize: '0.75rem', color: '#3d5068' }}>
+                  <span className="hidden sm:block" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     {PARTY_ROLE_LABELS[doc.responsible_party_role] ?? doc.responsible_party_role}
                   </span>
                 )}
-                <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>{doc.due_date ? formatDate(doc.due_date) : 'No due date'}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{doc.due_date ? formatDate(doc.due_date) : 'No due date'}</span>
                 <span className="rounded-full px-2.5 py-0.5" style={{
                   fontSize: '0.6875rem', fontWeight: 700,
                   color: isOverdue ? '#f87171' : '#60a5fa',

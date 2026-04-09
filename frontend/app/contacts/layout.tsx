@@ -1,7 +1,7 @@
 'use client';
 
 import { AuthGuard } from '@/components/auth-guard';
-import { Sidebar } from '@/components/layout/sidebar';
+import { Sidebar } from '@/components/layout/Sidebar';
 
 export default function ContactsLayout({ children }: { children: React.ReactNode }) {
   return (

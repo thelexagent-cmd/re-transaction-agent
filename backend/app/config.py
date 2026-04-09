@@ -1,6 +1,7 @@
 """Application configuration loaded from environment variables."""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -13,6 +14,19 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440  # 24 hours
+
+    @field_validator("secret_key")
+    @classmethod
+    def secret_key_strength(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError(
+                "secret_key must be at least 32 characters. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            )
+        return v
+
+    # Cloudflare Turnstile (CAPTCHA)
+    turnstile_secret_key: str = ""  # Set in production. Test key: 1x0000000000000000000000000000000AA
 
     # AWS / R2 Storage
     aws_access_key_id: str = ""

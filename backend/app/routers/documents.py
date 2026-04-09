@@ -191,15 +191,22 @@ async def upload_document(
             detail="Only PDF files are accepted (file does not appear to be a valid PDF)",
         )
 
+    # Reject manually provided names that exceed 255 characters
+    if document_name and len(document_name.strip()) > 255:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Document name must be at most 255 characters",
+        )
+
     filename = file.filename or "upload"
     user_provided_name = document_name.strip()
     classification = await classify_document(filename, content)
     if user_provided_name:
         name = user_provided_name
     elif classification["confidence"] in ("high", "medium"):
-        name = classification["suggested_name"]
+        name = classification["suggested_name"][:255]
     else:
-        name = filename
+        name = filename[:255]
 
     storage_key = await storage.upload_document(transaction_id, filename, content)
 

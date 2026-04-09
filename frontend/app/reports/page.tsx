@@ -32,22 +32,22 @@ export default function ReportsPage() {
   return (
     <div className="p-8 max-w-5xl">
       <div className="mb-8">
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
           Reports
         </h1>
-        <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>Performance overview and transaction analytics</p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>Performance overview and transaction analytics</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Total Transactions', value: data?.total_transactions ?? 0, color: '#e2e8f0' },
+          { label: 'Total Transactions', value: data?.total_transactions ?? 0, color: 'var(--text-primary)' },
           { label: 'Active', value: data?.active ?? 0, color: '#34d399' },
           { label: 'Closed', value: data?.closed ?? 0, color: '#60a5fa' },
-          { label: 'Avg Days to Close', value: data?.avg_days_to_close ?? '—', color: '#e2e8f0' },
+          { label: 'Avg Days to Close', value: data?.avg_days_to_close ?? '—', color: 'var(--text-primary)' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontSize: '0.6875rem', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>{label}</div>
+          <div key={label} className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>{label}</div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color }}>{value}</div>
           </div>
         ))}
@@ -55,15 +55,15 @@ export default function ReportsPage() {
 
       {/* Volume */}
       {(data?.total_volume ?? 0) > 0 && (
-        <div className="rounded-2xl p-5 mb-8" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-          <div style={{ fontSize: '0.6875rem', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Total Closed Volume</div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, color: '#e2e8f0' }}>${((data?.total_volume ?? 0) / 1_000_000).toFixed(2)}M</div>
+        <div className="rounded-2xl p-5 mb-8" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Total Closed Volume</div>
+          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>${((data?.total_volume ?? 0) / 1_000_000).toFixed(2)}M</div>
         </div>
       )}
 
       {/* Monthly Bar Chart */}
-      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-        <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '1.25rem' }}>Monthly Activity (Last 12 Months)</h2>
+      <div className="rounded-2xl p-6" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+        <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>Monthly Activity (Last 12 Months)</h2>
         <div className="flex items-end gap-1.5" style={{ height: '8rem' }}>
           {months.map((m: any) => (
             <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
@@ -77,13 +77,13 @@ export default function ReportsPage() {
                 }}
                 title={`${m.created} new`}
               />
-              <div style={{ fontSize: '9px', color: '#3d5068', transform: 'rotate(45deg)', transformOrigin: 'left' }}>
+              <div style={{ fontSize: '9px', color: 'var(--text-muted)', transform: 'rotate(45deg)', transformOrigin: 'left' }}>
                 {m.month.slice(5)}
               </div>
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-2 mt-5" style={{ fontSize: '0.75rem', color: '#3d5068' }}>
+        <div className="flex items-center gap-2 mt-5" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           <div className="h-3 w-3 rounded" style={{ background: '#3b82f6' }} />
           New transactions per month
         </div>

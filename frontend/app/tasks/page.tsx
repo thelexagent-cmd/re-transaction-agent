@@ -14,8 +14,8 @@ import {
 
 const inputStyle = {
   background: 'var(--bg-elevated)',
-  border: '1px solid rgba(148,163,184,0.09)',
-  color: '#f1f5f9',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
   outline: 'none',
   fontSize: '0.875rem',
   padding: '0.5rem 0.75rem',
@@ -82,14 +82,14 @@ function ActiveTasksPanel({
   const pct = taskList.length > 0 ? Math.round((completedCount / taskList.length) * 100) : 0;
 
   return (
-    <div className="rounded-2xl h-full" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
+    <div className="rounded-2xl h-full" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
       {/* Header */}
       <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
         <div className="flex items-center gap-2 mb-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)' }}>
             <ListChecks className="h-3.5 w-3.5" style={{ color: '#60a5fa' }} />
           </div>
-          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>Active Tasks</h2>
+          <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Active Tasks</h2>
         </div>
 
         {/* Transaction selector */}
@@ -107,7 +107,7 @@ function ActiveTasksPanel({
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: '#3d5068' }} />
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
         </div>
       </div>
 
@@ -117,7 +117,7 @@ function ActiveTasksPanel({
           {taskList.length > 0 && (
             <div className="px-5 py-3" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)', background: 'rgba(148,163,184,0.03)' }}>
               <div className="flex items-center justify-between mb-1.5">
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{completedCount}/{taskList.length} complete</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{completedCount}/{taskList.length} complete</span>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#60a5fa' }}>{pct}%</span>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(148,163,184,0.1)' }}>
@@ -156,7 +156,7 @@ function ActiveTasksPanel({
           {/* Task list */}
           <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
             {taskList.length === 0 ? (
-              <div className="px-5 py-12 text-center" style={{ fontSize: '0.875rem', color: '#3d5068' }}>
+              <div className="px-5 py-12 text-center" style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                 No tasks yet. Add tasks manually above.
               </div>
             ) : (
@@ -212,10 +212,10 @@ function ActiveTasksPanel({
                         ) : (
                           <>
                             {task.due_date && (
-                              <span style={{ fontSize: '0.6875rem', color: '#3d5068' }}>Due {task.due_date}</span>
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Due {task.due_date}</span>
                             )}
                             {task.assigned_role && (
-                              <span style={{ fontSize: '0.6875rem', color: '#3d5068' }}>{task.assigned_role}</span>
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{task.assigned_role}</span>
                             )}
                             <button
                               onClick={() => setEditingId(task.id)}
@@ -230,7 +230,7 @@ function ActiveTasksPanel({
                     <button
                       onClick={() => handleDeleteTask(task.id)}
                       className="shrink-0 transition-colors duration-150"
-                      style={{ color: '#2d3f55' }}
+                      style={{ color: 'var(--text-muted)' }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#2d3f55'; }}
                     >
@@ -243,7 +243,7 @@ function ActiveTasksPanel({
           </div>
         </>
       ) : (
-        <div className="px-5 py-16 text-center" style={{ fontSize: '0.875rem', color: '#3d5068' }}>
+        <div className="px-5 py-16 text-center" style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
           Select a transaction above to view or manage tasks.
         </div>
       )}
@@ -262,10 +262,10 @@ export default function TasksPage() {
           <CheckSquare className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
             Task Manager
           </h1>
-          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '2px' }}>Manage per-transaction task checklists</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '2px' }}>Manage per-transaction task checklists</p>
         </div>
       </div>
 

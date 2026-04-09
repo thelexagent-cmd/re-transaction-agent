@@ -33,6 +33,29 @@ from app.schemas.auth import (
 
 _FRONTEND_URL = os.getenv("FRONTEND_URL", "https://frontend-rose-ten-64.vercel.app")
 
+
+async def _verify_turnstile(token: str | None) -> None:
+    """Verify a Cloudflare Turnstile token. No-ops if TURNSTILE_SECRET_KEY is not configured."""
+    if not settings.turnstile_secret_key or not token:
+        return  # CAPTCHA not enforced unless key is configured
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={"secret": settings.turnstile_secret_key, "response": token},
+            )
+            result = resp.json()
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="CAPTCHA verification failed. Please try again.",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Turnstile verification error (allowing through): %s", exc)
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
 
@@ -518,23 +541,47 @@ def _create_access_token(user_id: int) -> str:
 
 
 def _create_reset_token(email: str) -> str:
+    import secrets as _secrets
     expire = datetime.now(tz=timezone.utc) + timedelta(minutes=30)
-    payload = {"sub": email, "type": "password_reset", "exp": expire}
+    nonce = _secrets.token_urlsafe(16)  # one-time nonce stored in Redis
+    payload = {"sub": email, "type": "password_reset", "exp": expire, "nonce": nonce}
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
-def _verify_reset_token(token: str) -> str:
-    """Decode a password reset JWT and return the email, or raise HTTPException."""
+async def _verify_reset_token(token: str) -> str:
+    """Decode a password reset JWT, check it hasn't been used, and return the email."""
+    import hashlib
+    import redis.asyncio as aioredis
+
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         if payload.get("type") != "password_reset":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
         email: str = payload.get("sub", "")
-        if not email:
+        nonce: str = payload.get("nonce", "")
+        if not email or not nonce:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
-        return email
     except JWTError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
+
+    # Check Redis — if this nonce was already used, reject
+    token_hash = hashlib.sha256(f"{email}:{nonce}".encode()).hexdigest()
+    redis_key = f"used_reset:{token_hash}"
+    try:
+        r = aioredis.from_url(settings.redis_url, socket_connect_timeout=3)
+        already_used = await r.exists(redis_key)
+        if already_used:
+            await r.aclose()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset link already used. Please request a new one.")
+        # Mark as used with 35-minute TTL (slightly longer than token expiry)
+        await r.set(redis_key, "1", ex=2100)
+        await r.aclose()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Redis unavailable for reset token check: %s — allowing reset", exc)
+
+    return email
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -544,6 +591,7 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
 
     Raises 409 if the email is already registered.
     """
+    await _verify_turnstile(body.turnstile_token)
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
@@ -570,6 +618,7 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
 
     Raises 401 if credentials are invalid.
     """
+    await _verify_turnstile(body.turnstile_token)
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
@@ -681,7 +730,7 @@ async def reset_password(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Reset a user's password using a valid JWT reset token."""
-    email = _verify_reset_token(body.token)  # raises 400 if invalid/expired
+    email = await _verify_reset_token(body.token)  # raises 400 if invalid/expired
 
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()

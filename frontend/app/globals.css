@@ -3,6 +3,9 @@
 /* ── Font ───────────────────────────────────────────────────── */
 :root {
   --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* Cursor position — updated by JS mousemove, consumed by landing page */
+  --cx: 50vw;
+  --cy: 50vh;
   --font-heading: var(--font-sans);
   --font-body: var(--font-sans);
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
@@ -101,7 +104,7 @@
 /* ── Base ───────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-html { height: 100%; scroll-behavior: smooth; }
+html { height: 100%; scroll-behavior: auto; } /* Lenis handles smoothing */
 
 body {
   height: 100%;
@@ -366,6 +369,31 @@ input::placeholder, textarea::placeholder { color: var(--text-muted) !important;
 }
 .lex-input:focus {
   outline: none;
+}
+
+/* ── Landing page idle float ────────────────────────────────── */
+/* Uses CSS `translate` property (separate from `transform`) so GSAP scroll
+   parallax (which uses `transform`) can compose on the SAME element          */
+@keyframes land-float-a {
+  0%, 100% { translate: 0 0px; }
+  50%       { translate: 0 -8px; }
+}
+@keyframes land-float-b {
+  0%, 100% { translate: 0 0px; }
+  50%       { translate: 0 -6px; }
+}
+@keyframes land-float-c {
+  0%, 100% { translate: 0 0px; }
+  50%       { translate: 0 -10px; }
+}
+/* Stagger via negative delay so elements are out of phase */
+.land-float-a { animation: land-float-a 4.2s ease-in-out infinite; }
+.land-float-b { animation: land-float-b 5.6s ease-in-out infinite; animation-delay: -1.8s; }
+.land-float-c { animation: land-float-c 3.9s ease-in-out infinite; animation-delay: -3.1s; }
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(5px); }
 }
 
 /* ── Reduced motion ─────────────────────────────────────────── */

@@ -10,6 +10,7 @@ import { UrgentPanel } from '@/components/urgent-panel';
 import { ActivityFeed } from '@/components/activity-feed';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DealHealthScore } from '@/components/deal-health-score';
+import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import {
   Plus, AlertCircle, TrendingUp,
   Search, ChevronDown, Timer,
@@ -200,6 +201,9 @@ export default function TransactionsPage() {
         <StatCard value={overdueCount}     label="Overdue Items"      accentColor="#f87171" isLoading={isLoading} />
       </div>
 
+      {/* ── Onboarding Checklist ── */}
+      {transactions && <OnboardingChecklist transactionCount={transactions.length} />}
+
       {/* ── Closing Countdown ── */}
       {transactions && transactions.length > 0 && <ClosingCountdown transactions={transactions} />}
 
@@ -298,29 +302,28 @@ export default function TransactionsPage() {
                 <TrendingUp className="h-8 w-8" style={{ color: 'var(--text-muted)' }} />
               </div>
               {transactions.length === 0 ? (
-                <>
-                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>No transactions yet</h3>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '4px' }}>Add your first transaction to get started.</p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', maxWidth: '28rem', marginLeft: 'auto', marginRight: 'auto' }}>
-                    Once added, the app will automatically email all parties, track document deadlines, and send reminders.
+                <div style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  justifyContent: 'center', padding: '4rem 2rem', textAlign: 'center',
+                  gap: '1rem',
+                }}>
+                  <div style={{ fontSize: '3rem' }}>🏡</div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                    No transactions yet
+                  </h3>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', maxWidth: '320px', margin: 0, lineHeight: 1.6 }}>
+                    Start by creating your first deal. You can track documents, deadlines, parties, and commissions all in one place.
                   </p>
-                  <Link
-                    href="/transactions/new"
-                    className="inline-flex items-center gap-2 mt-6 rounded-lg text-white transition-all duration-150 active:scale-95"
-                    style={{
-                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                      padding: '0.5625rem 1.125rem',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      boxShadow: '0 2px 12px rgba(59,130,246,0.25)',
-                    }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    New Transaction
+                  <Link href="/transactions/new" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.6rem 1.25rem', borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #1E5EFF, #0A3FCC)',
+                    color: '#fff', fontSize: '0.8125rem', fontWeight: 700,
+                    textDecoration: 'none', marginTop: '0.5rem',
+                  }}>
+                    <Plus className="h-3.5 w-3.5" /> Create First Deal
                   </Link>
-                </>
+                </div>
               ) : (
                 <>
                   <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>No results found</h3>

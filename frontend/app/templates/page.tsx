@@ -45,7 +45,7 @@ function inferTrigger(name: string): string {
 }
 
 const TRIGGER_CFG: Record<string, { color: string; bg: string; border: string }> = {
-  'Manual only':              { color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.15)' },
+  'Manual only':              { color: 'var(--text-secondary)', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.15)' },
   'Auto: Under Contract':     { color: '#60a5fa', bg: 'rgba(59,130,246,0.1)',   border: 'rgba(59,130,246,0.2)' },
   'Auto: Inspection Done':    { color: '#fb923c', bg: 'rgba(249,115,22,0.1)',   border: 'rgba(249,115,22,0.2)' },
   'Auto: Clear to Close':     { color: '#34d399', bg: 'rgba(16,185,129,0.1)',   border: 'rgba(16,185,129,0.2)' },
@@ -159,8 +159,8 @@ const CATEGORIES = ['All', 'Onboarding', 'Milestones', 'Follow-Up', 'Compliance'
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--bg-elevated)',
-  border: '1px solid rgba(148,163,184,0.09)',
-  color: '#f1f5f9',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
   outline: 'none',
   fontSize: '0.875rem',
   padding: '0.5rem 0.75rem',
@@ -223,7 +223,7 @@ export default function TemplatesPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center" style={{ background: 'var(--bg)' }}>
-        <div style={{ fontSize: '0.875rem', color: '#3d5068' }}>Loading templates...</div>
+        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Loading templates...</div>
       </div>
     );
   }
@@ -239,7 +239,7 @@ export default function TemplatesPage() {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)' }}>
                 <Mail className="h-3.5 w-3.5" style={{ color: '#60a5fa' }} />
               </div>
-              <h1 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#e2e8f0' }}>Email Templates</h1>
+              <h1 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>Email Templates</h1>
             </div>
             <button
               onClick={handleNew}
@@ -274,7 +274,7 @@ export default function TemplatesPage() {
         {/* List */}
         <div className="flex-1 overflow-y-auto">
           {filtered.length === 0 && (
-            <div className="p-4 text-center" style={{ fontSize: '0.75rem', color: '#2d3f55' }}>No templates</div>
+            <div className="p-4 text-center" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No templates</div>
           )}
           {filtered.map((tpl) => (
             <button
@@ -291,16 +291,16 @@ export default function TemplatesPage() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="truncate" style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#e2e8f0' }}>{tpl.name}</div>
-                  <div className="truncate mt-0.5" style={{ fontSize: '0.6875rem', color: '#3d5068' }}>{tpl.subject}</div>
+                  <div className="truncate" style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-primary)' }}>{tpl.name}</div>
+                  <div className="truncate mt-0.5" style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{tpl.subject}</div>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5" style={{ fontSize: '0.625rem', fontWeight: 600, background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: '#4a5568' }}>
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5" style={{ fontSize: '0.625rem', fontWeight: 600, background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: 'var(--text-muted)' }}>
                       {tpl.category}
                     </span>
                     <TriggerBadge trigger={tpl.trigger} />
                   </div>
                 </div>
-                <ChevronRight className="h-3.5 w-3.5 mt-1 shrink-0" style={{ color: '#2d3f55' }} />
+                <ChevronRight className="h-3.5 w-3.5 mt-1 shrink-0" style={{ color: 'var(--text-muted)' }} />
               </div>
             </button>
           ))}
@@ -313,7 +313,7 @@ export default function TemplatesPage() {
           <div className="flex flex-col h-full">
             {/* Edit header */}
             <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)', background: 'var(--bg-surface)' }}>
-              <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>
+              <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 {isNew ? 'New Template' : `Edit: ${editing.name}`}
               </h2>
               <div className="flex items-center gap-2">
@@ -321,7 +321,7 @@ export default function TemplatesPage() {
                 <button
                   onClick={() => { setEditing(null); setIsNew(false); }}
                   className="inline-flex items-center gap-1 rounded-lg transition-all duration-150"
-                  style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.1)', color: '#94a3b8' }}
+                  style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
                 >
                   <X className="h-3.5 w-3.5" /> Cancel
                 </button>
@@ -339,14 +339,14 @@ export default function TemplatesPage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Template Name</label>
+                  <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Template Name</label>
                   <input type="text" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} style={inputStyle}
                     onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
                     onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Category</label>
+                  <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Category</label>
                   <select value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })} style={inputStyle}
                     onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
                     onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
@@ -359,15 +359,15 @@ export default function TemplatesPage() {
                 </div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Subject Line</label>
+                <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>Subject Line</label>
                 <input type="text" value={editing.subject} onChange={(e) => setEditing({ ...editing, subject: e.target.value })} placeholder="Email subject..." style={inputStyle}
                   onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
                   onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>
-                  Body <span style={{ marginLeft: '8px', fontWeight: 400, color: '#3d5068', textTransform: 'none', letterSpacing: 0 }}>Use {'{{variable_name}}'} for dynamic values</span>
+                <label style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>
+                  Body <span style={{ marginLeft: '8px', fontWeight: 400, color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>Use {'{{variable_name}}'} for dynamic values</span>
                 </label>
                 <textarea
                   value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })}
@@ -396,7 +396,7 @@ export default function TemplatesPage() {
             {/* View header */}
             <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(148,163,184,0.07)', background: 'var(--bg-surface)' }}>
               <div>
-                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#e2e8f0' }}>{selected.name}</h2>
+                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selected.name}</h2>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="inline-flex items-center rounded-full px-2 py-0.5" style={{ fontSize: '0.625rem', fontWeight: 600, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa' }}>
                     {selected.category}
@@ -425,22 +425,22 @@ export default function TemplatesPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+              <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
                 {/* Email header */}
                 <div className="px-6 py-4" style={{ background: 'rgba(148,163,184,0.03)', borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
-                  <div style={{ fontSize: '0.6875rem', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Subject</div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '4px' }}>Subject</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                     {preview ? <span>{renderPreview(selected.subject)}</span> : selected.subject}
                   </div>
                 </div>
                 {/* Body */}
                 <div className="px-6 py-5">
                   {preview ? (
-                    <pre style={{ fontSize: '0.875rem', color: '#94a3b8', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-body, inherit)', lineHeight: 1.7 }}>
+                    <pre style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-body, inherit)', lineHeight: 1.7 }}>
                       {renderPreview(selected.body)}
                     </pre>
                   ) : (
-                    <pre style={{ fontSize: '0.8125rem', color: '#94a3b8', whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6 }}>
+                    <pre style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6 }}>
                       {selected.body}
                     </pre>
                   )}
@@ -452,8 +452,8 @@ export default function TemplatesPage() {
                 const vars = [...new Set([...selected.body.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[0]))];
                 if (vars.length === 0) return null;
                 return (
-                  <div className="mt-4 rounded-2xl p-4" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}>
-                    <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.5rem' }}>Variables in this template</p>
+                  <div className="mt-4 rounded-2xl p-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.5rem' }}>Variables in this template</p>
                     <div className="flex flex-wrap gap-1.5">
                       {vars.map((v) => (
                         <span key={v} className="rounded px-2 py-0.5 font-mono" style={{ fontSize: '0.75rem', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.15)', color: '#fbbf24' }}>
@@ -469,11 +469,11 @@ export default function TemplatesPage() {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'rgba(148,163,184,0.07)', border: '1px solid rgba(148,163,184,0.1)' }}>
-                <Mail className="h-8 w-8" style={{ color: '#2d3f55' }} />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'rgba(148,163,184,0.07)', border: '1px solid var(--border)' }}>
+                <Mail className="h-8 w-8" style={{ color: 'var(--text-muted)' }} />
               </div>
-              <p style={{ fontSize: '0.875rem', color: '#4a5568' }}>Select a template to view it</p>
-              <p style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '4px' }}>or create a new one</p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Select a template to view it</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>or create a new one</p>
             </div>
           </div>
         )}

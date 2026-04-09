@@ -20,10 +20,10 @@ export default function DeadlinesPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
           Upcoming Deadlines
         </h1>
-        <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>All critical dates across every active transaction</p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>All critical dates across every active transaction</p>
       </div>
 
       {isLoading && (
@@ -45,8 +45,8 @@ export default function DeadlinesPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.15)' }}>
             <CheckCircle className="h-7 w-7" style={{ color: '#34d399' }} />
           </div>
-          <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#94a3b8' }}>No upcoming deadlines</p>
-          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>Deadlines appear here once you create transactions</p>
+          <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-secondary)' }}>No upcoming deadlines</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>Deadlines appear here once you create transactions</p>
         </div>
       )}
 
@@ -81,8 +81,8 @@ function Section({ title, icon, items, status }: { title: string; icon: React.Re
     <div>
       <div className="flex items-center gap-2 mb-3">
         {icon}
-        <h2 style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</h2>
-        <span style={{ fontSize: '0.6875rem', color: '#3d5068' }}>({items.length})</span>
+        <h2 style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title}</h2>
+        <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>({items.length})</span>
       </div>
       <div className="space-y-2">
         {items.map((d) => {
@@ -96,16 +96,16 @@ function Section({ title, icon, items, status }: { title: string; icon: React.Re
             <Link key={d.id} href={`/transactions/${d.transaction_id}`} className="block">
               <div
                 className="flex items-center justify-between rounded-xl px-5 py-4 transition-all duration-150 cursor-pointer"
-                style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)' }}
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-elevated)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface)'; }}
               >
                 <div>
-                  <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e2e8f0' }}>{d.name}</p>
-                  <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>{d.transaction_address}</p>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>{d.name}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>{d.transaction_address}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0 ml-4">
-                  <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>{formatDate(d.due_date)}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDate(d.due_date)}</span>
                   {dayLabel && (
                     <span className="rounded-full px-2.5 py-0.5" style={{
                       fontSize: '0.6875rem', fontWeight: 700,

@@ -37,14 +37,14 @@ type ParseStatus = 'idle' | 'uploading' | 'parsing' | 'done' | 'error';
 
 const cardStyle = {
   background: 'var(--bg-surface)',
-  border: '1px solid rgba(148,163,184,0.09)',
+  border: '1px solid var(--border)',
   boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
 };
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--bg-elevated)',
-  border: '1px solid rgba(148,163,184,0.09)',
-  color: '#f1f5f9',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
   outline: 'none',
   fontSize: '0.875rem',
   padding: '0.5625rem 0.875rem',
@@ -56,7 +56,7 @@ const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: '0.75rem',
   fontWeight: 600,
-  color: '#4a5568',
+  color: 'var(--text-muted)',
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
   marginBottom: '0.375rem',
@@ -181,7 +181,7 @@ export default function NewTransactionPage() {
       <Link
         href="/transactions"
         className="inline-flex items-center gap-1.5 mb-6 transition-colors"
-        style={{ fontSize: '0.875rem', color: '#3d5068' }}
+        style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#3d5068'; }}
       >
@@ -190,10 +190,10 @@ export default function NewTransactionPage() {
       </Link>
 
       <div className="mb-8">
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
           {step === 1 ? 'New Transaction' : 'Upload Contract'}
         </h1>
-        <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>
           {step === 1
             ? 'Fill in the transaction details to get started'
             : 'Optionally upload the contract PDF to automatically extract key dates and deadlines'}
@@ -223,7 +223,7 @@ export default function NewTransactionPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Property Info */}
           <div className="rounded-2xl p-6" style={cardStyle}>
-            <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '1.25rem' }}>Property Information</h2>
+            <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>Property Information</h2>
 
             <div className="space-y-4">
               <FormInput label="Property Address" required>
@@ -259,7 +259,7 @@ export default function NewTransactionPage() {
           {/* Parties */}
           <div className="rounded-2xl p-6" style={cardStyle}>
             <div className="flex items-center justify-between mb-5">
-              <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>Parties</h2>
+              <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Parties</h2>
               <button type="button" onClick={addParty} className="inline-flex items-center gap-1.5 transition-colors" style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#3b82f6' }}>
                 <Plus className="h-4 w-4" />
                 Add Party
@@ -270,9 +270,9 @@ export default function NewTransactionPage() {
               {parties.map((party, index) => (
                 <div key={index} className="rounded-xl p-4" style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid rgba(148,163,184,0.08)' }}>
                   <div className="flex items-center justify-between mb-3">
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Party {index + 1}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Party {index + 1}</span>
                     {index >= 2 && (
-                      <button type="button" onClick={() => removeParty(index)} className="transition-colors" style={{ color: '#2d3f55' }}
+                      <button type="button" onClick={() => removeParty(index)} className="transition-colors" style={{ color: 'var(--text-muted)' }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#2d3f55'; }}
                       >
@@ -332,14 +332,14 @@ export default function NewTransactionPage() {
             <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: '#34d399' }} />
             <div>
               <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#34d399' }}>Transaction created successfully!</div>
-              <div style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '2px' }}>{createdTx.address}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>{createdTx.address}</div>
             </div>
           </div>
 
           {/* Upload area */}
           <div className="rounded-2xl p-6" style={cardStyle}>
-            <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '0.5rem' }}>Upload Contract PDF</h2>
-            <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginBottom: '1.25rem' }}>
+            <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Upload Contract PDF</h2>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
               Upload the purchase agreement to automatically extract key dates, deadlines, and parties.
             </p>
 
@@ -359,14 +359,14 @@ export default function NewTransactionPage() {
               {file ? (
                 <div className="flex flex-col items-center gap-2">
                   <FileText className="h-8 w-8" style={{ color: '#34d399' }} />
-                  <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#e2e8f0' }}>{file.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#3d5068' }}>{(file.size / 1024).toFixed(1)} KB</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>{file.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(file.size / 1024).toFixed(1)} KB</div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2">
-                  <Upload className="h-8 w-8" style={{ color: '#2d3f55' }} />
-                  <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#4a5568' }}>Drop PDF here or click to browse</div>
-                  <div style={{ fontSize: '0.75rem', color: '#2d3f55' }}>PDF files only</div>
+                  <Upload className="h-8 w-8" style={{ color: 'var(--text-muted)' }} />
+                  <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>Drop PDF here or click to browse</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PDF files only</div>
                 </div>
               )}
             </div>
@@ -407,7 +407,7 @@ export default function NewTransactionPage() {
           <div className="flex justify-between">
             <button
               onClick={() => router.push(`/transactions/${createdTx.id}`)}
-              style={{ fontSize: '0.875rem', color: '#3d5068', transition: 'color 150ms' }}
+              style={{ fontSize: '0.875rem', color: 'var(--text-muted)', transition: 'color 150ms' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#3d5068'; }}
             >

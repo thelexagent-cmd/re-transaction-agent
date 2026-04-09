@@ -35,8 +35,8 @@ function WhatsAppButton({ phone, name }: { phone: string; name: string }) {
 
 const inputStyle = {
   background: 'var(--bg-elevated)',
-  border: '1px solid rgba(148,163,184,0.09)',
-  color: '#f1f5f9',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
   outline: 'none',
   fontSize: '0.875rem',
   padding: '0.625rem 0.875rem',
@@ -69,10 +69,10 @@ export default function ContactsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: '#e2e8f0' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
             Contacts
           </h1>
-          <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginTop: '4px' }}>All parties across your transactions</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '4px' }}>All parties across your transactions</p>
         </div>
         <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)' }}>
           <Users className="h-4 w-4" style={{ color: '#60a5fa' }} />
@@ -99,7 +99,7 @@ export default function ContactsPage() {
         <>
           <div className="flex flex-col md:flex-row gap-3 mb-6">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#3d5068' }} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--text-muted)' }} />
               <input
                 type="text"
                 placeholder="Search by name, email, or phone..."
@@ -132,7 +132,7 @@ export default function ContactsPage() {
                 className="rounded-2xl p-5 transition-all duration-150"
                 style={{
                   background: 'var(--bg-surface)',
-                  border: '1px solid rgba(148,163,184,0.09)',
+                  border: '1px solid var(--border)',
                   boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
                 }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)'; }}
@@ -144,7 +144,7 @@ export default function ContactsPage() {
                     {contact.full_name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="truncate" style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>{contact.full_name}</div>
+                    <div className="truncate" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{contact.full_name}</div>
                     <span className="inline-flex mt-1 items-center rounded-full px-2 py-0.5" style={{ fontSize: '0.6875rem', fontWeight: 600, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa' }}>
                       {PARTY_ROLE_LABELS[contact.role] ?? contact.role}
                     </span>
@@ -155,8 +155,8 @@ export default function ContactsPage() {
                 <div className="space-y-1.5 mb-3">
                   {contact.email && (
                     <div className="flex items-center gap-2">
-                      <Mail className="h-3.5 w-3.5 shrink-0" style={{ color: '#3d5068' }} />
-                      <a href={`mailto:${contact.email}`} className="truncate transition-colors" style={{ fontSize: '0.75rem', color: '#94a3b8' }}
+                      <Mail className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                      <a href={`mailto:${contact.email}`} className="truncate transition-colors" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
                         onMouseEnter={(e) => { (e.target as HTMLElement).style.color = '#60a5fa'; }}
                         onMouseLeave={(e) => { (e.target as HTMLElement).style.color = '#94a3b8'; }}
                       >{contact.email}</a>
@@ -164,8 +164,8 @@ export default function ContactsPage() {
                   )}
                   {contact.phone && (
                     <div className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 shrink-0" style={{ color: '#3d5068' }} />
-                      <a href={`tel:${contact.phone}`} className="transition-colors" style={{ fontSize: '0.75rem', color: '#94a3b8' }}
+                      <Phone className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                      <a href={`tel:${contact.phone}`} className="transition-colors" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
                         onMouseEnter={(e) => { (e.target as HTMLElement).style.color = '#60a5fa'; }}
                         onMouseLeave={(e) => { (e.target as HTMLElement).style.color = '#94a3b8'; }}
                       >{contact.phone}</a>
@@ -176,7 +176,7 @@ export default function ContactsPage() {
                 {/* Transactions */}
                 {contact.transaction_count > 0 && (
                   <div className="pt-3 mb-3" style={{ borderTop: '1px solid rgba(148,163,184,0.07)' }}>
-                    <p className="mb-1.5" style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <p className="mb-1.5" style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                       {contact.transaction_count} transaction{contact.transaction_count !== 1 ? 's' : ''}
                     </p>
                     <div className="space-y-1">
@@ -192,7 +192,7 @@ export default function ContactsPage() {
                         </Link>
                       ))}
                       {contact.transaction_ids.length > 3 && (
-                        <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>+{contact.transaction_ids.length - 3} more</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+{contact.transaction_ids.length - 3} more</span>
                       )}
                     </div>
                   </div>
@@ -204,7 +204,7 @@ export default function ContactsPage() {
                     <a
                       href={`mailto:${contact.email}`}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg transition-all duration-150"
-                      style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.1)', color: '#94a3b8' }}
+                      style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(59,130,246,0.3)'; (e.currentTarget as HTMLElement).style.color = '#60a5fa'; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(148,163,184,0.1)'; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}
                     >
@@ -222,10 +222,10 @@ export default function ContactsPage() {
 
           {filtered.length === 0 && !isLoading && (
             <div className="text-center py-16">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'rgba(148,163,184,0.07)', border: '1px solid rgba(148,163,184,0.1)' }}>
-                <Users className="h-7 w-7" style={{ color: '#3d5068' }} />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'rgba(148,163,184,0.07)', border: '1px solid var(--border)' }}>
+                <Users className="h-7 w-7" style={{ color: 'var(--text-muted)' }} />
               </div>
-              <p style={{ fontSize: '0.875rem', color: '#4a5568' }}>No contacts found matching your search</p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>No contacts found matching your search</p>
             </div>
           )}
         </>

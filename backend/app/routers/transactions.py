@@ -2,8 +2,12 @@
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -70,7 +74,24 @@ async def create_transaction(
 
     The transaction is immediately associated with the authenticated broker.
     An opening event is recorded in the activity log.
+
+    Raises 400 if the broker already has 500+ active transactions.
     """
+    # Soft cap: prevent runaway data accumulation
+    count_result = await db.execute(
+        select(func.count(Transaction.id)).where(
+            Transaction.user_id == current_user.id,
+            Transaction.status != "closed",
+            Transaction.status != "cancelled",
+        )
+    )
+    active_count = count_result.scalar() or 0
+    if active_count >= 500:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Transaction limit reached. Please contact support.",
+        )
+
     transaction = Transaction(
         user_id=current_user.id,
         address=body.address,
@@ -130,7 +151,9 @@ async def delete_transaction(
 
 
 @router.get("", response_model=list[TransactionListItem])
+@limiter.limit("30/minute")
 async def list_transactions(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Transaction]:
@@ -251,13 +274,11 @@ async def get_parse_status(
     if state == "SUCCESS":
         return {"task_id": task_id, "status": "complete", "result": task_result.result}
     if state == "FAILURE":
-        exc = task_result.result
-        reason = str(exc) if exc else "Unknown error during contract parsing"
+        logger.error("Contract parsing failed for task %s: %s", task_id, task_result.result)
         return {
             "task_id": task_id,
             "status": "failed",
-            "detail": "Contract parsing failed",
-            "reason": reason,
+            "detail": "Contract parsing failed. Please try again or contact support.",
         }
     # RETRY or unknown
     return {"task_id": task_id, "status": "processing"}
@@ -765,7 +786,9 @@ async def hoa_rescission_cleared(
 
 
 @router.get("/deadlines/all", response_model=list)
+@limiter.limit("20/minute")
 async def all_deadlines(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list:
@@ -796,7 +819,9 @@ async def all_deadlines(
 
 
 @router.get("/documents/all", response_model=list)
+@limiter.limit("20/minute")
 async def all_documents(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list:
@@ -820,7 +845,7 @@ async def all_documents(
             "status": doc.status,
             "responsible_party_role": doc.responsible_party_role,
             "due_date": doc.due_date.isoformat() if doc.due_date else None,
-            "collected_at": None,
+            "collected_at": doc.collected_at.isoformat() if doc.collected_at else None,
             "created_at": doc.created_at.isoformat(),
         }
         for doc, address in result.all()
@@ -831,7 +856,9 @@ async def all_documents(
 
 
 @router.get("/events/recent", response_model=RecentEventsResponse)
+@limiter.limit("30/minute")
 async def recent_events(
+    request: Request,
     limit: int = 15,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

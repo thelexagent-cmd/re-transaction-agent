@@ -68,8 +68,8 @@ function ResetPasswordForm() {
   const fieldStyle = {
     padding: '0.625rem 0.875rem',
     background: 'var(--bg-elevated)',
-    border: '1px solid rgba(148,163,184,0.09)',
-    color: '#f1f5f9',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)',
     outline: 'none',
   };
 
@@ -91,10 +91,10 @@ function ResetPasswordForm() {
           }}>
             <Building2 className="h-7 w-7 text-white" />
           </div>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 600, letterSpacing: '0.1em', color: '#f1f5f9' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 600, letterSpacing: '0.1em', color: 'var(--text-primary)' }}>
             LEX
           </h1>
-          <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Transaction Agent
           </p>
         </div>
@@ -102,10 +102,10 @@ function ResetPasswordForm() {
         {/* Card */}
         <div className="rounded-2xl p-8" style={{
           background: 'var(--bg-surface)',
-          border: '1px solid rgba(148,163,184,0.09)',
+          border: '1px solid var(--border)',
           boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
         }}>
-          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.05em', color: '#e2e8f0', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 600, letterSpacing: '0.05em', color: 'var(--text-primary)', marginBottom: '1.5rem' }}>
             Set New Password
           </h2>
 
@@ -127,7 +127,7 @@ function ResetPasswordForm() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="new-password" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
+                <label htmlFor="new-password" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
                   New Password
                 </label>
                 <input
@@ -146,7 +146,7 @@ function ResetPasswordForm() {
               </div>
 
               <div>
-                <label htmlFor="confirm-password" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
+                <label htmlFor="confirm-password" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
                   Confirm Password
                 </label>
                 <input

@@ -10,6 +10,7 @@ class RegisterRequest(BaseModel):
     password: str
     full_name: str
     brokerage_name: str | None = None
+    turnstile_token: str | None = None  # Cloudflare Turnstile CAPTCHA
 
     @field_validator("password")
     @classmethod
@@ -40,6 +41,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    turnstile_token: str | None = None  # Cloudflare Turnstile CAPTCHA
 
 
 class TokenResponse(BaseModel):

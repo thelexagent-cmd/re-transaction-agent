@@ -32,8 +32,8 @@ function UrgentRow({ tx }: { tx: TransactionListItem }) {
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
       >
         <div className="min-w-0 flex-1">
-          <p className="truncate" style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#e2e8f0' }}>{tx.address}</p>
-          <p style={{ fontSize: '0.6875rem', color: '#3d5068', marginTop: '1px' }}>{formatCurrency(tx.purchase_price ?? null)}</p>
+          <p className="truncate" style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-primary)' }}>{tx.address}</p>
+          <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '1px' }}>{formatCurrency(tx.purchase_price ?? null)}</p>
         </div>
         <span className="shrink-0 rounded-full px-2.5 py-0.5" style={{
           fontSize: '0.6875rem',
@@ -59,14 +59,14 @@ export function UrgentPanel({ transactions, isLoading }: UrgentPanelProps) {
   return (
     <div className="rounded-2xl p-5 h-full" style={{
       background: 'var(--bg-surface)',
-      border: '1px solid rgba(148,163,184,0.09)',
+      border: '1px solid var(--border)',
       boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
     }}>
       <div className="flex items-center gap-2.5 mb-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.15)' }}>
           <AlertTriangle className="h-4 w-4" style={{ color: '#f87171' }} />
         </div>
-        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.05em', color: '#e2e8f0' }}>
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
           Needs Attention
         </h2>
         {urgent.length > 0 && (
@@ -88,8 +88,8 @@ export function UrgentPanel({ transactions, isLoading }: UrgentPanelProps) {
           <div className="flex h-10 w-10 items-center justify-center rounded-full mb-3" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.15)' }}>
             <CheckCircle className="h-5 w-5" style={{ color: '#34d399' }} />
           </div>
-          <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#94a3b8' }}>All clear</p>
-          <p style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '2px' }}>No closings in the next 7 days</p>
+          <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>All clear</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>No closings in the next 7 days</p>
         </div>
       ) : (
         <div style={{ borderTop: '1px solid rgba(148,163,184,0.07)' }}>

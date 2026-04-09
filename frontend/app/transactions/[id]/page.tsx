@@ -86,15 +86,15 @@ type Tab = typeof TABS[number];
 
 const cardStyle = {
   background: 'var(--bg-surface)',
-  border: '1px solid rgba(148,163,184,0.09)',
+  border: '1px solid var(--border)',
   boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
 };
 
 const inputStyle = {
   padding: '0.625rem 0.875rem',
   background: 'var(--bg-elevated)',
-  border: '1px solid rgba(148,163,184,0.09)',
-  color: '#f1f5f9',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
   outline: 'none',
   width: '100%',
 };
@@ -103,7 +103,7 @@ const labelStyle = {
   display: 'block',
   fontSize: '0.75rem',
   fontWeight: 600,
-  color: '#4a5568',
+  color: 'var(--text-muted)',
   letterSpacing: '0.06em',
   textTransform: 'uppercase' as const,
   marginBottom: '0.375rem',
@@ -211,7 +211,7 @@ function TransactionProgressBar({ docs }: { docs: DocumentListResponse | undefin
 
   return (
     <div className="rounded-2xl p-6 mb-6 print-block" style={cardStyle}>
-      <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.75rem', fontWeight: 600, color: '#3d5068', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
+      <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
         Transaction Progress
       </h3>
       <div className="relative">
@@ -332,7 +332,7 @@ function QuickNotes({ txId, txData }: { txId: number; txData: TransactionDetail 
               placeholder="Jot down notes..."
               style={{ width: '100%', fontSize: '0.75rem', background: 'transparent', border: 'none', resize: 'none', outline: 'none', color: '#cbd5e1' }}
             />
-            <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginTop: '0.25rem' }}>
+            <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
               {saveStatus === 'saving' && 'Saving...'}
               {saveStatus === 'saved' && <span style={{ color: '#34d399' }}>Saved</span>}
               {saveStatus === 'error' && <span style={{ color: '#f87171' }}>Save failed — will retry</span>}
@@ -407,8 +407,8 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
     } finally { setGeneratingLenderLink(false); }
   }
 
-  const sectionHeadStyle = { fontFamily: 'var(--font-heading)', fontSize: '0.8125rem', fontWeight: 600, color: '#e2e8f0', letterSpacing: '0.06em', marginBottom: '1rem' };
-  const metaLabel = { fontSize: '0.6875rem', fontWeight: 600, color: '#3d5068', letterSpacing: '0.07em', textTransform: 'uppercase' as const, marginBottom: '0.25rem' };
+  const sectionHeadStyle = { fontFamily: 'var(--font-heading)', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.06em', marginBottom: '1rem' };
+  const metaLabel = { fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.07em', textTransform: 'uppercase' as const, marginBottom: '0.25rem' };
   const metaValue = { fontSize: '0.875rem', color: '#cbd5e1' };
 
   return (
@@ -457,8 +457,8 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
                   return '#fbbf24';
                 })(),
               },
-              { label: 'Transaction created', value: formatDate(tx.created_at), color: '#94a3b8' },
-              { label: 'Last updated', value: formatDateTime(tx.updated_at), color: '#94a3b8' },
+              { label: 'Transaction created', value: formatDate(tx.created_at), color: 'var(--text-secondary)' },
+              { label: 'Last updated', value: formatDateTime(tx.updated_at), color: 'var(--text-secondary)' },
             ].map(({ label, value, color }, i, arr) => (
               <div key={label} className="flex items-center justify-between py-3" style={{ borderBottom: i < arr.length - 1 ? '1px solid rgba(148,163,184,0.07)' : 'none' }}>
                 <span style={{ fontSize: '0.875rem', color: '#64748b' }}>{label}</span>
@@ -475,11 +475,11 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
           <h3 style={sectionHeadStyle}>Parties</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {tx.parties.map((party) => (
-              <div key={party.id} className="rounded-xl p-4" style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid rgba(148,163,184,0.07)' }}>
+              <div key={party.id} className="rounded-xl p-4" style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.25rem' }}>
                   {PARTY_ROLE_LABELS[party.role] ?? party.role}
                 </div>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>{party.full_name}</div>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{party.full_name}</div>
                 {party.email && <div style={{ fontSize: '0.8125rem', color: '#64748b' }}>{party.email}</div>}
                 {party.phone && (
                   <div className="flex items-center gap-2 mt-1">
@@ -488,12 +488,12 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
                   </div>
                 )}
                 <div className="mt-3 flex items-center gap-2 no-print">
-                  <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: '#3d5068' }} />
+                  <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--text-muted)' }} />
                   <select
                     value={getPartyField(party, 'preferred_language') as string}
                     onChange={(e) => handlePartyUpdate(party.id, 'preferred_language', e.target.value)}
                     disabled={savingParty === party.id}
-                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.375rem', borderRadius: '0.375rem', background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.12)', color: '#94a3b8', outline: 'none' }}
+                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.375rem', borderRadius: '0.375rem', background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.12)', color: 'var(--text-secondary)', outline: 'none' }}
                   >
                     <option value="en">English</option>
                     <option value="es">Spanish</option>
@@ -502,7 +502,7 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
                 </div>
                 {party.role === 'seller' && (
                   <div className="mt-2 flex items-center gap-2 no-print">
-                    <Shield className="h-3.5 w-3.5 shrink-0" style={{ color: '#3d5068' }} />
+                    <Shield className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--text-muted)' }} />
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
                         type="checkbox"
@@ -540,7 +540,7 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
             {generatingLink ? 'Generating...' : 'Generate Portal Link'}
           </button>
         </div>
-        <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginBottom: '0.75rem' }}>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
           Share a magic link with buyers or sellers so they can view transaction status without logging in. Links expire after 30 days.
         </p>
         {portalError && (
@@ -553,11 +553,11 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
             <input
               readOnly value={portalLink}
               onFocus={(e) => e.target.select()}
-              style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.09)', color: '#94a3b8', outline: 'none' }}
+              style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', outline: 'none' }}
             />
             <button
               onClick={() => navigator.clipboard.writeText(portalLink)}
-              style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+              style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
             >
               Copy
             </button>
@@ -568,7 +568,7 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
       {/* Lender Portal */}
       <div className="rounded-2xl p-6 no-print" style={cardStyle}>
         <h3 style={{ ...sectionHeadStyle, marginBottom: '0.5rem' }}>Lender Portal</h3>
-        <p style={{ fontSize: '0.8125rem', color: '#3d5068', marginBottom: '0.75rem' }}>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
           Share a link with the loan officer so they can view transaction details and required documents. Links expire after 30 days.
         </p>
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -607,11 +607,11 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
             <input
               readOnly value={lenderPortalLink}
               onFocus={(e) => e.target.select()}
-              style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.09)', color: '#94a3b8', outline: 'none' }}
+              style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', outline: 'none' }}
             />
             <button
               onClick={() => navigator.clipboard.writeText(lenderPortalLink)}
-              style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+              style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
             >
               Copy
             </button>
@@ -646,10 +646,10 @@ function CommissionTab({ tx }: { tx: TransactionDetail }) {
       <div className="rounded-2xl p-6" style={cardStyle}>
         <div className="flex items-center gap-3 mb-5">
           <DollarSign className="h-5 w-5" style={{ color: '#60a5fa' }} />
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', letterSpacing: '0.05em' }}>
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
             Commission Calculator
           </h3>
-          <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>for {tx.address}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>for {tx.address}</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -659,11 +659,11 @@ function CommissionTab({ tx }: { tx: TransactionDetail }) {
             { label: 'Your Agent Split', val: agentSplitPct, set: setAgentSplitPct, step: '5', max: '100' },
           ].map(({ label, val, set, step, max }) => (
             <div key={label}>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>{label}</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>{label}</label>
               <div className="relative">
                 <input type="number" step={step} min="0" max={max} value={val} onChange={(e) => set(e.target.value)}
                   className="rounded-lg text-sm" style={numInputStyle} onFocus={focusInput} onBlur={blurInput} />
-                <span style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#3d5068', fontSize: '0.875rem' }}>%</span>
+                <span style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.875rem' }}>%</span>
               </div>
             </div>
           ))}
@@ -674,7 +674,7 @@ function CommissionTab({ tx }: { tx: TransactionDetail }) {
             No sale price set on this transaction. Add a purchase price to calculate commission.
           </div>
         ) : (
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(148,163,184,0.09)' }}>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
             {[
               { label: 'Sale Price', value: formatCurrency(salePrice) },
               { label: `Gross Commission (${cp}%)`, value: formatCurrency(gross) },
@@ -684,7 +684,7 @@ function CommissionTab({ tx }: { tx: TransactionDetail }) {
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(148,163,184,0.06)' }}>
                 <span style={{ fontSize: '0.875rem', color: '#64748b' }}>{label}</span>
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#94a3b8' }}>{value}</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{value}</span>
               </div>
             ))}
             <div className="flex items-center justify-between px-5 py-4" style={{ background: 'rgba(59,130,246,0.07)' }}>
@@ -697,12 +697,12 @@ function CommissionTab({ tx }: { tx: TransactionDetail }) {
         {salePrice > 0 && (
           <div className="mt-4 grid grid-cols-3 gap-4">
             {[
-              { label: 'Gross Commission', value: formatCurrency(gross), color: '#94a3b8' },
+              { label: 'Gross Commission', value: formatCurrency(gross), color: 'var(--text-secondary)' },
               { label: 'Your Agent Net', value: formatCurrency(agentNet), color: '#34d399' },
               { label: 'Effective Rate', value: `${((agentNet / salePrice) * 100).toFixed(2)}%`, color: '#60a5fa' },
             ].map(({ label, value, color }) => (
-              <div key={label} className="rounded-lg p-4 text-center" style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid rgba(148,163,184,0.07)' }}>
-                <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
+              <div key={label} className="rounded-lg p-4 text-center" style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
                 <div style={{ fontSize: '1.125rem', fontWeight: 700, color }}>{value}</div>
               </div>
             ))}
@@ -732,7 +732,7 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
       <div className="rounded-2xl p-6" style={cardStyle}>
         <div className="flex items-center gap-3 mb-4">
           <Shield className="h-5 w-5" style={{ color: '#60a5fa' }} />
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', letterSpacing: '0.05em' }}>
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
             FIRPTA Compliance Analysis
           </h3>
         </div>
@@ -745,12 +745,12 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
               onChange={(e) => { setBuyerPrimary(e.target.checked); mutate(); }}
               style={{ accentColor: '#3b82f6' }}
             />
-            <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Buyer intends primary residence</span>
+            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Buyer intends primary residence</span>
           </label>
         </div>
 
         {!hasForeignSeller && (
-          <div className="rounded-lg px-3 py-2 mb-4" style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.09)', fontSize: '0.8125rem', color: '#64748b' }}>
+          <div className="rounded-lg px-3 py-2 mb-4" style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid var(--border)', fontSize: '0.8125rem', color: '#64748b' }}>
             No sellers are marked as foreign nationals. To trigger FIRPTA analysis, mark a seller as a foreign national in the Overview tab.
           </div>
         )}
@@ -775,10 +775,10 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
                 {[
                   { label: 'Withholding Rate', value: `${(data.withholding_rate * 100).toFixed(0)}%`, color: '#f87171' },
                   { label: 'Withholding Amount', value: `$${data.withholding_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: '#f87171' },
-                  { label: 'Gross Sales Price', value: `$${data.gross_sales_price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: '#94a3b8' },
+                  { label: 'Gross Sales Price', value: `$${data.gross_sales_price.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: 'var(--text-secondary)' },
                 ].map(({ label, value, color }) => (
-                  <div key={label} className="rounded-lg p-4 text-center" style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid rgba(148,163,184,0.07)' }}>
-                    <div style={{ fontSize: '0.6875rem', color: '#3d5068', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.375rem' }}>{label}</div>
+                  <div key={label} className="rounded-lg p-4 text-center" style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.375rem' }}>{label}</div>
                     <div style={{ fontSize: '1.5rem', fontWeight: 700, color }}>{value}</div>
                   </div>
                 ))}
@@ -787,7 +787,7 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
 
             {data.notes.length > 0 && (
               <div>
-                <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.5rem' }}>Analysis Notes</h4>
+                <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Analysis Notes</h4>
                 <ul className="space-y-1">
                   {data.notes.map((note, i) => (
                     <li key={i} className="flex gap-2" style={{ fontSize: '0.875rem', color: '#64748b' }}>
@@ -801,14 +801,14 @@ function FirptaTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
 
             {data.action_items.length > 0 && (
               <div>
-                <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.5rem' }}>Required Action Items</h4>
+                <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Required Action Items</h4>
                 <ul className="space-y-2">
                   {data.action_items.map((item, i) => (
                     <li key={i} className="flex gap-2" style={{ fontSize: '0.875rem' }}>
                       <span style={{ display: 'flex', height: '1.25rem', width: '1.25rem', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: 'rgba(251,191,36,0.12)', color: '#fbbf24', fontSize: '0.6875rem', fontWeight: 700, marginTop: '0.125rem' }}>
                         {i + 1}
                       </span>
-                      <span style={{ color: '#94a3b8' }}>{item}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -854,7 +854,7 @@ function ESignButton({ docId }: { docId: number }) {
           <Link2 className="h-3.5 w-3.5" />
           E-Sign link
         </a>
-        <button onClick={handleChangeLink} style={{ fontSize: '0.75rem', color: '#3d5068', background: 'none', border: 'none', cursor: 'pointer' }}>
+        <button onClick={handleChangeLink} style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
           Change
         </button>
       </div>
@@ -868,14 +868,14 @@ function ESignButton({ docId }: { docId: number }) {
           type="url" value={inputValue} onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           placeholder="Paste signing link" autoFocus
-          style={{ width: '12rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderRadius: '0.375rem', background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.12)', color: '#f1f5f9', outline: 'none' }}
+          style={{ width: '12rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderRadius: '0.375rem', background: 'var(--bg-elevated)', border: '1px solid rgba(148,163,184,0.12)', color: 'var(--text-primary)', outline: 'none' }}
         />
         <button onClick={handleSave} disabled={!inputValue.trim()}
           style={{ padding: '0.25rem 0.625rem', borderRadius: '0.375rem', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontSize: '0.75rem', fontWeight: 600, border: 'none', cursor: 'pointer', opacity: !inputValue.trim() ? 0.4 : 1 }}>
           Save
         </button>
         <button onClick={() => { setShowForm(false); setInputValue(''); }}
-          style={{ fontSize: '0.75rem', color: '#3d5068', background: 'none', border: 'none', cursor: 'pointer' }}>
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
           Cancel
         </button>
       </div>
@@ -935,14 +935,14 @@ function DocumentsTab({ txId }: { txId: number }) {
       {summary && (
         <div className="grid grid-cols-4 gap-4">
           {[
-            { label: 'Total', value: summary.total, color: '#94a3b8' },
+            { label: 'Total', value: summary.total, color: 'var(--text-secondary)' },
             { label: 'Collected', value: summary.collected, color: '#34d399' },
             { label: 'Pending', value: summary.pending, color: '#64748b' },
             { label: 'Overdue', value: summary.overdue, color: '#f87171' },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-2xl p-4 text-center" style={cardStyle}>
               <div style={{ fontSize: '1.75rem', fontWeight: 700, color }}>{value}</div>
-              <div style={{ fontSize: '0.6875rem', color: '#3d5068', marginTop: '0.125rem', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.125rem', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
             </div>
           ))}
         </div>
@@ -969,7 +969,7 @@ function DocumentsTab({ txId }: { txId: number }) {
                     ) : doc.status === 'overdue' ? (
                       <div style={{ height: '1.25rem', width: '1.25rem', borderRadius: '50%', border: '2px solid #f87171' }} />
                     ) : (
-                      <Circle className="h-5 w-5" style={{ color: '#2d3f55' }} />
+                      <Circle className="h-5 w-5" style={{ color: 'var(--text-muted)' }} />
                     )}
                   </button>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -977,9 +977,9 @@ function DocumentsTab({ txId }: { txId: number }) {
                       {doc.name}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                      {doc.responsible_party_role && <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>{doc.responsible_party_role}</span>}
-                      {doc.due_date && <span style={{ fontSize: '0.75rem', color: '#2d3f55' }}>Due {formatDate(doc.due_date)}</span>}
-                      {doc.last_followup_at && <span style={{ fontSize: '0.75rem', color: '#2d3f55' }}>Last follow-up {formatDate(doc.last_followup_at)}</span>}
+                      {doc.responsible_party_role && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{doc.responsible_party_role}</span>}
+                      {doc.due_date && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Due {formatDate(doc.due_date)}</span>}
+                      {doc.last_followup_at && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Last follow-up {formatDate(doc.last_followup_at)}</span>}
                     </div>
                   </div>
                   {(doc.status === 'pending' || doc.status === 'overdue') && <ESignButton docId={doc.id} />}
@@ -1022,11 +1022,11 @@ function TimelineTab({ txId }: { txId: number }) {
 
   return (
     <div className="rounded-2xl p-6" style={cardStyle}>
-      <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', letterSpacing: '0.05em', marginBottom: '1.5rem' }}>
+      <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.05em', marginBottom: '1.5rem' }}>
         Transaction Timeline
       </h3>
       {deadlines.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '2rem 0', fontSize: '0.875rem', color: '#3d5068' }}>No deadlines found</div>
+        <div style={{ textAlign: 'center', padding: '2rem 0', fontSize: '0.875rem', color: 'var(--text-muted)' }}>No deadlines found</div>
       ) : (
         <div className="relative">
           <div style={{ position: 'absolute', left: '20px', top: 0, bottom: 0, width: '1px', background: 'linear-gradient(to bottom, rgba(59,130,246,0.3), rgba(148,163,184,0.1))', zIndex: 0 }} />
@@ -1046,11 +1046,11 @@ function TimelineTab({ txId }: { txId: number }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0, paddingTop: '0.25rem' }}>
                     <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>{deadline.name}</span>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{deadline.name}</span>
                       <DeadlineStatusBadge status={deadline.status} />
                     </div>
                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                      <span style={{ fontSize: '0.75rem', color: '#3d5068', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         <CalendarIcon className="h-3 w-3" />
                         {formatDate(deadline.due_date)}
                       </span>
@@ -1090,7 +1090,7 @@ function ActivityTab({ events }: { events: EventResponse[] }) {
   return (
     <div className="rounded-2xl p-6" style={cardStyle}>
       {sorted.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '2rem 0', fontSize: '0.875rem', color: '#3d5068' }}>No activity yet</div>
+        <div style={{ textAlign: 'center', padding: '2rem 0', fontSize: '0.875rem', color: 'var(--text-muted)' }}>No activity yet</div>
       ) : (
         <div>
           {sorted.map((event, i) => (
@@ -1100,7 +1100,7 @@ function ActivityTab({ events }: { events: EventResponse[] }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.875rem', color: '#cbd5e1' }}>{event.description}</div>
-                <div style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '0.125rem' }}>{formatDateTime(event.created_at)}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{formatDateTime(event.created_at)}</div>
               </div>
             </div>
           ))}
@@ -1140,8 +1140,8 @@ function AlertsTab({ txId }: { txId: number }) {
       {active.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '2rem 0' }}>
           <CheckCircle2 className="h-8 w-8 mx-auto mb-2" style={{ color: '#34d399' }} />
-          <div style={{ fontSize: '0.875rem', color: '#94a3b8', fontWeight: 600 }}>No active alerts</div>
-          <div style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '0.25rem' }}>All clear — no issues to address</div>
+          <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 600 }}>No active alerts</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>All clear — no issues to address</div>
         </div>
       ) : (
         <div>
@@ -1152,7 +1152,7 @@ function AlertsTab({ txId }: { txId: number }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.875rem', color: '#cbd5e1' }}>{alert.description}</div>
-                <div style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '0.125rem' }}>{formatDateTime(alert.created_at)}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{formatDateTime(alert.created_at)}</div>
               </div>
               <button
                 onClick={() => handleDismiss(alert.id)}
@@ -1231,7 +1231,7 @@ function ComplianceTab({ txId }: { txId: number }) {
     <div className="space-y-5">
       <div className="rounded-2xl p-6" style={cardStyle}>
         <div className="flex items-center justify-between mb-3">
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', letterSpacing: '0.05em' }}>Compliance Score</h3>
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>Compliance Score</h3>
           <span style={{ fontSize: '0.875rem', fontWeight: 700, color: barColor }}>
             {completedCount}/{totalCount} — {pct}%
           </span>
@@ -1246,8 +1246,8 @@ function ComplianceTab({ txId }: { txId: number }) {
         return (
           <div key={sectionTitle} className="rounded-2xl overflow-hidden" style={cardStyle}>
             <div className="flex items-center justify-between px-5 py-3" style={{ background: 'rgba(148,163,184,0.04)', borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#94a3b8' }}>{sectionTitle}</span>
-              <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>{sectionComplete}/{sectionItems.length}</span>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{sectionTitle}</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{sectionComplete}/{sectionItems.length}</span>
             </div>
             <div>
               {sectionItems.map((item, i) => (
@@ -1313,17 +1313,17 @@ function EmdTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
       <div className="rounded-2xl p-6" style={cardStyle}>
         <div className="flex items-center gap-3 mb-5">
           <DollarSign className="h-5 w-5" style={{ color: '#60a5fa' }} />
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', letterSpacing: '0.05em' }}>
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>
             Earnest Money Deposit
           </h3>
-          <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>for {tx.address}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>for {tx.address}</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           <div>
             <label style={labelStyle}>EMD Amount</label>
             <div className="relative">
-              <span style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#3d5068', fontSize: '0.875rem' }}>$</span>
+              <span style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.875rem' }}>$</span>
               <input type="number" step="100" min="0" value={emdAmount} onChange={(e) => setEmdAmount(e.target.value)} placeholder="0"
                 className="rounded-lg text-sm" style={{ ...inputStyle, paddingLeft: '1.75rem' }} onFocus={focusInput} onBlur={blurInput} />
             </div>
@@ -1341,7 +1341,7 @@ function EmdTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
           <div className="flex items-end pb-1">
             <label className="flex items-center gap-2.5 cursor-pointer">
               <input type="checkbox" checked={emdReceived} onChange={(e) => setEmdReceived(e.target.checked)} style={{ accentColor: '#3b82f6' }} />
-              <span style={{ fontSize: '0.875rem', color: '#94a3b8', fontWeight: 600 }}>Received</span>
+              <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Received</span>
               {emdReceived && <CheckCircle2 className="h-4 w-4" style={{ color: '#34d399' }} />}
             </label>
           </div>
@@ -1372,7 +1372,7 @@ function EmdTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
       {emdAmount && parseFloat(emdAmount) > 0 && (
         <div className="rounded-2xl overflow-hidden" style={cardStyle}>
           <div style={{ padding: '0.625rem 1.25rem', background: 'rgba(148,163,184,0.04)', borderBottom: '1px solid rgba(148,163,184,0.07)' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#94a3b8' }}>EMD Summary</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>EMD Summary</span>
           </div>
           <div>
             {[
@@ -1382,7 +1382,7 @@ function EmdTab({ tx, txId }: { tx: TransactionDetail; txId: number }) {
             ].filter(Boolean).map((row, i, arr) => (
               <div key={row!.label} className="flex items-center justify-between px-5 py-3" style={{ borderBottom: i < arr.length - 1 ? '1px solid rgba(148,163,184,0.06)' : 'none' }}>
                 <span style={{ fontSize: '0.875rem', color: '#64748b' }}>{row!.label}</span>
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#94a3b8' }}>{row!.value}</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{row!.value}</span>
               </div>
             ))}
             <div className="flex items-center justify-between px-5 py-3">
@@ -1469,9 +1469,9 @@ function InspectionTab({ txId }: { txId: number }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <AlertCircle className="h-5 w-5" style={{ color: '#60a5fa' }} />
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', letterSpacing: '0.05em' }}>Inspection Findings</h3>
+          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>Inspection Findings</h3>
           {items && items.length > 0 && (
-            <span style={{ fontSize: '0.75rem', color: '#3d5068' }}>{items.length} item{items.length !== 1 ? 's' : ''} — Total est. cost: {formatCurrency(totalCost)}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{items.length} item{items.length !== 1 ? 's' : ''} — Total est. cost: {formatCurrency(totalCost)}</span>
           )}
         </div>
         <button
@@ -1485,7 +1485,7 @@ function InspectionTab({ txId }: { txId: number }) {
 
       {showForm && (
         <div className="rounded-2xl p-5" style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.15)' }}>
-          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.875rem' }}>
+          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.875rem' }}>
             {editingItem ? 'Edit Inspection Item' : 'New Inspection Item'}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1517,7 +1517,7 @@ function InspectionTab({ txId }: { txId: number }) {
             <div>
               <label style={labelStyle}>Estimated Repair Cost</label>
               <div className="relative">
-                <span style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: '#3d5068', fontSize: '0.875rem' }}>$</span>
+                <span style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '0.875rem' }}>$</span>
                 <input type="number" step="50" min="0" value={form.repair_cost} onChange={(e) => setForm({ ...form, repair_cost: e.target.value })} placeholder="0"
                   className="rounded-lg text-sm" style={{ ...inputStyle, paddingLeft: '1.75rem' }} onFocus={focusInput} onBlur={blurInput} />
               </div>
@@ -1543,13 +1543,13 @@ function InspectionTab({ txId }: { txId: number }) {
 
       {(!items || items.length === 0) && !showForm ? (
         <div className="rounded-2xl p-8 text-center" style={cardStyle}>
-          <AlertCircle className="h-8 w-8 mx-auto mb-2" style={{ color: '#2d3f55' }} />
-          <p style={{ fontSize: '0.875rem', color: '#3d5068' }}>No inspection findings yet</p>
-          <p style={{ fontSize: '0.75rem', color: '#2d3f55', marginTop: '0.25rem' }}>Add items to track inspection findings and repairs</p>
+          <AlertCircle className="h-8 w-8 mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>No inspection findings yet</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Add items to track inspection findings and repairs</p>
         </div>
       ) : items && items.length > 0 && (
         <div className="rounded-2xl overflow-hidden" style={cardStyle}>
-          <div className="hidden md:grid md:grid-cols-12 gap-3 px-5 py-2.5" style={{ background: 'rgba(148,163,184,0.04)', borderBottom: '1px solid rgba(148,163,184,0.07)', fontSize: '0.6875rem', fontWeight: 600, color: '#3d5068', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+          <div className="hidden md:grid md:grid-cols-12 gap-3 px-5 py-2.5" style={{ background: 'rgba(148,163,184,0.04)', borderBottom: '1px solid rgba(148,163,184,0.07)', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
             <div className="col-span-4">Description</div>
             <div className="col-span-2">Severity</div>
             <div className="col-span-2">Status</div>
@@ -1566,7 +1566,7 @@ function InspectionTab({ txId }: { txId: number }) {
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <div className="col-span-4">
                     <div style={{ fontSize: '0.875rem', color: '#cbd5e1' }}>{item.description}</div>
-                    {item.notes && <div style={{ fontSize: '0.75rem', color: '#3d5068', marginTop: '0.125rem' }}>{item.notes}</div>}
+                    {item.notes && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{item.notes}</div>}
                   </div>
                   <div className="col-span-2">
                     <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0.2rem 0.5rem', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600, background: sev.bg, border: `1px solid ${sev.border}`, color: sev.color }}>
@@ -1578,7 +1578,7 @@ function InspectionTab({ txId }: { txId: number }) {
                       {item.status}
                     </span>
                   </div>
-                  <div className="col-span-2" style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                  <div className="col-span-2" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                     {item.repair_cost != null ? formatCurrency(item.repair_cost) : '—'}
                   </div>
                   <div className="col-span-2 flex gap-3">
@@ -1646,7 +1646,7 @@ export default function TransactionDetailPage({
   if (error || !tx) {
     return (
       <div className="p-8">
-        <Link href="/transactions" className="inline-flex items-center gap-1.5 mb-6" style={{ fontSize: '0.875rem', color: '#3d5068', textDecoration: 'none' }}>
+        <Link href="/transactions" className="inline-flex items-center gap-1.5 mb-6" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
           <ChevronLeft className="h-4 w-4" />
           Back to Transactions
         </Link>
@@ -1669,13 +1669,13 @@ export default function TransactionDetailPage({
       <div className="p-6 md:p-8">
         {/* Breadcrumbs */}
         <nav className="flex items-center gap-1.5 mb-4 no-print">
-          <Link href="/transactions" style={{ fontSize: '0.8125rem', color: '#3d5068', textDecoration: 'none' }}
+          <Link href="/transactions" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textDecoration: 'none' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = '#60a5fa')}
             onMouseLeave={(e) => (e.currentTarget.style.color = '#3d5068')}>
             Dashboard
           </Link>
-          <ChevronRight className="h-3.5 w-3.5" style={{ color: '#2d3f55' }} />
-          <span style={{ fontSize: '0.8125rem', color: '#94a3b8', fontWeight: 500 }} className="truncate max-w-xs">{tx.address}</span>
+          <ChevronRight className="h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
+          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 500 }} className="truncate max-w-xs">{tx.address}</span>
         </nav>
 
         {/* Export PDF */}
@@ -1692,13 +1692,13 @@ export default function TransactionDetailPage({
         {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, color: '#f1f5f9', letterSpacing: '0.04em' }}>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
               {tx.address}
             </h1>
             <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <span style={{ fontSize: '0.875rem', color: '#3d5068' }}>{PROPERTY_TYPE_LABELS[tx.property_type] ?? tx.property_type}</span>
+              <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{PROPERTY_TYPE_LABELS[tx.property_type] ?? tx.property_type}</span>
               {tx.closing_date && (
-                <span style={{ fontSize: '0.875rem', color: '#3d5068' }}>Closes {formatDate(tx.closing_date)}</span>
+                <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Closes {formatDate(tx.closing_date)}</span>
               )}
             </div>
           </div>
@@ -1719,13 +1719,13 @@ export default function TransactionDetailPage({
         {/* Delete confirmation modal */}
         {showDeleteConfirm && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
-            <div className="rounded-2xl p-6 w-full max-w-sm mx-4" style={{ background: 'var(--bg-surface)', border: '1px solid rgba(148,163,184,0.09)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)' }}>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', fontWeight: 600, color: '#f1f5f9', marginBottom: '0.5rem', letterSpacing: '0.04em' }}>
+            <div className="rounded-2xl p-6 w-full max-w-sm mx-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)' }}>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem', letterSpacing: '0.04em' }}>
                 Delete transaction?
               </h3>
               <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.5rem' }}>
                 This will permanently delete{' '}
-                <span style={{ fontWeight: 600, color: '#94a3b8' }}>{tx.address}</span>{' '}
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{tx.address}</span>{' '}
                 and all its documents, deadlines, and activity. This cannot be undone.
               </p>
               <div className="flex gap-3">
