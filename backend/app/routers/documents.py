@@ -153,7 +153,7 @@ async def upload_document(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Document:
+) -> DocumentUploadResponse:
     """Upload a document file for a transaction.
 
     Stores the file in S3/R2 (or local filesystem in dev) and creates a
@@ -230,7 +230,11 @@ async def upload_document(
     await db.commit()
     await db.refresh(doc)
     await fire_document_trigger(transaction_id, name, db, doc_type=classification["doc_type"])
-    return doc
+
+    # Build response with doc_type from classification (not persisted on the model)
+    response = DocumentUploadResponse.model_validate(doc)
+    response.doc_type = classification["doc_type"]
+    return response
 
 
 @router.patch(

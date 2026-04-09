@@ -25,9 +25,7 @@ from app.services.email_service import EmailService
 logger = logging.getLogger(__name__)
 
 # Map transaction status string → template name to send on status change.
-# Only "active" and "closed" are real DB enum values. Pipeline stage strings
-# (under_contract, inspection, etc.) are passed as freeform status updates
-# by the frontend and stored as-is if the column allows it.
+# Keys must match TransactionStatus enum values in models/transaction.py.
 STATUS_TRIGGERS: dict[str, str] = {
     "under_contract": "Under Contract Congratulations",
     "inspection":     "Inspection Reminder",

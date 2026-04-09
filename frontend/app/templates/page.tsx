@@ -377,6 +377,7 @@ export default function TemplatesPage() {
                   onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
                   onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
                 />
+                <p style={{ textAlign: 'right', fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>{editing.body.length.toLocaleString()} / 50,000</p>
               </div>
               {/* Variable chips */}
               <div className="rounded-xl p-4" style={{ background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.15)' }}>

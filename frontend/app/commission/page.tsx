@@ -375,6 +375,7 @@ function DisbursementTracker({
 }) {
   const [disbursements, setDisbursements] = useState<Record<number, DisbursementData>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [saveMsg, setSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const txWithPrice = useMemo(() => transactions.filter((t) => t.purchase_price), [transactions]);
 
   useEffect(() => {
@@ -387,9 +388,12 @@ function DisbursementTracker({
     setDisbursements((prev) => {
       const current = prev[txId] ?? { status: 'Pending' as DisbursementStatus, dateDisbursed: '', notes: '' };
       const updated = { ...current, ...updates };
-      saveDisbursementToApi(txId, updated).catch((err) => {
-        console.error('Failed to save commission disbursement:', err);
-      });
+      saveDisbursementToApi(txId, updated)
+        .then(() => { setSaveMsg({ type: 'success', text: 'Saved' }); setTimeout(() => setSaveMsg(null), 2000); })
+        .catch((err) => {
+          console.error('Failed to save commission disbursement:', err);
+          setSaveMsg({ type: 'error', text: 'Save failed' }); setTimeout(() => setSaveMsg(null), 3000);
+        });
       return { ...prev, [txId]: updated };
     });
   }, []);
@@ -419,6 +423,11 @@ function DisbursementTracker({
           <Banknote className="h-4 w-4" style={{ color: '#60a5fa' }} />
         </div>
         <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Disbursement Tracker</h2>
+        {saveMsg && (
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, marginLeft: 'auto', color: saveMsg.type === 'success' ? '#34d399' : '#f87171' }}>
+            {saveMsg.type === 'success' ? '✓' : '✕'} {saveMsg.text}
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

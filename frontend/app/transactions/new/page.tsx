@@ -248,6 +248,11 @@ export default function NewTransactionPage() {
               <div className="grid grid-cols-2 gap-4">
                 <FormInput label="Estimated Closing Date">
                   <input type="date" value={closingDate} onChange={(e) => setClosingDate(e.target.value)} style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
+                  {closingDate && new Date(closingDate) < new Date(Date.now() - 86400000) && (
+                    <p style={{ fontSize: '0.75rem', color: '#f59e0b', margin: '0.25rem 0 0' }}>
+                      This date is in the past
+                    </p>
+                  )}
                 </FormInput>
                 <FormInput label="Contract Execution Date">
                   <input type="date" value={executionDate} onChange={(e) => setExecutionDate(e.target.value)} style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />

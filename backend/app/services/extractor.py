@@ -101,7 +101,7 @@ async def extract_contract_data(contract_text: str) -> dict:
         ValueError: If Claude returns a response that cannot be parsed as JSON.
     """
     api_key = settings.anthropic_api_key or None
-    client = anthropic.AsyncAnthropic(api_key=api_key)
+    client = anthropic.AsyncAnthropic(api_key=api_key, timeout=60.0)
 
     user_message = _USER_TEMPLATE.format(contract_text=contract_text)
 

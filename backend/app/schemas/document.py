@@ -26,7 +26,7 @@ class DocumentResponse(BaseModel):
 
 class DocumentUploadResponse(DocumentResponse):
     """Response after a document file has been uploaded."""
-    pass
+    doc_type: str | None = None
 
 
 class DocumentCollectRequest(BaseModel):

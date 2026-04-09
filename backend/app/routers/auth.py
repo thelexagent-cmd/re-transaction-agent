@@ -831,34 +831,3 @@ async def setup(request: Request, body: RegisterRequest, db: AsyncSession = Depe
     return {"access_token": token, "token_type": "bearer"}
 
 
-@router.get("/admin/users")
-async def admin_list_users(
-    key: str,
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Temporary: list registered emails. Protected by SECRET_KEY query param."""
-    if key != settings.secret_key:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    result = await db.execute(select(User.id, User.email, User.full_name, User.created_at))
-    rows = result.all()
-    return {"users": [{"id": r[0], "email": r[1], "name": r[2], "created": str(r[3])} for r in rows]}
-
-
-@router.post("/admin/reset-password")
-async def admin_reset_password(
-    key: str,
-    user_id: int,
-    new_password: str,
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """Temporary: reset a user's password by ID. Protected by SECRET_KEY."""
-    if key != settings.secret_key:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.hashed_password = _hash_password(new_password)
-    token = _create_access_token(user.id)
-    logger.info("Admin password reset for user %d", user_id)
-    return {"status": "ok", "email": user.email, "access_token": token}

@@ -366,9 +366,11 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
   const [portalLink, setPortalLink] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+  const [portalCopied, setPortalCopied] = useState(false);
   const [lenderPortalLink, setLenderPortalLink] = useState<string | null>(null);
   const [generatingLenderLink, setGeneratingLenderLink] = useState(false);
   const [lenderPortalError, setLenderPortalError] = useState<string | null>(null);
+  const [lenderCopied, setLenderCopied] = useState(false);
   const [lenderName, setLenderName] = useState('');
   const [lenderEmail, setLenderEmail] = useState('');
 
@@ -556,10 +558,15 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
               style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', outline: 'none' }}
             />
             <button
-              onClick={() => navigator.clipboard.writeText(portalLink)}
-              style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+              onClick={() => { navigator.clipboard.writeText(portalLink); setPortalCopied(true); setTimeout(() => setPortalCopied(false), 2000); }}
+              style={{
+                padding: '0.3rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+                background: portalCopied ? 'rgba(34,197,94,0.1)' : 'rgba(148,163,184,0.08)',
+                border: portalCopied ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(148,163,184,0.12)',
+                color: portalCopied ? '#4ade80' : 'var(--text-secondary)',
+              }}
             >
-              Copy
+              {portalCopied ? '✓ Copied' : 'Copy Link'}
             </button>
           </div>
         )}
@@ -610,10 +617,15 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
               style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', outline: 'none' }}
             />
             <button
-              onClick={() => navigator.clipboard.writeText(lenderPortalLink)}
-              style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+              onClick={() => { navigator.clipboard.writeText(lenderPortalLink); setLenderCopied(true); setTimeout(() => setLenderCopied(false), 2000); }}
+              style={{
+                padding: '0.3rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+                background: lenderCopied ? 'rgba(34,197,94,0.1)' : 'rgba(148,163,184,0.08)',
+                border: lenderCopied ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(148,163,184,0.12)',
+                color: lenderCopied ? '#4ade80' : 'var(--text-secondary)',
+              }}
             >
-              Copy
+              {lenderCopied ? '✓ Copied' : 'Copy Link'}
             </button>
           </div>
         )}
