@@ -746,6 +746,51 @@ async def reset_password(
     return {"message": "Password reset successfully."}
 
 
+@router.post("/send-test-email")
+@limiter.limit("5/minute")
+async def send_test_email(
+    request: Request,
+    to_email: str,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Send a test email to verify the Gmail SMTP configuration is working.
+
+    Requires authentication. Rate-limited to 5/minute.
+    """
+    from app.services.email_service import EmailService
+
+    svc = EmailService()
+    await svc.send(
+        to_email=to_email,
+        to_name="Lex Test",
+        subject="✅ Lex Transaction AI — Email Test",
+        html_body=f"""<!DOCTYPE html>
+<html><body style="font-family:-apple-system,sans-serif;background:#f4f6f9;padding:32px;">
+<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+  <div style="background:linear-gradient(135deg,#0D1B4B,#1E3A8A);padding:28px 32px;">
+    <span style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.04em;">Lex</span>
+    <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.55);letter-spacing:0.14em;text-transform:uppercase;display:block;margin-top:2px;">Transaction AI</span>
+  </div>
+  <div style="padding:32px;">
+    <h2 style="margin:0 0 12px;font-size:18px;color:#111827;">Email system working ✅</h2>
+    <p style="color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 16px;">
+      This test email was sent from <strong>Lex Transaction AI</strong> on behalf of <strong>{current_user.full_name}</strong> ({current_user.email}).
+    </p>
+    <p style="color:#6b7280;font-size:14px;line-height:1.7;margin:0;">
+      Your Gmail SMTP configuration is correctly set up. Automated emails for transaction milestones, document follow-ups, and deadline alerts will now reach your clients and parties.
+    </p>
+  </div>
+  <div style="padding:16px 32px 24px;border-top:1px solid #e5e7eb;">
+    <p style="font-size:11px;color:#9ca3af;margin:0;">Sent by Lex Transaction AI · Do not reply to this email</p>
+  </div>
+</div>
+</body></html>""",
+        text_body=f"Email system working. Sent by Lex Transaction AI on behalf of {current_user.full_name}.",
+    )
+    logger.info("Test email sent to %s by user %d", to_email, current_user.id)
+    return {"status": "sent", "to": to_email}
+
+
 @router.post("/setup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def setup(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> dict:
