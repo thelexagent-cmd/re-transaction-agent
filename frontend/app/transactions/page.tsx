@@ -2,7 +2,8 @@
 
 import useSWR from 'swr';
 import Link from 'next/link';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { getTransactions, getRecentEvents, getAllDeadlines, getAllDocuments } from '@/lib/api';
 import { daysUntil, formatDate } from '@/lib/utils';
 import { DealCard } from '@/components/deal-card';
@@ -131,6 +132,7 @@ function StatCard({ value, label, accentColor, isLoading }: {
 
 // ── Main Page ──────────────────────────────────────────────────
 export default function TransactionsPage() {
+  const router = useRouter();
   const { data: transactions, error, isLoading } = useSWR('/transactions', getTransactions, { refreshInterval: 30000 });
   const { data: activityData, isLoading: activityLoading } = useSWR('/events/recent', () => getRecentEvents(15), { refreshInterval: 60000 });
   const { data: allDeadlines } = useSWR('/deadlines/all', getAllDeadlines, { refreshInterval: 60000 });
@@ -162,6 +164,19 @@ export default function TransactionsPage() {
     return [...new Set(transactions.map((t) => t.property_type))];
   }, [transactions]);
 
+  useEffect(() => {
+    function handleKeydown(e: KeyboardEvent) {
+      if (e.key === 'n' || e.key === 'N') {
+        const tag = (document.activeElement as HTMLElement)?.tagName;
+        if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
+          router.push('/transactions/new');
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, [router]);
+
   return (
     <div className="p-6 md:p-8">
 
@@ -190,6 +205,7 @@ export default function TransactionsPage() {
         >
           <Plus className="h-3.5 w-3.5" />
           New Transaction
+          <kbd style={{ fontSize: '0.6rem', padding: '0.1rem 0.3rem', borderRadius: '3px', background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', marginLeft: '0.375rem', fontFamily: 'monospace' }}>N</kbd>
         </Link>
       </div>
 

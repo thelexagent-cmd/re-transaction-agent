@@ -1,5 +1,16 @@
 """Wrap plain-text or HTML email content in a branded HTML shell."""
 
+import re
+
+
+def _sanitize(text: str) -> str:
+    """Strip dangerous HTML constructs from user-authored content."""
+    # Strip script tags and their content
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    # Strip javascript: protocol URLs
+    text = re.sub(r'javascript\s*:', '', text, flags=re.IGNORECASE)
+    return text
+
 
 def wrap_email_html(body: str, subject: str, from_name: str = "Lex Transaction Agent") -> str:
     """
@@ -7,6 +18,9 @@ def wrap_email_html(body: str, subject: str, from_name: str = "Lex Transaction A
     If body already contains <html, returns as-is.
     Converts newlines to <br> tags.
     """
+    # Sanitize user-authored content before processing
+    body = _sanitize(body)
+
     if "<html" in body.lower():
         return body
 
