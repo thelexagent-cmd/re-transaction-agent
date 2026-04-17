@@ -167,6 +167,8 @@ export type UserProfile = {
   full_name: string;
   brokerage_name: string | null;
   avatar_url?: string | null;
+  role?: string;
+  broker_id?: number | null;
   created_at: string;
 };
 

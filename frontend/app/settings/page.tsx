@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import useSWR, { mutate } from 'swr';
 import { getMe, updateMe, changePassword } from '@/lib/api';
 import type { UserProfile } from '@/lib/api';
+import { getToken } from '@/lib/auth';
 import {
   User,
   Lock,
@@ -15,9 +16,14 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Users,
+  Copy,
+  Link2,
 } from 'lucide-react';
 
-type Section = 'profile' | 'password' | 'preferences' | 'branding' | 'billing';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-production-bb87.up.railway.app';
+
+type Section = 'profile' | 'password' | 'preferences' | 'team' | 'branding' | 'billing';
 
 const cardStyle = {
   background: 'var(--bg-surface)',
@@ -433,12 +439,175 @@ function BillingSection() {
   );
 }
 
+// ── Team Section ────────────────────────────────────────────────────────────
+
+function TeamSection() {
+  const [creating, setCreating] = useState(false);
+  const [inviteLink, setInviteLink] = useState('');
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
+  async function handleGenerate() {
+    setError('');
+    setInviteLink('');
+    setCopied(false);
+    setCreating(true);
+    try {
+      const token = getToken();
+      if (!token) {
+        setError('You are not signed in. Please log in again.');
+        return;
+      }
+      const res = await fetch(`${API_URL}/auth/invites/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as { token: string };
+      if (!data?.token) throw new Error('Invalid response from server.');
+      setInviteLink(`${window.location.origin}/invite/${data.token}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not generate invite link.');
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleCopy() {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Could not copy to clipboard. Please copy manually.');
+    }
+  }
+
+  return (
+    <SettingsCard title="Invite Agents">
+      <div className="space-y-5">
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+          Generate a single-use link to invite an agent to your brokerage. They&apos;ll
+          create their own account and be linked to you automatically.
+        </p>
+
+        {!inviteLink && (
+          <div>
+            <button
+              onClick={handleGenerate}
+              disabled={creating}
+              className="rounded-lg transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              style={{
+                padding: '0.5625rem 1.25rem',
+                fontSize: '0.75rem', fontWeight: 700,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                color: '#fff',
+                boxShadow: creating ? 'none' : '0 2px 8px rgba(59,130,246,0.3)',
+              }}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {creating ? 'Generating…' : 'Generate Invite Link'}
+            </button>
+          </div>
+        )}
+
+        {inviteLink && (
+          <div className="space-y-3">
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Invite Link
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inviteLink}
+                readOnly
+                onFocus={(e) => e.currentTarget.select()}
+                style={{
+                  ...inputStyle,
+                  fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
+                  fontSize: '0.8125rem',
+                }}
+              />
+              <button
+                onClick={handleCopy}
+                className="rounded-lg transition-all duration-150 active:scale-[0.98] inline-flex items-center gap-2 shrink-0"
+                style={{
+                  padding: '0 1rem',
+                  fontSize: '0.75rem', fontWeight: 700,
+                  letterSpacing: '0.07em', textTransform: 'uppercase',
+                  background: copied ? 'rgba(16,185,129,0.12)' : 'var(--bg-elevated)',
+                  border: `1px solid ${copied ? 'rgba(16,185,129,0.35)' : 'var(--border)'}`,
+                  color: copied ? '#34d399' : 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle className="h-3.5 w-3.5" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" /> Copy Link
+                  </>
+                )}
+              </button>
+            </div>
+            <button
+              onClick={handleGenerate}
+              disabled={creating}
+              style={{
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                fontSize: '0.75rem', fontWeight: 600, color: '#60a5fa',
+              }}
+            >
+              {creating ? 'Generating…' : 'Generate another link'}
+            </button>
+          </div>
+        )}
+
+        {error && <ErrorBanner message={error} />}
+
+        <div
+          className="rounded-lg px-4 py-3"
+          style={{
+            background: 'rgba(148,163,184,0.04)',
+            border: '1px solid rgba(148,163,184,0.1)',
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)',
+            lineHeight: 1.5,
+          }}
+        >
+          Invite links are single-use and expire in 7 days.
+        </div>
+      </div>
+    </SettingsCard>
+  );
+}
+
 // ── Main Settings Page ──────────────────────────────────────────────────────
 
 const sidebarItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: 'profile',     label: 'Profile',          icon: User },
   { id: 'password',    label: 'Change Password',   icon: Lock },
   { id: 'preferences', label: 'Preferences',       icon: Sliders },
+  { id: 'team',        label: 'Invite Agents',     icon: Users },
   { id: 'branding',    label: 'Branding',          icon: Palette },
   { id: 'billing',     label: 'Billing & Plan',    icon: CreditCard },
 ];
@@ -450,7 +619,7 @@ export default function SettingsPage() {
   const { data: user, isLoading } = useSWR('/auth/me', getMe, { revalidateOnFocus: false });
 
   useEffect(() => {
-    if (sectionParam && ['profile', 'password', 'preferences', 'branding', 'billing'].includes(sectionParam)) {
+    if (sectionParam && ['profile', 'password', 'preferences', 'team', 'branding', 'billing'].includes(sectionParam)) {
       setActiveSection(sectionParam);
     }
   }, [sectionParam]);
@@ -470,7 +639,7 @@ export default function SettingsPage() {
           <nav className="w-52 shrink-0">
             <p style={{ padding: '0 0.75rem', marginBottom: '1rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Account</p>
             <div className="space-y-0.5">
-              {sidebarItems.map(({ id, label, icon: Icon }) => (
+              {sidebarItems.filter(({ id }) => id !== 'team' || user?.role !== 'agent').map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveSection(id)}
@@ -502,6 +671,7 @@ export default function SettingsPage() {
                 {activeSection === 'profile'     && <ProfileSection user={user} />}
                 {activeSection === 'password'    && <PasswordSection />}
                 {activeSection === 'preferences' && <PreferencesSection />}
+                {activeSection === 'team'        && <TeamSection />}
                 {activeSection === 'branding'    && <BrandingSection />}
                 {activeSection === 'billing'     && <BillingSection />}
               </>

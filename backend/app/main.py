@@ -13,7 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.logging_config import configure_logging, log_requests_middleware
-from app.routers import auth, compliance, documents, inspection, tasks, transactions
+from app.routers import auth, compliance, documents, inspection, invites, tasks, transactions
 from app.routers import portal, reports, templates
 
 configure_logging()
@@ -91,6 +91,7 @@ async def generic_error_handler(request: Request, exc: Exception):
 # ── Routers ───────────────────────────────────────────────────────────────────
 
 app.include_router(auth.router)
+app.include_router(invites.router)
 app.include_router(transactions.router)
 app.include_router(documents.router)
 app.include_router(tasks.router)
