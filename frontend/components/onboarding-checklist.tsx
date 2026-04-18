@@ -6,6 +6,8 @@ import Link from 'next/link';
 
 interface Props {
   transactionCount: number;
+  forceShow?: boolean;
+  onDismiss?: () => void;
 }
 
 const steps = [
@@ -28,7 +30,7 @@ const steps = [
   },
 ];
 
-export function OnboardingChecklist({ transactionCount }: Props) {
+export function OnboardingChecklist({ transactionCount, forceShow, onDismiss }: Props) {
   const [dismissed, setDismissed] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -38,11 +40,13 @@ export function OnboardingChecklist({ transactionCount }: Props) {
     setMounted(true);
   }, []);
 
-  if (!mounted || dismissed || transactionCount > 0) return null;
+  if (!mounted) return null;
+  if (!forceShow && (dismissed || transactionCount > 0)) return null;
 
   function handleDismiss() {
     localStorage.setItem('lex_onboarding_dismissed', 'true');
     setDismissed(true);
+    onDismiss?.();
   }
 
   return (

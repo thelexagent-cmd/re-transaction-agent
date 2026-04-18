@@ -14,7 +14,7 @@ import { DealHealthScore } from '@/components/deal-health-score';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import {
   Plus, AlertCircle, TrendingUp,
-  Search, ChevronDown, Timer,
+  Search, ChevronDown, Timer, Map,
 } from 'lucide-react';
 import type { TransactionListItem } from '@/lib/api';
 
@@ -141,6 +141,7 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<string>('all');
+  const [showTour, setShowTour] = useState(false);
 
   const totalDeals       = transactions?.length ?? 0;
   const activeDeals      = transactions?.filter((t) => t.status !== 'closed' && t.status !== 'cancelled').length ?? 0;
@@ -190,6 +191,22 @@ export default function TransactionsPage() {
             Manage all your real estate transactions
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <button
+          onClick={() => { localStorage.removeItem('lex_onboarding_dismissed'); setShowTour(true); }}
+          className="inline-flex items-center gap-2 rounded-lg transition-all duration-150 active:scale-95"
+          style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            padding: '0.5625rem 1rem',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <Map className="h-3.5 w-3.5" />
+          Take a Tour
+        </button>
         <Link
           href="/transactions/new"
           className="inline-flex items-center gap-2 rounded-lg text-white transition-all duration-150 active:scale-95"
@@ -207,6 +224,7 @@ export default function TransactionsPage() {
           New Transaction
           <kbd style={{ fontSize: '0.6rem', padding: '0.1rem 0.3rem', borderRadius: '3px', background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', marginLeft: '0.375rem', fontFamily: 'monospace' }}>N</kbd>
         </Link>
+        </div>
       </div>
 
       {/* ── Stats Bar ── */}
@@ -218,7 +236,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* ── Onboarding Checklist ── */}
-      {transactions && <OnboardingChecklist transactionCount={transactions.length} />}
+      {transactions && <OnboardingChecklist transactionCount={transactions.length} forceShow={showTour} onDismiss={() => setShowTour(false)} />}
 
       {/* ── Closing Countdown ── */}
       {transactions && transactions.length > 0 && <ClosingCountdown transactions={transactions} />}
