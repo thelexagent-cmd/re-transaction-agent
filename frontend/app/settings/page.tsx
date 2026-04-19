@@ -625,7 +625,7 @@ export default function SettingsPage() {
   }, [sectionParam]);
 
   return (
-    <div className="p-8 mx-auto max-w-6xl">
+    <div className="p-8">
       <div className="max-w-4xl">
         <div className="mb-8">
           <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>

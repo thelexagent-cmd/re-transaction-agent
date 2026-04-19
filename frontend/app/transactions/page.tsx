@@ -179,7 +179,7 @@ export default function TransactionsPage() {
   }, [router]);
 
   return (
-    <div className="p-6 md:p-8 mx-auto max-w-7xl">
+    <div className="p-6 md:p-8">
 
       {/* ── Page Header ── */}
       <div className="flex items-center justify-between mb-8">

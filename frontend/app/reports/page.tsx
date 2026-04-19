@@ -7,7 +7,7 @@ export default function ReportsPage() {
   const { data, error, isLoading } = useSWR('/reports/summary', getReportSummary, { revalidateOnFocus: false });
 
   if (isLoading) return (
-    <div className="p-8 mx-auto max-w-6xl">
+    <div className="p-8">
       <div className="mb-8">
         <div className="h-8 w-40 lex-skeleton rounded-lg mb-2" />
         <div className="h-4 w-64 lex-skeleton rounded" />
@@ -19,7 +19,7 @@ export default function ReportsPage() {
   );
 
   if (error) return (
-    <div className="p-8 mx-auto max-w-6xl">
+    <div className="p-8">
       <div className="rounded-xl px-5 py-4" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.875rem', color: '#f87171' }}>
         Failed to load report data.
       </div>
@@ -31,7 +31,7 @@ export default function ReportsPage() {
   const isEmpty = (data?.total_transactions ?? 0) === 0;
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-8">
       <div className="mb-8">
         <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
           Reports
