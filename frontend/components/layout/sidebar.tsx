@@ -11,7 +11,7 @@ import {
   LayoutDashboard, LogOut, Building2, CalendarClock, FileText,
   Plus, BarChart3, Menu, X, Users, Mail, DollarSign, Bell,
   CheckSquare, Settings, Sun, Moon, ChevronUp, CreditCard,
-  Sliders, HelpCircle, User,
+  Sliders, HelpCircle, User, Map,
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notification-center';
 
@@ -159,6 +159,22 @@ export function Sidebar() {
 
       {/* ── Bottom ── */}
       <div className="px-3 pb-4 pt-3 space-y-0.5" style={{ borderTop: '1px solid var(--border)' }}>
+
+        {/* Take a Tour */}
+        <button
+          onClick={() => {
+            localStorage.removeItem('lex_onboarding_dismissed');
+            localStorage.setItem('lex_show_tour', 'true');
+            router.push('/transactions');
+          }}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 transition-colors"
+          style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+        >
+          <Map className="h-4 w-4" />
+          Take a Tour
+        </button>
 
         {/* Theme toggle */}
         <button

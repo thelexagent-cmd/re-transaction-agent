@@ -143,6 +143,13 @@ export default function TransactionsPage() {
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<string>('all');
   const [showTour, setShowTour] = useState(false);
 
+  useEffect(() => {
+    if (localStorage.getItem('lex_show_tour') === 'true') {
+      localStorage.removeItem('lex_show_tour');
+      setShowTour(true);
+    }
+  }, []);
+
   const totalDeals       = transactions?.length ?? 0;
   const activeDeals      = transactions?.filter((t) => t.status !== 'closed' && t.status !== 'cancelled').length ?? 0;
   const closingThisMonth = transactions ? countClosingThisMonth(transactions) : 0;
@@ -236,7 +243,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* ── Onboarding Checklist ── */}
-      {transactions && <OnboardingChecklist transactionCount={transactions.length} forceShow={showTour} onDismiss={() => setShowTour(false)} />}
+      <OnboardingChecklist transactionCount={transactions?.length ?? 0} forceShow={showTour} onDismiss={() => setShowTour(false)} />
 
       {/* ── Closing Countdown ── */}
       {transactions && transactions.length > 0 && <ClosingCountdown transactions={transactions} />}
