@@ -156,3 +156,58 @@ async def _process_contract_async(transaction_id: int, storage_key: str) -> dict
         except Exception:
             await db.rollback()
             raise
+
+
+# ── Periodic task: market scan ────────────────────────────────────────────────
+
+@shared_task(name="app.worker.run_market_scan", bind=True, max_retries=2)
+def run_market_scan(self) -> dict:
+    """Nightly task: scan all active watchlist ZIPs, score listings, fire alerts."""
+    try:
+        return asyncio.run(_run_market_scan_async())
+    except Exception as exc:
+        logger.exception("run_market_scan failed: %s", exc)
+        raise self.retry(exc=exc, countdown=300) from exc
+
+
+async def _run_market_scan_async() -> dict:
+    from app.database import AsyncSessionLocal
+    from app.models.market import MarketWatchlist
+    from app.services.market_alerts import maybe_fire_alert
+    from app.services.market_scanner import scan_zip
+    from sqlalchemy import select, update
+    from datetime import datetime, timezone
+
+    total_scanned = 0
+    total_alerted = 0
+
+    async with AsyncSessionLocal() as db:
+        try:
+            result = await db.execute(
+                select(MarketWatchlist).where(MarketWatchlist.status == "active")
+            )
+            watchlist = result.scalars().all()
+
+            for entry in watchlist:
+                property_results = await scan_zip(entry.zip_code, db)
+                for prop_id, score in property_results:
+                    total_scanned += 1
+                    fired = await maybe_fire_alert(
+                        db=db, user_id=entry.user_id, property_id=prop_id,
+                        current_score=score, threshold=entry.alert_threshold,
+                    )
+                    if fired:
+                        total_alerted += 1
+                await db.execute(
+                    update(MarketWatchlist)
+                    .where(MarketWatchlist.id == entry.id)
+                    .values(last_scanned_at=datetime.now(timezone.utc))
+                )
+
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
+
+    logger.info("Market scan complete: %d properties, %d alerts fired", total_scanned, total_alerted)
+    return {"scanned": total_scanned, "alerted": total_alerted}

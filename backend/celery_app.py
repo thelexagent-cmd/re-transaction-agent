@@ -1,6 +1,7 @@
 """Celery application instance and Beat schedule configuration."""
 
 from celery import Celery
+from celery.schedules import crontab
 
 # Import settings lazily to avoid circular import issues at module load
 from app.config import settings
@@ -37,6 +38,10 @@ celery_app.conf.update(
         "run-ctc-check-daily": {
             "task": "app.worker.run_ctc_check",
             "schedule": 86400.0,
+        },
+        "run-market-scan-nightly": {
+            "task": "app.worker.run_market_scan",
+            "schedule": crontab(hour=7, minute=0),  # 07:00 UTC = ~2am ET
         },
     },
     # Retry policy defaults
