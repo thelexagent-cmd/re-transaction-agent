@@ -55,5 +55,11 @@ class Settings(BaseSettings):
     twilio_auth_token: str = ""
     twilio_from_number: str = ""
 
+    # Market Overview
+    zillow_rapidapi_key: str = ""
+    telegram_bot_token: str = ""      # @TheLexAI_bot token
+    telegram_chat_id: str = ""        # Nico's personal Telegram user ID
+    google_maps_api_key: str = ""     # For frontend map embed
+
 
 settings = Settings()
