@@ -100,6 +100,7 @@ export type CreateTransactionData = {
   purchase_price?: number | null;
   closing_date?: string | null;
   contract_execution_date?: string | null;
+  status?: string;
   parties?: Array<{
     role: string;
     full_name: string;
@@ -167,6 +168,36 @@ export type UserProfile = {
   full_name: string;
   brokerage_name: string | null;
   avatar_url?: string | null;
+  role: 'broker' | 'agent';
+  brokerage_id: number | null;
+  created_at: string;
+};
+
+// ── Invite types ───────────────────────────────────────────────────────────
+
+export type InviteValidateResult = {
+  valid: boolean;
+  brokerage_name: string;
+  email: string | null;
+};
+
+export type InviteCreateResult = {
+  id: number;
+  token: string;
+  invite_url: string;
+  email: string | null;
+  expires_at: string;
+  brokerage_name: string;
+};
+
+export type InviteListItem = {
+  id: number;
+  email: string | null;
+  used: boolean;
+  used_at: string | null;
+  expires_at: string;
+  expired: boolean;
+  invite_url: string;
   created_at: string;
 };
 
@@ -627,5 +658,162 @@ export async function createLenderPortalToken(
     method: 'POST',
     body: JSON.stringify({ lender_name: lenderName, lender_email: lenderEmail ?? null }),
   });
+  return res.json();
+}
+
+// ── Invites ──────────────────────────────────────────────────────────────────
+
+export async function createInvite(email?: string): Promise<InviteCreateResult> {
+  const res = await authFetch('/invites/create', {
+    method: 'POST',
+    body: JSON.stringify({ email: email ?? null }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? 'Failed to create invite');
+  }
+  return res.json();
+}
+
+/** Public — no auth required. Throws if invalid/expired/used. */
+export async function validateInvite(token: string): Promise<InviteValidateResult> {
+  const res = await fetch(`${API_URL}/invites/validate/${token}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? 'Invalid invite');
+  }
+  return res.json();
+}
+
+/** Public — no auth required. Returns JWT on success. */
+export async function acceptInvite(data: {
+  token: string;
+  email: string;
+  password: string;
+  full_name: string;
+}): Promise<{ access_token: string; token_type: string }> {
+  const res = await fetch(`${API_URL}/invites/accept`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? 'Failed to accept invite');
+  }
+  return res.json();
+}
+
+export async function listInvites(): Promise<InviteListItem[]> {
+  const res = await authFetch('/invites/list');
+  if (!res.ok) throw new Error('Failed to load invites');
+  return res.json();
+}
+
+// ── Market Overview ────────────────────────────────────────────────────────
+
+export type WatchlistEntry = {
+  id: number;
+  zip_code: string;
+  alert_threshold: number;
+  status: 'active' | 'paused';
+  created_at: string;
+  last_scanned_at: string | null;
+};
+
+export type MarketProperty = {
+  id: number;
+  zip_code: string;
+  zillow_id: string;
+  address: string;
+  price: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  living_area: number | null;
+  year_built: number | null;
+  days_on_market: number | null;
+  zestimate: number | null;
+  price_reduction_30d: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  img_src: string | null;
+  nearest_permit_distance_mi: number | null;
+  nearest_permit_type: string | null;
+  nearest_permit_date: string | null;
+  nearest_permit_address: string | null;
+  opportunity_score: number | null;
+  claude_summary: string | null;
+  first_seen_at: string;
+  last_updated_at: string;
+};
+
+export type MarketAlert = {
+  id: number;
+  property_id: number;
+  score_at_alert: number;
+  status: 'new' | 'reviewed' | 'interested' | 'passed';
+  alerted_via: string;
+  fired_at: string;
+  property: MarketProperty;
+};
+
+export async function getWatchlist(): Promise<WatchlistEntry[]> {
+  const res = await authFetch('/market/watchlist');
+  if (!res.ok) throw new Error('Failed to fetch watchlist');
+  return res.json();
+}
+
+export async function addWatchlistEntry(zip_code: string, alert_threshold = 60): Promise<WatchlistEntry> {
+  const res = await authFetch('/market/watchlist', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ zip_code, alert_threshold }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).detail || 'Failed to add ZIP code');
+  }
+  return res.json();
+}
+
+export async function updateWatchlistEntry(id: number, updates: Partial<{ alert_threshold: number; status: string }>): Promise<WatchlistEntry> {
+  const res = await authFetch(`/market/watchlist/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error('Failed to update watchlist entry');
+  return res.json();
+}
+
+export async function deleteWatchlistEntry(id: number): Promise<void> {
+  await authFetch(`/market/watchlist/${id}`, { method: 'DELETE' });
+}
+
+export async function triggerScan(entryId: number): Promise<{ scanned: number; alerted: number; zip_code: string }> {
+  const res = await authFetch(`/market/watchlist/${entryId}/scan`, { method: 'POST' });
+  if (!res.ok) throw new Error('Scan failed');
+  return res.json();
+}
+
+export async function getMarketProperties(zipCode: string): Promise<MarketProperty[]> {
+  const res = await authFetch(`/market/properties/${zipCode}`);
+  if (!res.ok) throw new Error('Failed to fetch properties');
+  return res.json();
+}
+
+export async function getMarketAlerts(): Promise<MarketAlert[]> {
+  const res = await authFetch('/market/alerts');
+  if (!res.ok) throw new Error('Failed to fetch alerts');
+  return res.json();
+}
+
+export async function updateAlertStatus(id: number, alertStatus: string): Promise<MarketAlert> {
+  const res = await authFetch(`/market/alerts/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: alertStatus }),
+  });
+  if (!res.ok) throw new Error('Failed to update alert');
   return res.json();
 }

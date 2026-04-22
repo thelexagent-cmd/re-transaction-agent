@@ -11,9 +11,12 @@ import {
   LayoutDashboard, LogOut, Building2, CalendarClock, FileText,
   Plus, BarChart3, Menu, X, Users, Mail, DollarSign, Bell,
   CheckSquare, Settings, Sun, Moon, ChevronUp, CreditCard,
-  Sliders, HelpCircle, User,
+  Sliders, HelpCircle, User, MapPin,
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/notification-center';
+import { useOnboarding } from '@/components/onboarding/OnboardingManager';
+import { ModeSwitcher, useMode } from '@/components/mode-switcher';
+import { MarketSidebar } from '@/components/layout/market-sidebar';
 
 const navItems = [
   { href: '/transactions', label: 'Dashboard',       icon: LayoutDashboard },
@@ -29,11 +32,22 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+
+  const { resetGuide } = useOnboarding();
+
+  function handleTakeTour() {
+    resetGuide();
+    if (pathname !== '/transactions') {
+      router.push('/transactions');
+    }
+  }
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const mode = useMode();
 
   const { data: user } = useSWR('/auth/me', getMe, { revalidateOnFocus: false }) as {
     data: { full_name?: string; brokerage_name?: string; avatar_url?: string | null; email?: string } | undefined;
@@ -90,7 +104,7 @@ export function Sidebar() {
     }}>
 
       {/* ── Logo ── */}
-      <div className="flex items-center gap-3 px-5 py-[18px]" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div data-tour="sidebar-logo" className="flex items-center gap-3 px-5 py-[18px]" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{
           background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
           boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
@@ -110,55 +124,80 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* ── New Transaction CTA ── */}
-      <div className="px-4 pt-4 pb-2">
-        <Link
-          href="/transactions/new"
-          className="flex w-full items-center justify-center gap-2 rounded-lg text-white transition-all duration-150 active:scale-95"
-          style={{
-            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-            padding: '0.5625rem 1rem',
-            fontSize: '0.6875rem',
-            fontWeight: 700,
-            letterSpacing: '0.07em',
-            textTransform: 'uppercase',
-            boxShadow: '0 2px 12px rgba(59,130,246,0.25)',
-          }}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New Transaction
-        </Link>
+      {/* ── Mode Switcher ── */}
+      <div className="pt-3">
+        <ModeSwitcher />
       </div>
 
+      {/* ── New Transaction CTA (CRM only) ── */}
+      {mode === 'crm' && (
+        <div className="px-4 pt-2 pb-2">
+          <Link
+            href="/transactions/new"
+            className="flex w-full items-center justify-center gap-2 rounded-lg text-white transition-all duration-150 active:scale-95"
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              padding: '0.5625rem 1rem',
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              letterSpacing: '0.07em',
+              textTransform: 'uppercase',
+              boxShadow: '0 2px 12px rgba(59,130,246,0.25)',
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Transaction
+          </Link>
+        </div>
+      )}
+
       {/* ── Nav ── */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        <p style={{ padding: '0.5rem 0.75rem 0.375rem', fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-          Menu
-        </p>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 rounded-lg py-2 text-sm transition-all duration-150"
-              style={isActive
-                ? { background: 'rgba(59,130,246,0.1)', borderLeft: '2px solid #3b82f6', paddingLeft: '10px', paddingRight: '12px', color: 'var(--text-primary)' }
-                : { borderLeft: '2px solid transparent', paddingLeft: '10px', paddingRight: '12px', color: 'var(--text-secondary)' }
-              }
-              onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
-              onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
-            >
-              <Icon className="h-4 w-4 shrink-0" style={isActive ? { color: '#60a5fa' } : { color: 'inherit' }} />
-              <span style={{ fontSize: '0.8125rem', fontWeight: isActive ? 600 : 400 }}>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      {mode === 'market' ? (
+        <div className="flex-1 overflow-y-auto py-3">
+          <MarketSidebar />
+        </div>
+      ) : (
+        <nav data-tour="sidebar-nav" className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+          <p style={{ padding: '0.5rem 0.75rem 0.375rem', fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+            Menu
+          </p>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-3 rounded-lg py-2 text-sm transition-all duration-150"
+                style={isActive
+                  ? { background: 'rgba(59,130,246,0.1)', borderLeft: '2px solid #3b82f6', paddingLeft: '10px', paddingRight: '12px', color: 'var(--text-primary)' }
+                  : { borderLeft: '2px solid transparent', paddingLeft: '10px', paddingRight: '12px', color: 'var(--text-secondary)' }
+                }
+                onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+                onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+              >
+                <Icon className="h-4 w-4 shrink-0" style={isActive ? { color: '#60a5fa' } : { color: 'inherit' }} />
+                <span style={{ fontSize: '0.8125rem', fontWeight: isActive ? 600 : 400 }}>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
       {/* ── Bottom ── */}
       <div className="px-3 pb-4 pt-3 space-y-0.5" style={{ borderTop: '1px solid var(--border)' }}>
+
+        {/* Take the tour */}
+        <button
+          onClick={handleTakeTour}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 transition-colors"
+          style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+        >
+          <MapPin className="h-4 w-4" />
+          Take the tour
+        </button>
 
         {/* Theme toggle */}
         <button
