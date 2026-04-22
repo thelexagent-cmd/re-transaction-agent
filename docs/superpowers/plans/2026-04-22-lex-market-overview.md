@@ -28,13 +28,18 @@
 - `frontend/app/market/[zip]/page.tsx` — map + property cards + permit pipeline
 - `frontend/app/market/alerts/page.tsx` — alert history + deal status tags
 
+**Create (additional):**
+- `frontend/components/mode-switcher.tsx` — pill toggle: "Lex Transaction Agent" ↔ "Lex Market Analysis". Reads/writes `lex-mode` in localStorage. Rendered in the sidebar above nav items.
+- `frontend/components/layout/market-sidebar.tsx` — market-mode sidebar with nav: Watchlist, ZIP Reports, Alerts
+
 **Modify:**
 - `backend/app/config.py` — add ZILLOW_RAPIDAPI_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, GOOGLE_MAPS_API_KEY
 - `backend/app/worker.py` — add run_market_scan Celery task
 - `backend/celery_app.py` — add market scan to beat_schedule (daily at 07:00 UTC = ~2am ET)
 - `backend/app/main.py` — include market router
 - `frontend/lib/api.ts` — add market types + API functions
-- `frontend/components/layout/sidebar.tsx` — add Market nav item
+- `frontend/components/layout/sidebar.tsx` — add ModeSwitcher component at top; when mode=market render MarketSidebar instead of CRM nav items
+- `frontend/app/layout.tsx` — no change needed (sidebar already handles layout)
 
 ---
 
@@ -1782,39 +1787,202 @@ git commit -m "feat(market): add market API types and functions to frontend lib"
 
 ---
 
-## Task 12: Sidebar Nav Item
+## Task 12: Mode Switcher + Market Sidebar
 
 **Files:**
+- Create: `frontend/components/mode-switcher.tsx`
+- Create: `frontend/components/layout/market-sidebar.tsx`
 - Modify: `frontend/components/layout/sidebar.tsx`
 
-- [ ] **Step 1: Add Market to navItems**
+This replaces a simple sidebar nav item with a top-level mode switcher — like Claude's interface toggle between Claude.ai and Claude Code. Switching to "Lex Market Analysis" transforms the entire sidebar into a market-focused nav.
 
-In `frontend/components/layout/sidebar.tsx`, find the `navItems` array and add the Market entry. The `MapPin` icon is already imported. Add after the Reports entry:
+- [ ] **Step 1: Create mode-switcher.tsx**
 
-```typescript
-  { href: '/market',       label: 'Market',           icon: MapPin },
+```tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Building2, MapPin } from 'lucide-react';
+
+type Mode = 'crm' | 'market';
+
+export function ModeSwitcher() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>('crm');
+
+  useEffect(() => {
+    const stored = localStorage.getItem('lex-mode') as Mode | null;
+    setMode(stored ?? 'crm');
+  }, []);
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    localStorage.setItem('lex-mode', next);
+    if (next === 'market') router.push('/market/watchlist');
+    else router.push('/transactions');
+  }
+
+  return (
+    <div
+      className="flex rounded-xl p-1 mx-3 mb-4"
+      style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid var(--border)' }}
+    >
+      {([
+        { id: 'crm',    label: 'CRM',    icon: Building2 },
+        { id: 'market', label: 'Market', icon: MapPin },
+      ] as { id: Mode; label: string; icon: any }[]).map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          onClick={() => switchMode(id)}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 transition-all duration-150"
+          style={{
+            fontSize: '0.75rem',
+            fontWeight: mode === id ? 700 : 500,
+            color: mode === id ? 'var(--text-primary)' : 'var(--text-muted)',
+            background: mode === id ? 'var(--bg-elevated)' : 'transparent',
+            boxShadow: mode === id ? '0 1px 4px rgba(0,0,0,0.25)' : 'none',
+          }}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function useMode(): Mode {
+  const [mode, setMode] = useState<Mode>('crm');
+  useEffect(() => {
+    const stored = localStorage.getItem('lex-mode') as Mode | null;
+    setMode(stored ?? 'crm');
+    function onStorage(e: StorageEvent) {
+      if (e.key === 'lex-mode') setMode((e.newValue as Mode) ?? 'crm');
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+  return mode;
+}
 ```
 
-The full updated `navItems` array:
-```typescript
-const navItems = [
-  { href: '/transactions', label: 'Dashboard',       icon: LayoutDashboard },
-  { href: '/deadlines',    label: 'Deadlines',        icon: CalendarClock },
-  { href: '/documents',    label: 'Documents',        icon: FileText },
-  { href: '/contacts',     label: 'Contacts',         icon: Users },
-  { href: '/tasks',        label: 'Tasks',            icon: CheckSquare },
-  { href: '/commission',   label: 'Commission',       icon: DollarSign },
-  { href: '/reports',      label: 'Reports',          icon: BarChart3 },
-  { href: '/market',       label: 'Market',           icon: MapPin },
-  { href: '/templates',    label: 'Email Templates',  icon: Mail },
+- [ ] **Step 2: Create market-sidebar.tsx**
+
+```tsx
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { MapPin, ListChecks, Bell } from 'lucide-react';
+
+const marketNavItems = [
+  { href: '/market/watchlist', label: 'Watchlist', icon: ListChecks },
+  { href: '/market/alerts',    label: 'Alerts',    icon: Bell },
 ];
+
+export function MarketSidebar() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="flex flex-col gap-1 px-3">
+      {marketNavItems.map(({ href, label, icon: Icon }) => {
+        const active = pathname === href || pathname.startsWith(href.replace('/watchlist', ''));
+        return (
+          <Link
+            key={href}
+            href={href}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-150"
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: active ? 600 : 400,
+              color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+              background: active ? 'var(--bg-elevated)' : 'transparent',
+            }}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
+          </Link>
+        );
+      })}
+
+      <div className="mt-3 px-3">
+        <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+          Recent ZIPs
+        </p>
+        <RecentZips />
+      </div>
+    </nav>
+  );
+}
+
+function RecentZips() {
+  // Reads watchlist ZIPs from localStorage cache set by watchlist page
+  // Falls back to empty — no API call needed in sidebar
+  const zips: string[] = [];
+  if (typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem('lex-market-zips');
+      if (cached) zips.push(...JSON.parse(cached));
+    } catch { /* ignore */ }
+  }
+
+  if (zips.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {zips.slice(0, 5).map((zip) => (
+        <Link
+          key={zip}
+          href={`/market/${zip}`}
+          className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
+          style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}
+        >
+          <MapPin className="h-3 w-3 shrink-0" />
+          {zip}
+        </Link>
+      ))}
+    </div>
+  );
+}
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 3: Update sidebar.tsx to render ModeSwitcher + conditional nav**
+
+In `frontend/components/layout/sidebar.tsx`:
+
+Add imports at the top (after existing imports):
+```tsx
+import { ModeSwitcher, useMode } from '@/components/mode-switcher';
+import { MarketSidebar } from '@/components/layout/market-sidebar';
+```
+
+Inside the `Sidebar` function, after existing `useState`/`useEffect` hooks, add:
+```tsx
+  const mode = useMode();
+```
+
+Find the section that renders `navItems.map(...)` and wrap it so CRM nav only shows in CRM mode, and Market nav shows in market mode. Replace the nav items render block with:
+
+```tsx
+{mode === 'crm' ? (
+  <nav className="flex flex-col gap-1 px-3">
+    {navItems.map(({ href, label, icon: Icon }) => {
+      // ... existing nav item JSX unchanged ...
+    })}
+  </nav>
+) : (
+  <MarketSidebar />
+)}
+```
+
+Place `<ModeSwitcher />` directly above the nav block (below the logo/brand section, above the nav items).
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/components/layout/sidebar.tsx
-git commit -m "feat(market): add Market nav item to sidebar"
+git add frontend/components/mode-switcher.tsx frontend/components/layout/market-sidebar.tsx frontend/components/layout/sidebar.tsx
+git commit -m "feat(market): add mode switcher pill — toggle between Lex CRM and Lex Market Analysis"
 ```
 
 ---
