@@ -1,18 +1,13 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createTransaction, parseContract, getParseStatus } from '@/lib/api';
 import type { TransactionListItem } from '@/lib/api';
-import { ChevronLeft, Plus, Trash2, Upload, Loader2, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
-
-type Party = {
-  role: string;
-  full_name: string;
-  email: string;
-  phone: string;
-};
+import { useOnboarding } from '@/components/onboarding/OnboardingManager';
+import OnboardingTooltip from '@/components/onboarding/OnboardingTooltip';
+import { ChevronLeft, ChevronDown, Upload, Loader2, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
 
 const PROPERTY_TYPES: { label: string; value: string }[] = [
   { label: 'SFH', value: 'sfh' },
@@ -22,15 +17,13 @@ const PROPERTY_TYPES: { label: string; value: string }[] = [
   { label: 'Other', value: 'other' },
 ];
 
-const PARTY_ROLES: { label: string; value: string }[] = [
-  { label: 'Buyer', value: 'buyer' },
-  { label: 'Seller', value: 'seller' },
-  { label: 'Buyer Agent', value: 'buyers_agent' },
-  { label: 'Seller Agent', value: 'listing_agent' },
-  { label: 'Lender', value: 'lender' },
-  { label: 'Title Officer', value: 'title' },
-  { label: 'Escrow', value: 'escrow' },
-  { label: 'HOA', value: 'hoa' },
+const STAGE_OPTIONS: { label: string; value: string }[] = [
+  { label: 'Select stage...', value: '' },
+  { label: 'Active', value: 'active' },
+  { label: 'Under Contract', value: 'under_contract' },
+  { label: 'Inspection', value: 'inspection' },
+  { label: 'Financing', value: 'financing' },
+  { label: 'Clear to Close', value: 'clear_to_close' },
 ];
 
 type ParseStatus = 'idle' | 'uploading' | 'parsing' | 'done' | 'error';
@@ -75,53 +68,70 @@ function FormInput({ label, required, children }: { label: string; required?: bo
 
 export default function NewTransactionPage() {
   const router = useRouter();
+  const { newTxGuideShown, markNewTxGuideDone } = useOnboarding();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [createdTx, setCreatedTx] = useState<TransactionListItem | null>(null);
 
+  // Required fields (shown upfront)
   const [address, setAddress] = useState('');
   const [propertyType, setPropertyType] = useState('sfh');
+  const [stage, setStage] = useState('');
+  const [buyerName, setBuyerName] = useState('');
+  const [buyerEmail, setBuyerEmail] = useState('');
+
+  // Optional fields (progressive disclosure)
+  const [expanded, setExpanded] = useState(false);
+  const [sellerName, setSellerName] = useState('');
+  const [sellerEmail, setSellerEmail] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [closingDate, setClosingDate] = useState('');
   const [executionDate, setExecutionDate] = useState('');
-  const [parties, setParties] = useState<Party[]>([
-    { role: 'buyer', full_name: '', email: '', phone: '' },
-    { role: 'seller', full_name: '', email: '', phone: '' },
-  ]);
+  const [lenderName, setLenderName] = useState('');
+
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
+  // Step 2
   const [file, setFile] = useState<File | null>(null);
   const [parseStatus, setParseStatus] = useState<ParseStatus>('idle');
   const [parseMessage, setParseMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  function addParty() { setParties((prev) => [...prev, { role: 'buyer', full_name: '', email: '', phone: '' }]); }
-  function removeParty(index: number) { setParties((prev) => prev.filter((_, i) => i !== index)); }
-  function updateParty(index: number, field: keyof Party, value: string) {
-    setParties((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
-  }
+  // First-time tooltip guide
+  const [guideStep, setGuideStep] = useState(0);
+
+  useEffect(() => {
+    if (!newTxGuideShown) {
+      const t = setTimeout(() => setGuideStep(1), 600);
+      return () => clearTimeout(t);
+    }
+  }, [newTxGuideShown]);
+
+  const canCreate = !!(address.trim() && stage && buyerName.trim());
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canCreate) return;
     setSubmitError('');
     setSubmitting(true);
     try {
-      const data = {
+      const parties = [
+        buyerName.trim() ? { role: 'buyer', full_name: buyerName.trim(), email: buyerEmail.trim() || undefined } : null,
+        sellerName.trim() ? { role: 'seller', full_name: sellerName.trim(), email: sellerEmail.trim() || undefined } : null,
+        lenderName.trim() ? { role: 'lender', full_name: lenderName.trim() } : null,
+      ].filter((p): p is NonNullable<typeof p> => p !== null);
+
+      const tx = await createTransaction({
         address: address.trim(),
         property_type: propertyType,
+        status: stage,
         purchase_price: purchasePrice ? parseFloat(purchasePrice) : null,
         closing_date: closingDate || null,
         contract_execution_date: executionDate || null,
-        parties: parties.filter((p) => p.full_name.trim()).map((p) => ({
-          role: p.role,
-          full_name: p.full_name.trim(),
-          email: p.email.trim() || undefined,
-          phone: p.phone.trim() || undefined,
-        })),
-      };
-      const tx = await createTransaction(data);
+        parties,
+      });
       setCreatedTx(tx);
       setStep(2);
     } catch (err) {
@@ -220,94 +230,131 @@ export default function NewTransactionPage() {
 
       {/* Step 1 */}
       {step === 1 && (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
+
           {/* Property Info */}
           <div className="rounded-2xl p-6" style={cardStyle}>
-            <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>Property Information</h2>
-
+            <h2 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
+              Property Info
+            </h2>
             <div className="space-y-4">
               <FormInput label="Property Address" required>
                 <input
+                  data-tour="newtx-address"
                   type="text" required value={address} onChange={(e) => setAddress(e.target.value)}
-                  placeholder="123 Main St, City, State 12345"
+                  placeholder="e.g. 123 Palm Ave, Miami, FL"
                   style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
                 />
               </FormInput>
-
               <div className="grid grid-cols-2 gap-4">
                 <FormInput label="Property Type">
                   <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)} style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}>
                     {PROPERTY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </FormInput>
-                <FormInput label="Purchase Price">
-                  <input type="number" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} placeholder="500000" min="0" style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
-                </FormInput>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormInput label="Estimated Closing Date">
-                  <input type="date" value={closingDate} onChange={(e) => setClosingDate(e.target.value)} style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
-                  {closingDate && new Date(closingDate) < new Date(Date.now() - 86400000) && (
-                    <p style={{ fontSize: '0.75rem', color: '#f59e0b', margin: '0.25rem 0 0' }}>
-                      This date is in the past
-                    </p>
-                  )}
-                </FormInput>
-                <FormInput label="Contract Execution Date">
-                  <input type="date" value={executionDate} onChange={(e) => setExecutionDate(e.target.value)} style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
+                <FormInput label="Deal Stage" required>
+                  <select
+                    data-tour="newtx-stage"
+                    value={stage} onChange={(e) => setStage(e.target.value)}
+                    style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
+                  >
+                    {STAGE_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
                 </FormInput>
               </div>
             </div>
           </div>
 
-          {/* Parties */}
+          {/* Client Info */}
           <div className="rounded-2xl p-6" style={cardStyle}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Parties</h2>
-              <button type="button" onClick={addParty} className="inline-flex items-center gap-1.5 transition-colors" style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#3b82f6' }}>
-                <Plus className="h-4 w-4" />
-                Add Party
-              </button>
-            </div>
-
+            <h2 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
+              Client Info
+            </h2>
             <div className="space-y-4">
-              {parties.map((party, index) => (
-                <div key={index} className="rounded-xl p-4" style={{ background: 'rgba(148,163,184,0.04)', border: '1px solid rgba(148,163,184,0.08)' }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Party {index + 1}</span>
-                    {index >= 2 && (
-                      <button type="button" onClick={() => removeParty(index)} className="transition-colors" style={{ color: 'var(--text-muted)' }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#2d3f55'; }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { field: 'role' as const, label: 'Role', type: 'select' },
-                      { field: 'full_name' as const, label: 'Full Name', type: 'text', placeholder: 'John Smith' },
-                      { field: 'email' as const, label: 'Email', type: 'email', placeholder: 'john@example.com' },
-                      { field: 'phone' as const, label: 'Phone', type: 'tel', placeholder: '(555) 123-4567' },
-                    ].map(({ field, label, type, placeholder }) => (
-                      <div key={field}>
-                        <label style={{ ...labelStyle, marginBottom: '0.25rem' }}>{label}</label>
-                        {type === 'select' ? (
-                          <select value={party[field]} onChange={(e) => updateParty(index, field, e.target.value)} style={{ ...inputStyle, padding: '0.4375rem 0.75rem' }} onFocus={focusHandler} onBlur={blurHandler}>
-                            {PARTY_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                          </select>
-                        ) : (
-                          <input type={type} value={party[field]} onChange={(e) => updateParty(index, field, e.target.value)} placeholder={placeholder} style={{ ...inputStyle, padding: '0.4375rem 0.75rem' }} onFocus={focusHandler} onBlur={blurHandler} />
-                        )}
-                      </div>
-                    ))}
+              <FormInput label="Buyer Name" required>
+                <input
+                  type="text" value={buyerName} onChange={(e) => setBuyerName(e.target.value)}
+                  placeholder="e.g. Carlos Garcia"
+                  style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
+                />
+              </FormInput>
+              <FormInput label="Buyer Email">
+                <input
+                  type="email" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)}
+                  placeholder="buyer@email.com"
+                  style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
+                />
+              </FormInput>
+            </div>
+          </div>
+
+          {/* Expand toggle */}
+          {!expanded && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="flex items-center gap-1.5 transition-colors"
+              style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#60a5fa'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+            >
+              <ChevronDown className="h-4 w-4" />
+              + Add more details
+            </button>
+          )}
+
+          {/* Expanded sections */}
+          {expanded && (
+            <>
+              {/* Seller Info */}
+              <div className="rounded-2xl p-6" style={cardStyle}>
+                <h2 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
+                  Seller Info
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormInput label="Seller Name">
+                    <input type="text" value={sellerName} onChange={(e) => setSellerName(e.target.value)} placeholder="e.g. Maria Lopez" style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
+                  </FormInput>
+                  <FormInput label="Seller Email">
+                    <input type="email" value={sellerEmail} onChange={(e) => setSellerEmail(e.target.value)} placeholder="seller@email.com" style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
+                  </FormInput>
+                </div>
+              </div>
+
+              {/* Financials */}
+              <div className="rounded-2xl p-6" style={cardStyle}>
+                <h2 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
+                  Financials
+                </h2>
+                <div className="space-y-4">
+                  <FormInput label="Purchase Price">
+                    <input type="number" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} placeholder="e.g. 750000" min="0" style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
+                  </FormInput>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormInput label="Estimated Closing Date">
+                      <input type="date" value={closingDate} onChange={(e) => setClosingDate(e.target.value)} style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
+                      {closingDate && new Date(closingDate) < new Date(Date.now() - 86400000) && (
+                        <p style={{ fontSize: '0.75rem', color: '#f59e0b', margin: '0.25rem 0 0' }}>This date is in the past</p>
+                      )}
+                    </FormInput>
+                    <FormInput label="Contract Execution Date">
+                      <input type="date" value={executionDate} onChange={(e) => setExecutionDate(e.target.value)} style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
+                    </FormInput>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+
+              {/* Lender */}
+              <div className="rounded-2xl p-6" style={cardStyle}>
+                <h2 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
+                  Lender <span style={{ fontWeight: 400, fontSize: '0.75rem', letterSpacing: 0, textTransform: 'none' }}>(optional)</span>
+                </h2>
+                <FormInput label="Lender Name">
+                  <input type="text" value={lenderName} onChange={(e) => setLenderName(e.target.value)} placeholder="e.g. Wells Fargo" style={inputStyle} onFocus={focusHandler} onBlur={blurHandler} />
+                </FormInput>
+              </div>
+            </>
+          )}
 
           {submitError && (
             <div className="rounded-lg px-4 py-3 flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.8125rem', color: '#f87171' }}>
@@ -316,9 +363,15 @@ export default function NewTransactionPage() {
             </div>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
+            {!canCreate && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Fill required fields to continue
+              </span>
+            )}
             <button
-              type="submit" disabled={submitting}
+              data-tour="newtx-create"
+              type="submit" disabled={!canCreate || submitting}
               className="inline-flex items-center gap-2 rounded-lg transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ padding: '0.625rem 1.5rem', fontSize: '0.8125rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', boxShadow: '0 2px 12px rgba(59,130,246,0.3)' }}
             >
@@ -332,7 +385,6 @@ export default function NewTransactionPage() {
       {/* Step 2 */}
       {step === 2 && createdTx && (
         <div className="space-y-6">
-          {/* Success notice */}
           <div className="rounded-xl px-5 py-4 flex items-center gap-3" style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)' }}>
             <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: '#34d399' }} />
             <div>
@@ -341,14 +393,12 @@ export default function NewTransactionPage() {
             </div>
           </div>
 
-          {/* Upload area */}
           <div className="rounded-2xl p-6" style={cardStyle}>
             <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Upload Contract PDF</h2>
             <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
               Upload the purchase agreement to automatically extract key dates, deadlines, and parties.
             </p>
 
-            {/* Drop zone */}
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -376,7 +426,6 @@ export default function NewTransactionPage() {
               )}
             </div>
 
-            {/* Status messages */}
             {(parseStatus === 'uploading' || parseStatus === 'parsing') && (
               <div className="mt-4 flex items-center gap-2" style={{ fontSize: '0.875rem', color: '#60a5fa' }}>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -408,7 +457,6 @@ export default function NewTransactionPage() {
             )}
           </div>
 
-          {/* Navigation */}
           <div className="flex justify-between">
             <button
               onClick={() => router.push(`/transactions/${createdTx.id}`)}
@@ -428,6 +476,39 @@ export default function NewTransactionPage() {
           </div>
         </div>
       )}
+
+      {/* First-time tooltip guide */}
+      {step === 1 && guideStep >= 1 && guideStep <= 3 && (() => {
+        const steps = [
+          { selector: '[data-tour="newtx-address"]', text: 'Start with the property address', position: 'bottom' as const },
+          { selector: '[data-tour="newtx-stage"]',   text: 'Set the current deal stage',       position: 'bottom' as const },
+          { selector: '[data-tour="newtx-create"]',  text: 'Fill required fields to create',   position: 'top'    as const },
+        ];
+        const s = steps[guideStep - 1];
+        return (
+          <OnboardingTooltip
+            key={guideStep}
+            targetSelector={s.selector}
+            text={s.text}
+            step={guideStep}
+            total={3}
+            position={s.position}
+            nextLabel={guideStep === 3 ? 'Got it ✓' : 'Next →'}
+            onNext={() => {
+              if (guideStep === 3) {
+                markNewTxGuideDone();
+                setGuideStep(4);
+              } else {
+                setGuideStep(guideStep + 1);
+              }
+            }}
+            onDismiss={() => {
+              markNewTxGuideDone();
+              setGuideStep(4);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

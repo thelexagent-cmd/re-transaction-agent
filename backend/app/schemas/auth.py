@@ -57,6 +57,8 @@ class UserResponse(BaseModel):
     full_name: str
     brokerage_name: str | None
     avatar_url: str | None = None
+    role: str = "broker"
+    brokerage_id: int | None = None
     created_at: datetime
 
 

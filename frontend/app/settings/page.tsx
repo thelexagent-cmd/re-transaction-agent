@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useSWR, { mutate } from 'swr';
-import { getMe, updateMe, changePassword } from '@/lib/api';
-import type { UserProfile } from '@/lib/api';
+import { getMe, updateMe, changePassword, createInvite, listInvites } from '@/lib/api';
+import type { UserProfile, InviteListItem } from '@/lib/api';
 import {
   User,
   Lock,
@@ -15,9 +15,13 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Users,
+  Copy,
+  Link2,
+  Plus,
 } from 'lucide-react';
 
-type Section = 'profile' | 'password' | 'preferences' | 'branding' | 'billing';
+type Section = 'profile' | 'password' | 'preferences' | 'branding' | 'billing' | 'team';
 
 const cardStyle = {
   background: 'var(--bg-surface)',
@@ -433,14 +437,176 @@ function BillingSection() {
   );
 }
 
+// ── Team / Invite Section (broker only) ─────────────────────────────────────
+
+function TeamSection() {
+  const [email, setEmail] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createdUrl, setCreatedUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const { data: invites, mutate: refreshInvites } = useSWR('/invites/list', listInvites, { revalidateOnFocus: false });
+
+  async function handleCreate() {
+    setCreating(true);
+    setCreateError('');
+    setCreatedUrl('');
+    try {
+      const result = await createInvite(email.trim() || undefined);
+      setCreatedUrl(result.invite_url);
+      setEmail('');
+      refreshInvites();
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create invite');
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  function copyLink(url: string) {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const now = new Date();
+
+  return (
+    <div className="space-y-5">
+      <SettingsCard title="Invite an Agent">
+        <div className="space-y-4">
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            Generate a single-use invite link. The agent clicks the link to create their account and join your brokerage automatically. Links expire after 72 hours.
+          </p>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
+              Agent Email (optional)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="agent@example.com — or leave blank"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  fontSize: '0.875rem',
+                  padding: '0.5625rem 0.875rem',
+                  borderRadius: '0.5rem',
+                  flex: 1,
+                }}
+                onFocus={(e) => { e.target.style.borderColor = 'rgba(59,130,246,0.4)'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.08)'; }}
+                onBlur={(e) => { e.target.style.borderColor = 'rgba(148,163,184,0.09)'; e.target.style.boxShadow = 'none'; }}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="inline-flex items-center gap-1.5 rounded-lg transition-all duration-150 active:scale-[0.98] disabled:opacity-50"
+                style={{ padding: '0.5625rem 1rem', fontSize: '0.8125rem', fontWeight: 600, background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', boxShadow: '0 2px 8px rgba(59,130,246,0.3)', whiteSpace: 'nowrap' }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {creating ? 'Creating...' : 'Generate Link'}
+              </button>
+            </div>
+          </div>
+
+          {createError && (
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '0.8125rem', color: '#f87171' }}>
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              {createError}
+            </div>
+          )}
+
+          {createdUrl && (
+            <div className="rounded-xl p-4" style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Link2 className="h-3.5 w-3.5 shrink-0" style={{ color: '#34d399' }} />
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#34d399' }}>Invite link ready — expires in 72 hours</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <code
+                  style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'rgba(148,163,184,0.07)', borderRadius: '0.375rem', padding: '0.25rem 0.5rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {createdUrl}
+                </code>
+                <button
+                  onClick={() => copyLink(createdUrl)}
+                  className="inline-flex items-center gap-1 rounded-lg transition-all duration-150"
+                  style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa', whiteSpace: 'nowrap' }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </SettingsCard>
+
+      {/* Invite history */}
+      <SettingsCard title="Recent Invites">
+        {!invites || invites.length === 0 ? (
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>No invites sent yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {invites.map((inv: InviteListItem) => {
+              const isExpired = inv.expired || new Date(inv.expires_at) < now;
+              const statusColor = inv.used ? '#34d399' : isExpired ? '#f59e0b' : '#60a5fa';
+              const statusLabel = inv.used ? 'Used' : isExpired ? 'Expired' : 'Pending';
+              return (
+                <div
+                  key={inv.id}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3"
+                  style={{ background: 'rgba(148,163,184,0.03)', border: '1px solid rgba(148,163,184,0.07)' }}
+                >
+                  <div className="h-2 w-2 rounded-full shrink-0" style={{ background: statusColor }} />
+                  <div className="flex-1 min-w-0">
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      {inv.email ?? 'Any email'}
+                    </div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      Created {new Date(inv.created_at).toLocaleDateString()} · Expires {new Date(inv.expires_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: statusColor, background: `${statusColor}15`, borderRadius: '99px', padding: '0.125rem 0.625rem', border: `1px solid ${statusColor}30` }}>
+                    {statusLabel}
+                  </span>
+                  {!inv.used && !isExpired && (
+                    <button
+                      onClick={() => copyLink(inv.invite_url)}
+                      style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </SettingsCard>
+    </div>
+  );
+}
+
 // ── Main Settings Page ──────────────────────────────────────────────────────
 
-const sidebarItems: { id: Section; label: string; icon: React.ElementType }[] = [
+const BASE_SECTIONS: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: 'profile',     label: 'Profile',          icon: User },
   { id: 'password',    label: 'Change Password',   icon: Lock },
   { id: 'preferences', label: 'Preferences',       icon: Sliders },
   { id: 'branding',    label: 'Branding',          icon: Palette },
   { id: 'billing',     label: 'Billing & Plan',    icon: CreditCard },
+];
+
+const BROKER_SECTIONS: { id: Section; label: string; icon: React.ElementType }[] = [
+  { id: 'team', label: 'Team & Invites', icon: Users },
 ];
 
 export default function SettingsPage() {
@@ -450,8 +616,9 @@ export default function SettingsPage() {
   const { data: user, isLoading } = useSWR('/auth/me', getMe, { revalidateOnFocus: false });
 
   useEffect(() => {
-    if (sectionParam && ['profile', 'password', 'preferences', 'branding', 'billing'].includes(sectionParam)) {
-      setActiveSection(sectionParam);
+    const valid: Section[] = ['profile', 'password', 'preferences', 'branding', 'billing', 'team'];
+    if (sectionParam && valid.includes(sectionParam as Section)) {
+      setActiveSection(sectionParam as Section);
     }
   }, [sectionParam]);
 
@@ -468,9 +635,9 @@ export default function SettingsPage() {
         <div className="flex gap-6">
           {/* Settings sidebar nav */}
           <nav className="w-52 shrink-0">
-            <p style={{ padding: '0 0.75rem', marginBottom: '1rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Account</p>
-            <div className="space-y-0.5">
-              {sidebarItems.map(({ id, label, icon: Icon }) => (
+            <p style={{ padding: '0 0.75rem', marginBottom: '0.5rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Account</p>
+            <div className="space-y-0.5 mb-4">
+              {BASE_SECTIONS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveSection(id)}
@@ -488,6 +655,30 @@ export default function SettingsPage() {
                 </button>
               ))}
             </div>
+            {user?.role === 'broker' && (
+              <>
+                <p style={{ padding: '0 0.75rem', marginBottom: '0.5rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Brokerage</p>
+                <div className="space-y-0.5">
+                  {BROKER_SECTIONS.map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setActiveSection(id)}
+                      className="flex w-full items-center gap-3 rounded-lg text-left transition-all duration-150"
+                      style={{
+                        padding: '0.5625rem 0.75rem',
+                        fontSize: '0.8125rem', fontWeight: 500,
+                        color: activeSection === id ? '#60a5fa' : '#4a5568',
+                        background: activeSection === id ? 'rgba(59,130,246,0.08)' : 'transparent',
+                        borderLeft: activeSection === id ? '2px solid #3b82f6' : '2px solid transparent',
+                      }}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </nav>
 
           {/* Content */}

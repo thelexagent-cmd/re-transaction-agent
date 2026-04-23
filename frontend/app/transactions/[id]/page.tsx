@@ -528,6 +528,7 @@ function OverviewTab({ tx, txId, docs }: { tx: TransactionDetail; txId: number; 
         <div className="flex items-center justify-between mb-3">
           <h3 style={sectionHeadStyle}>Client Portal</h3>
           <button
+            data-tour="portal-link"
             onClick={handleGeneratePortalLink}
             disabled={generatingLink}
             style={{
@@ -1691,7 +1692,7 @@ export default function TransactionDetailPage({
         </nav>
 
         {/* Export PDF */}
-        <div className="flex items-center justify-end mb-4 no-print">
+        <div className="flex items-center justify-end gap-2 mb-4 no-print">
           <button
             onClick={() => window.print()}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.12)', color: '#64748b', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
@@ -1766,6 +1767,7 @@ export default function TransactionDetailPage({
             {TABS.map((tab) => (
               <button
                 key={tab}
+                data-tour={`tab-${tab.toLowerCase()}`}
                 onClick={() => setActiveTab(tab)}
                 style={{
                   padding: '0.75rem 1rem',

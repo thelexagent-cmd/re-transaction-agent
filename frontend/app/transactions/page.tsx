@@ -12,6 +12,8 @@ import { ActivityFeed } from '@/components/activity-feed';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DealHealthScore } from '@/components/deal-health-score';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
+import { useOnboarding } from '@/components/onboarding/OnboardingManager';
+import OnboardingTooltip from '@/components/onboarding/OnboardingTooltip';
 import {
   Plus, AlertCircle, TrendingUp,
   Search, ChevronDown, Timer,
@@ -133,6 +135,7 @@ function StatCard({ value, label, accentColor, isLoading }: {
 // ── Main Page ──────────────────────────────────────────────────
 export default function TransactionsPage() {
   const router = useRouter();
+  const { dashboardStep, setDashboardStep } = useOnboarding();
   const { data: transactions, error, isLoading } = useSWR('/transactions', getTransactions, { refreshInterval: 30000 });
   const { data: activityData, isLoading: activityLoading } = useSWR('/events/recent', () => getRecentEvents(15), { refreshInterval: 60000 });
   const { data: allDeadlines } = useSWR('/deadlines/all', getAllDeadlines, { refreshInterval: 60000 });
@@ -177,6 +180,16 @@ export default function TransactionsPage() {
     return () => window.removeEventListener('keydown', handleKeydown);
   }, [router]);
 
+  // Auto-start dashboard guide on first visit
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!localStorage.getItem('lex_dashboard_guide_done')) {
+        setDashboardStep(1);
+      }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [setDashboardStep]);
+
   return (
     <div className="p-6 md:p-8">
 
@@ -192,6 +205,7 @@ export default function TransactionsPage() {
         </div>
         <Link
           href="/transactions/new"
+          data-tour="new-transaction"
           className="inline-flex items-center gap-2 rounded-lg text-white transition-all duration-150 active:scale-95"
           style={{
             background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
@@ -210,7 +224,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* ── Stats Bar ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div data-tour="stats-bar" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard value={activeDeals}      label="Active Deals"       accentColor="#60a5fa" isLoading={isLoading} />
         <StatCard value={totalDeals}       label="Total Transactions" accentColor="#34d399" isLoading={isLoading} />
         <StatCard value={closingThisMonth} label="Closing This Month" accentColor="#fb923c" isLoading={isLoading} />
@@ -221,12 +235,14 @@ export default function TransactionsPage() {
       {transactions && <OnboardingChecklist transactionCount={transactions.length} />}
 
       {/* ── Closing Countdown ── */}
-      {transactions && transactions.length > 0 && <ClosingCountdown transactions={transactions} />}
+      {transactions && transactions.length > 0 && (
+        <div data-tour="closing-countdown"><ClosingCountdown transactions={transactions} /></div>
+      )}
 
       {/* ── Urgent + Activity ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <UrgentPanel transactions={transactions ?? []} isLoading={isLoading} />
-        <ActivityFeed events={activityData?.events ?? []} isLoading={activityLoading} />
+        <div data-tour="urgent-panel"><UrgentPanel transactions={transactions ?? []} isLoading={isLoading} /></div>
+        <div data-tour="activity-feed"><ActivityFeed events={activityData?.events ?? []} isLoading={activityLoading} /></div>
       </div>
 
       {/* ── Search & Filters ── */}
@@ -253,15 +269,18 @@ export default function TransactionsPage() {
         {[
           {
             value: statusFilter, onChange: setStatusFilter,
+            dataTour: 'status-filter' as string | undefined,
             options: [{ value: 'all', label: 'All Status' }, { value: 'active', label: 'Active' }, { value: 'under_contract', label: 'Under Contract' }, { value: 'inspection', label: 'Inspection' }, { value: 'financing', label: 'Financing' }, { value: 'clear_to_close', label: 'Clear to Close' }, { value: 'closed', label: 'Closed' }, { value: 'cancelled', label: 'Cancelled' }],
           },
           {
             value: propertyTypeFilter, onChange: setPropertyTypeFilter,
+            dataTour: undefined as string | undefined,
             options: [{ value: 'all', label: 'All Types' }, ...propertyTypes.map((pt) => ({ value: pt, label: pt.toUpperCase() }))],
           },
         ].map((sel, i) => (
           <div key={i} className="relative">
             <select
+              data-tour={sel.dataTour}
               value={sel.value}
               onChange={(e) => sel.onChange(e.target.value)}
               className="appearance-none rounded-lg text-sm pr-8 pl-3 py-2.5 transition-all duration-150"
@@ -311,7 +330,7 @@ export default function TransactionsPage() {
 
       {/* ── Deal Grid ── */}
       {!isLoading && !error && transactions && (
-        <>
+        <div data-tour="deal-grid">
           {filtered.length === 0 ? (
             <div className="text-center py-20">
               <div className="flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
@@ -366,8 +385,39 @@ export default function TransactionsPage() {
               </div>
             </>
           )}
-        </>
+        </div>
       )}
+
+      {/* ── Dashboard onboarding guide ── */}
+      {dashboardStep >= 1 && dashboardStep <= 4 && (() => {
+        const steps = [
+          { selector: '[data-tour="stats-bar"]',      text: 'This is your deal pipeline — every transaction lives here', position: 'bottom' as const },
+          { selector: '[data-tour="status-filter"]',  text: 'Move deals across stages as they progress',                 position: 'bottom' as const },
+          { selector: '[data-tour="deal-grid"]',      text: 'Click any deal to open full details',                       position: 'bottom' as const },
+          { selector: '[data-tour="new-transaction"]',text: "Let's create your first transaction",                        position: 'bottom' as const },
+        ];
+        const s = steps[dashboardStep - 1];
+        return (
+          <OnboardingTooltip
+            key={dashboardStep}
+            targetSelector={s.selector}
+            text={s.text}
+            step={dashboardStep}
+            total={4}
+            position={s.position}
+            nextLabel={dashboardStep === 4 ? 'Start →' : 'Next →'}
+            onNext={() => {
+              if (dashboardStep === 4) {
+                setDashboardStep(5);
+                router.push('/transactions/new');
+              } else {
+                setDashboardStep(dashboardStep + 1);
+              }
+            }}
+            onDismiss={() => setDashboardStep(5)}
+          />
+        );
+      })()}
     </div>
   );
 }
