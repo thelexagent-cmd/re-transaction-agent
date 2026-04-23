@@ -18,5 +18,5 @@ __all__ = [
     "Brokerage", "User", "Invite",
     "Transaction", "Party", "Document", "Deadline", "Event",
     "PortalToken", "EmailTemplate", "Task", "ComplianceItem", "ComplianceReview",
-    "InspectionItem",
+    "InspectionItem", "Invite",
 ]

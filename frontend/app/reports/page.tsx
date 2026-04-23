@@ -31,7 +31,7 @@ export default function ReportsPage() {
   const isEmpty = (data?.total_transactions ?? 0) === 0;
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8">
       <div className="mb-8">
         <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-primary)' }}>
           Reports

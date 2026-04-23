@@ -1,7 +1,7 @@
 'use client';
 
 import { AuthGuard } from '@/components/auth-guard';
-import { Sidebar } from '@/components/layout/Sidebar';
+import { Sidebar } from '@/components/layout/sidebar';
 import { OnboardingProvider } from '@/components/onboarding/OnboardingManager';
 
 export default function TransactionsLayout({

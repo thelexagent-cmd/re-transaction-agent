@@ -146,7 +146,7 @@ export default function CommissionPage() {
   const estAgentNet = estGross * 0.7;
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8">
       <div className="flex items-center gap-3 mb-8">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', boxShadow: '0 4px 16px rgba(59,130,246,0.35)' }}>
           <DollarSign className="h-5 w-5 text-white" />

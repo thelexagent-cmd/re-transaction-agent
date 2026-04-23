@@ -601,6 +601,7 @@ const BASE_SECTIONS: { id: Section; label: string; icon: React.ElementType }[] =
   { id: 'profile',     label: 'Profile',          icon: User },
   { id: 'password',    label: 'Change Password',   icon: Lock },
   { id: 'preferences', label: 'Preferences',       icon: Sliders },
+  { id: 'team',        label: 'Invite Agents',     icon: Users },
   { id: 'branding',    label: 'Branding',          icon: Palette },
   { id: 'billing',     label: 'Billing & Plan',    icon: CreditCard },
 ];
@@ -693,6 +694,7 @@ export default function SettingsPage() {
                 {activeSection === 'profile'     && <ProfileSection user={user} />}
                 {activeSection === 'password'    && <PasswordSection />}
                 {activeSection === 'preferences' && <PreferencesSection />}
+                {activeSection === 'team'        && <TeamSection />}
                 {activeSection === 'branding'    && <BrandingSection />}
                 {activeSection === 'billing'     && <BillingSection />}
               </>

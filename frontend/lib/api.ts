@@ -169,7 +169,7 @@ export type UserProfile = {
   brokerage_name: string | null;
   avatar_url?: string | null;
   role: 'broker' | 'agent';
-  brokerage_id: number | null;
+  broker_id?: number | null;
   created_at: string;
 };
 
@@ -177,17 +177,19 @@ export type UserProfile = {
 
 export type InviteValidateResult = {
   valid: boolean;
-  brokerage_name: string;
-  email: string | null;
+  broker_name: string;
+  brokerage_name: string | null;
+  invitee_email: string | null;
+  expires_at: string;
 };
 
 export type InviteCreateResult = {
-  id: number;
   token: string;
+  link: string;
   invite_url: string;
   email: string | null;
+  invitee_email: string | null;
   expires_at: string;
-  brokerage_name: string;
 };
 
 export type InviteListItem = {

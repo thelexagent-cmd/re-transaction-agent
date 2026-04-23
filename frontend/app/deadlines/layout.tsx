@@ -1,4 +1,4 @@
-import { Sidebar } from '@/components/layout/Sidebar';
+import { Sidebar } from '@/components/layout/sidebar';
 
 export default function DeadlinesLayout({ children }: { children: React.ReactNode }) {
   return (
