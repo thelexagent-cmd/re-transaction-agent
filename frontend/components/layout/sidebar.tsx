@@ -118,11 +118,6 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* ── Mode Switcher ── */}
-      <div className="pt-3">
-        <ModeSwitcher />
-      </div>
-
       {/* ── New Transaction CTA (CRM only) ── */}
       {mode === 'crm' && (
         <div className="px-4 pt-2 pb-2">

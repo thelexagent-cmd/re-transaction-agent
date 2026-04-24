@@ -24,26 +24,31 @@ export function ModeSwitcher() {
 
   return (
     <div
-      className="flex rounded-xl p-1 mx-3 mb-4"
-      style={{ background: 'rgba(148,163,184,0.06)', border: '1px solid var(--border)' }}
+      className="flex rounded-full p-1"
+      style={{
+        background: 'rgba(148,163,184,0.08)',
+        border: '1px solid var(--border)',
+        width: 220,
+      }}
     >
       {([
-        { id: 'crm' as Mode,    label: 'CRM',    icon: Building2 },
-        { id: 'market' as Mode, label: 'Market', icon: MapPin },
+        { id: 'crm' as Mode,    label: 'Lex CRM',    icon: Building2 },
+        { id: 'market' as Mode, label: 'Lex Market',  icon: MapPin },
       ]).map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           onClick={() => switchMode(id)}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 transition-all duration-150"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 px-3 transition-all duration-200"
           style={{
-            fontSize: '0.75rem',
+            fontSize: '0.8125rem',
             fontWeight: mode === id ? 700 : 500,
             color: mode === id ? 'var(--text-primary)' : 'var(--text-muted)',
             background: mode === id ? 'var(--bg-elevated)' : 'transparent',
-            boxShadow: mode === id ? '0 1px 4px rgba(0,0,0,0.25)' : 'none',
+            boxShadow: mode === id ? '0 1px 6px rgba(0,0,0,0.3)' : 'none',
+            whiteSpace: 'nowrap',
           }}
         >
-          <Icon className="h-3.5 w-3.5" />
+          <Icon className="h-3.5 w-3.5 shrink-0" />
           {label}
         </button>
       ))}
