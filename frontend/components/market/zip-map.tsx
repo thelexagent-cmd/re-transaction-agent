@@ -4,9 +4,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import Map, {
   Source,
   Layer,
-  type MapRef,
-  type MapLayerMouseEvent,
 } from 'react-map-gl';
+import type { MapRef, MapLayerMouseEvent } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { WatchlistEntry } from '@/lib/api';
 
