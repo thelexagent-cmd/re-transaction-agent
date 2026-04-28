@@ -45,10 +45,17 @@ export default function WatchlistPage() {
   async function handleDelete(id: number) {
     if (!confirm('Remove this ZIP? All scanned properties and alerts will be deleted.')) return;
     try {
+      // Optimistic: remove from local SWR cache immediately
+      mutate(
+        '/market/watchlist',
+        (prev: WatchlistEntry[] = []) => prev.filter((e) => e.id !== id),
+        { revalidate: false }
+      );
       await deleteWatchlistEntry(id);
-      mutate('/market/watchlist');
+      mutate('/market/watchlist'); // confirm with server
     } catch {
       setError('Failed to delete entry. Please try again.');
+      mutate('/market/watchlist'); // revert on error
     }
   }
 

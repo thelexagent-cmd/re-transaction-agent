@@ -37,6 +37,14 @@ export function ZipPanel({ zip, onClose, onTracked, watchlist }: ZipPanelProps) 
       const entry = await addWatchlistEntry(zip);
       setTracked(true);
       onTracked(entry);
+      // Keep sidebar recent ZIPs in sync
+      try {
+        const cached = JSON.parse(localStorage.getItem('lex-market-zips') ?? '[]') as string[];
+        if (!cached.includes(zip)) {
+          localStorage.setItem('lex-market-zips', JSON.stringify([zip, ...cached].slice(0, 20)));
+          window.dispatchEvent(new Event('storage'));
+        }
+      } catch { /* ignore */ }
     } catch {
       // keep button active so user can retry
     } finally {
