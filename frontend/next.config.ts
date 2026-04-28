@@ -14,6 +14,7 @@ if (!process.env.NEXT_PUBLIC_API_URL) {
 }
 
 const nextConfig: NextConfig = {
+  bundler: 'webpack',
   async headers() {
     return [
       {
