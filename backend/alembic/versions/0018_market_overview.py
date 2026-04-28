@@ -12,6 +12,7 @@ Creates:
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision = "0018"
 down_revision = "0017"
@@ -58,6 +59,7 @@ def upgrade() -> None:
         sa.Column("nearest_permit_date", sa.String(50), nullable=True),
         sa.Column("nearest_permit_address", sa.String(500), nullable=True),
         sa.Column("opportunity_score", sa.Integer(), nullable=True),
+        sa.Column("score_breakdown", postgresql.JSONB, nullable=True),
         sa.Column("claude_summary", sa.Text(), nullable=True),
         sa.Column("first_seen_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("last_updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),

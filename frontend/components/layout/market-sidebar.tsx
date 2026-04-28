@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Bell, ListChecks, MapPin } from 'lucide-react';
 
 const marketNavItems = [
@@ -41,15 +42,19 @@ export function MarketSidebar() {
 
 function RecentZips() {
   const pathname = usePathname();
+  const [zips, setZips] = useState<string[]>([]);
 
-  // Read cached ZIP codes set by watchlist page
-  let zips: string[] = [];
-  if (typeof window !== 'undefined') {
-    try {
-      const cached = localStorage.getItem('lex-market-zips');
-      if (cached) zips = JSON.parse(cached);
-    } catch { /* ignore */ }
-  }
+  useEffect(() => {
+    function readZips() {
+      try {
+        const cached = localStorage.getItem('lex-market-zips');
+        setZips(cached ? JSON.parse(cached) : []);
+      } catch { /* ignore */ }
+    }
+    readZips();
+    window.addEventListener('storage', readZips);
+    return () => window.removeEventListener('storage', readZips);
+  }, []);
 
   if (zips.length === 0) return null;
 

@@ -744,6 +744,7 @@ export type MarketProperty = {
   nearest_permit_date: string | null;
   nearest_permit_address: string | null;
   opportunity_score: number | null;
+  score_breakdown: Record<string, number> | null;
   claude_summary: string | null;
   first_seen_at: string;
   last_updated_at: string;
@@ -761,30 +762,22 @@ export type MarketAlert = {
 
 export async function getWatchlist(): Promise<WatchlistEntry[]> {
   const res = await authFetch('/market/watchlist');
-  if (!res.ok) throw new Error('Failed to fetch watchlist');
   return res.json();
 }
 
 export async function addWatchlistEntry(zip_code: string, alert_threshold = 60): Promise<WatchlistEntry> {
   const res = await authFetch('/market/watchlist', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ zip_code, alert_threshold }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any).detail || 'Failed to add ZIP code');
-  }
   return res.json();
 }
 
 export async function updateWatchlistEntry(id: number, updates: Partial<{ alert_threshold: number; status: string }>): Promise<WatchlistEntry> {
   const res = await authFetch(`/market/watchlist/${id}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   });
-  if (!res.ok) throw new Error('Failed to update watchlist entry');
   return res.json();
 }
 
@@ -800,22 +793,18 @@ export async function triggerScan(entryId: number): Promise<{ scanned: number; a
 
 export async function getMarketProperties(zipCode: string): Promise<MarketProperty[]> {
   const res = await authFetch(`/market/properties/${zipCode}`);
-  if (!res.ok) throw new Error('Failed to fetch properties');
   return res.json();
 }
 
 export async function getMarketAlerts(): Promise<MarketAlert[]> {
   const res = await authFetch('/market/alerts');
-  if (!res.ok) throw new Error('Failed to fetch alerts');
   return res.json();
 }
 
 export async function updateAlertStatus(id: number, alertStatus: string): Promise<MarketAlert> {
   const res = await authFetch(`/market/alerts/${id}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status: alertStatus }),
   });
-  if (!res.ok) throw new Error('Failed to update alert');
   return res.json();
 }

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -39,7 +39,7 @@ async def fetch_permits_near(lat: float, lng: float) -> list[dict]:
     Returns raw dicts — distance calculation is done by property_scorer
     using the haversine formula since it already has both coordinates.
     """
-    cutoff = (datetime.utcnow() - timedelta(days=365 * 3)).strftime("%Y-%m-%dT00:00:00.000")
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=365 * 3)).strftime("%Y-%m-%dT00:00:00.000")
     where = (
         f"within_circle(location, {lat}, {lng}, {SEARCH_RADIUS_METERS})"
         f" AND issue_date >= '{cutoff}'"

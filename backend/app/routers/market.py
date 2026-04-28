@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -155,6 +156,7 @@ async def trigger_scan(
         .values(last_scanned_at=datetime.now(timezone.utc))
     )
     await db.flush()
+    await db.commit()
     return {"scanned": len(property_results), "alerted": alerted, "zip_code": entry.zip_code}
 
 
@@ -166,6 +168,14 @@ async def get_properties(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
+    watchlist_entry = await db.scalar(
+        select(MarketWatchlist).where(
+            MarketWatchlist.user_id == current_user.id,
+            MarketWatchlist.zip_code == zip_code,
+        )
+    )
+    if not watchlist_entry:
+        raise HTTPException(status_code=404, detail="ZIP code not in your watchlist")
     result = await db.execute(
         select(MarketProperty)
         .where(MarketProperty.zip_code == zip_code)
@@ -214,8 +224,11 @@ async def update_alert_status(
     alert.status = body.status
     db.add(alert)
     await db.flush()
+    await db.commit()
     await db.refresh(alert)
-    return _alert_dict(alert)
+    prop_result = await db.execute(select(MarketProperty).where(MarketProperty.id == alert.property_id))
+    prop = prop_result.scalar_one_or_none()
+    return {**_alert_dict(alert), "property": _property_dict(prop) if prop else None}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -256,6 +269,7 @@ def _property_dict(p: MarketProperty) -> dict:
         "nearest_permit_date": p.nearest_permit_date,
         "nearest_permit_address": p.nearest_permit_address,
         "opportunity_score": p.opportunity_score, "claude_summary": p.claude_summary,
+        "score_breakdown": p.score_breakdown,
         "first_seen_at": p.first_seen_at.isoformat(),
         "last_updated_at": p.last_updated_at.isoformat(),
     }

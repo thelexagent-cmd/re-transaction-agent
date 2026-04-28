@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import useSWR, { mutate } from 'swr';
 import { Plus, Trash2, RefreshCw, MapPin } from 'lucide-react';
 import {
@@ -12,6 +13,7 @@ import {
 } from '@/lib/api';
 
 export default function WatchlistPage() {
+  const router = useRouter();
   const { data: watchlist = [], isLoading } = useSWR('/market/watchlist', getWatchlist);
   const [zipInput, setZipInput] = useState('');
   const [adding, setAdding] = useState(false);
@@ -41,15 +43,20 @@ export default function WatchlistPage() {
   }
 
   async function handleDelete(id: number) {
-    await deleteWatchlistEntry(id);
-    mutate('/market/watchlist');
+    if (!confirm('Remove this ZIP? All scanned properties and alerts will be deleted.')) return;
+    try {
+      await deleteWatchlistEntry(id);
+      mutate('/market/watchlist');
+    } catch {
+      setError('Failed to delete entry. Please try again.');
+    }
   }
 
   async function handleScan(id: number, zip: string) {
     setScanningId(id);
     try {
       await triggerScan(id);
-      window.location.href = `/market/${zip}`;
+      router.push(`/market/${zip}`);
     } finally {
       setScanningId(null);
     }

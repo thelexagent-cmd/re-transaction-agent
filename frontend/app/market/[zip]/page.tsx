@@ -32,7 +32,7 @@ function BreakdownPill({ label, pts }: { label: string; pts: number }) {
 }
 
 function PropertyCard({ prop }: { prop: MarketProperty }) {
-  const bd = (prop as MarketProperty & { score_breakdown?: Record<string, number> }).score_breakdown ?? null;
+  const bd = prop.score_breakdown;
   return (
     <div
       className="rounded-2xl overflow-hidden"

@@ -87,14 +87,19 @@ async def _generate_summary(listing: ZillowListing, score_result, nearest_permit
         pct = round((listing.zestimate - listing.price) / listing.zestimate * 100)
         signals.append(f"Listed {pct}% below Zestimate (${listing.price:,} vs ${listing.zestimate:,})")
     if score_result.signal_old_house:
-        signals.append(f"Built {listing.year_built} -- pre-1980 home in established neighborhood")
+        year_built_str = f"built {listing.year_built}" if listing.year_built else "year unknown"
+        signals.append(f"{year_built_str} -- pre-1980 home in established neighborhood")
     if score_result.signal_price_reduction:
-        signals.append(f"Price dropped ${listing.price_reduction_30d:,} in last 30 days")
+        reduction_str = f"${listing.price_reduction_30d:,}" if listing.price_reduction_30d else "unknown amount"
+        signals.append(f"Price dropped {reduction_str} in last 30 days")
     if score_result.signal_long_dom:
-        signals.append(f"On market {listing.days_on_market} days -- motivated seller signal")
+        dom_str = f"{listing.days_on_market}" if listing.days_on_market is not None else "unknown"
+        signals.append(f"On market {dom_str} days -- motivated seller signal")
+    price_str = f"${listing.price:,}" if listing.price else "price unknown"
+    year_str = str(listing.year_built) if listing.year_built else "unknown"
     prompt = (
         f"Property: {listing.address}, {listing.bedrooms}bd/{listing.bathrooms}ba, "
-        f"built {listing.year_built}, listed ${listing.price:,}. "
+        f"built {year_str}, listed {price_str}. "
         f"Opportunity score: {score_result.score}/100. "
         f"Signals: {'; '.join(signals)}. "
         f"Write 2 concise sentences for a real estate investor. Be specific. No fluff."
@@ -128,7 +133,8 @@ async def _upsert_property(db: AsyncSession, listing: ZillowListing, zip_code: s
             latitude=listing.latitude, longitude=listing.longitude, img_src=listing.img_src,
             nearest_permit_distance_mi=nearest_distance, nearest_permit_type=permit_type,
             nearest_permit_date=permit_date, nearest_permit_address=permit_address,
-            opportunity_score=score_result.score, claude_summary=claude_summary,
+            opportunity_score=score_result.score, score_breakdown=score_result.breakdown,
+            claude_summary=claude_summary,
         )
         db.add(prop)
     else:
@@ -141,6 +147,7 @@ async def _upsert_property(db: AsyncSession, listing: ZillowListing, zip_code: s
         prop.nearest_permit_date = permit_date
         prop.nearest_permit_address = permit_address
         prop.opportunity_score = score_result.score
+        prop.score_breakdown = score_result.breakdown
         if claude_summary:
             prop.claude_summary = claude_summary
         prop.last_updated_at = datetime.now(timezone.utc)

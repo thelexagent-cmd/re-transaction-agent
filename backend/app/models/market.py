@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -44,6 +44,7 @@ class MarketProperty(Base):
     nearest_permit_date: Mapped[str | None] = mapped_column(String(50), nullable=True)
     nearest_permit_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     opportunity_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    score_breakdown: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     claude_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

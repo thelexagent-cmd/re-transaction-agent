@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""      # @TheLexAI_bot token
     telegram_chat_id: str = ""        # Nico's personal Telegram user ID
     google_maps_api_key: str = ""     # For frontend map embed
+    dashboard_base_url: str = "https://lex-transaction-agent.vercel.app"
 
 
 settings = Settings()

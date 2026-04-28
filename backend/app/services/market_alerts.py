@@ -10,7 +10,6 @@ from app.models.market import MarketAlert, MarketProperty
 from app.services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
-DASHBOARD_BASE = "https://lex-transaction-agent.vercel.app"
 
 
 async def maybe_fire_alert(db: AsyncSession, user_id: int, property_id: int,
@@ -23,7 +22,7 @@ async def maybe_fire_alert(db: AsyncSession, user_id: int, property_id: int,
         .order_by(MarketAlert.fired_at.desc()).limit(1)
     )
     last_alert = result.scalar_one_or_none()
-    if last_alert and (current_score - last_alert.score_at_alert) < 10:
+    if last_alert and abs(current_score - last_alert.score_at_alert) < 10:
         return False
     prop_result = await db.execute(select(MarketProperty).where(MarketProperty.id == property_id))
     prop = prop_result.scalar_one_or_none()
@@ -33,6 +32,9 @@ async def maybe_fire_alert(db: AsyncSession, user_id: int, property_id: int,
     html_body = _format_email_html(prop, current_score)
     telegram_ok = await _send_telegram(message)
     email_ok = await _send_email(html_body, prop.address)
+    if not telegram_ok and not email_ok:
+        logger.error("Both alert channels failed for property %s", prop.zillow_id)
+        return False
     alerted_via = "both" if telegram_ok and email_ok else ("telegram" if telegram_ok else "email")
     db.add(MarketAlert(user_id=user_id, property_id=property_id,
                         score_at_alert=current_score, alerted_via=alerted_via))
@@ -61,14 +63,16 @@ def _format_telegram_message(prop: MarketProperty, score: int) -> str:
         lines.append(f"   Price dropped ${prop.price_reduction_30d:,} in last 30 days")
     if prop.claude_summary:
         lines += ["", prop.claude_summary]
-    lines += ["", f"<a href='{DASHBOARD_BASE}/market/{prop.zip_code}'>View on dashboard</a>"]
+    lines += ["", f"<a href='{settings.dashboard_base_url}/market/{prop.zip_code}'>View on dashboard</a>"]
     return "\n".join(lines)
 
 
 def _format_email_html(prop: MarketProperty, score: int) -> str:
     price = f"${prop.price:,}" if prop.price else "N/A"
+    permit_type = prop.nearest_permit_type or "development"
+    permit_date = prop.nearest_permit_date or "recent"
     permit_line = (f"<p>  {prop.nearest_permit_distance_mi:.1f}mi from permitted "
-                   f"{prop.nearest_permit_type} ({prop.nearest_permit_date})</p>"
+                   f"{permit_type} ({permit_date})</p>"
                    if prop.nearest_permit_distance_mi else "")
     reduction_line = (f"<p>  Price dropped ${prop.price_reduction_30d:,} in 30 days</p>"
                       if prop.price_reduction_30d else "")
@@ -76,9 +80,9 @@ def _format_email_html(prop: MarketProperty, score: int) -> str:
     return f"""<div style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px'>
   <h2 style='color:#1e40af'>Lex Market Alert -- Score: {score}/100</h2>
   <p style='font-size:18px;font-weight:bold'>{prop.address}</p>
-  <p>{prop.bedrooms}bd/{prop.bathrooms}ba | Built {prop.year_built} | Listed {price}</p>
+  <p>{prop.bedrooms or "?"}bd/{prop.bathrooms or "?"}ba | Built {prop.year_built or "unknown"} | Listed {price}</p>
   {permit_line}{reduction_line}{summary_line}
-  <a href='{DASHBOARD_BASE}/market/{prop.zip_code}' style='background:#1e40af;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:16px'>View on Dashboard</a>
+  <a href='{settings.dashboard_base_url}/market/{prop.zip_code}' style='background:#1e40af;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:16px'>View on Dashboard</a>
 </div>"""
 
 
