@@ -59,11 +59,27 @@ export default function OnboardingTooltip({
     };
   }, [targetSelector]);
 
-  // Position tooltip relative to target
+  // Position tooltip relative to target.
+  // Polls up to ~2 s (20 × 100 ms) if the target element is not yet in the
+  // DOM — handles conditionally-rendered elements like [data-tour="deal-grid"].
   useEffect(() => {
+    let retryCount = 0;
+    const MAX_RETRIES = 20;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
     function computePosition(): void {
       const el = document.querySelector(targetSelector);
-      if (!el) return;
+      if (!el) {
+        // Element not mounted yet — retry up to MAX_RETRIES times
+        if (retryCount < MAX_RETRIES) {
+          retryCount += 1;
+          retryTimer = setTimeout(computePosition, 100);
+        }
+        return;
+      }
+
+      // Also add highlight once element is found (handles delayed elements)
+      el.classList.add('lex-tour-highlight');
 
       const rect = el.getBoundingClientRect();
       const tooltipW = tooltipRef.current?.offsetWidth ?? TOOLTIP_WIDTH;
@@ -107,6 +123,7 @@ export default function OnboardingTooltip({
     window.addEventListener('resize', computePosition);
     window.addEventListener('scroll', computePosition, true);
     return () => {
+      if (retryTimer !== null) clearTimeout(retryTimer);
       window.removeEventListener('resize', computePosition);
       window.removeEventListener('scroll', computePosition, true);
     };

@@ -25,12 +25,30 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [dashboardStep, setDashboardStepState] = useState<number>(0);
   const [newTxGuideShown, setNewTxGuideShown] = useState<boolean>(false);
 
-  // Hydrate from localStorage on mount (client-only)
+  // Hydrate from localStorage on mount (client-only).
+  // If lex_show_tour is set (from the "Take a Tour" sidebar button), clear any
+  // previously-completed state and start the tooltip tour from step 1.
+  // We use requestAnimationFrame so that the data-tour elements are in the DOM
+  // before the first tooltip tries to measure their positions.
   useEffect(() => {
-    const done = localStorage.getItem('lex_dashboard_guide_done');
+    const showTour = localStorage.getItem('lex_show_tour') === 'true';
     const newTxDone = localStorage.getItem('lex_newtx_guide_done');
-    setDashboardStepState(done ? 5 : 0);
     setNewTxGuideShown(!!newTxDone);
+
+    if (showTour) {
+      localStorage.removeItem('lex_show_tour');
+      localStorage.removeItem('lex_dashboard_guide_done');
+      localStorage.removeItem('lex_newtx_guide_done');
+      setNewTxGuideShown(false);
+      // Defer by one animation frame so the page DOM (data-tour elements) is
+      // painted before the tooltip tries to getBoundingClientRect on them.
+      requestAnimationFrame(() => {
+        setDashboardStepState(1);
+      });
+    } else {
+      const done = localStorage.getItem('lex_dashboard_guide_done');
+      setDashboardStepState(done ? 5 : 0);
+    }
   }, []);
 
   const setDashboardStep = useCallback((step: number) => {
