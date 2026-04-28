@@ -597,7 +597,7 @@ function TeamSection() {
 
 // ── Main Settings Page ──────────────────────────────────────────────────────
 
-const BASE_SECTIONS: { id: Section; label: string; icon: React.ElementType }[] = [
+const BASE_SECTIONS: { id: Section; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'profile',     label: 'Profile',          icon: User },
   { id: 'password',    label: 'Change Password',   icon: Lock },
   { id: 'preferences', label: 'Preferences',       icon: Sliders },
@@ -606,7 +606,7 @@ const BASE_SECTIONS: { id: Section; label: string; icon: React.ElementType }[] =
   { id: 'billing',     label: 'Billing & Plan',    icon: CreditCard },
 ];
 
-const BROKER_SECTIONS: { id: Section; label: string; icon: React.ElementType }[] = [
+const BROKER_SECTIONS: { id: Section; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'team', label: 'Team & Invites', icon: Users },
 ];
 
