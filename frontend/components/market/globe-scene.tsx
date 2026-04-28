@@ -213,12 +213,33 @@ function Scene({ watchlist }: { watchlist: WatchlistEntry[] }) {
 
 export function GlobeScene({ watchlist }: { watchlist: WatchlistEntry[] }) {
   return (
-    <Canvas
-      camera={{ position: [0, 0, 2.8], fov: 45 }}
-      gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
-      style={{ width: '100%', height: '100%', background: '#050a12' }}
-    >
-      <Scene watchlist={watchlist} />
-    </Canvas>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <Canvas
+        camera={{ position: [0, 0, 2.8], fov: 45 }}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.2 }}
+        style={{ width: '100%', height: '100%', background: '#050a12' }}
+      >
+        <Scene watchlist={watchlist} />
+      </Canvas>
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 100,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          color: 'rgba(148,163,184,0.35)',
+          fontSize: 11,
+          fontFamily: 'monospace',
+          letterSpacing: 3,
+          textTransform: 'uppercase' as const,
+          fontVariant: 'small-caps',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Search a city or zip to begin
+      </div>
+    </div>
   );
 }

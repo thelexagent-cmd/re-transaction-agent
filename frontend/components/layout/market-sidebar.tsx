@@ -15,6 +15,16 @@ export function MarketSidebar() {
 
   return (
     <nav className="flex flex-col gap-1 px-3">
+      {/* Lex Market header */}
+      <div style={{ paddingLeft: '8px', paddingRight: '8px', paddingBottom: '12px', paddingTop: '4px', borderBottom: '1px solid var(--border)', marginBottom: '8px' }}>
+        <p style={{ fontSize: '0.6875rem', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700, marginBottom: '2px', fontVariant: 'small-caps' }}>
+          Lex Market
+        </p>
+        <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Intelligence Platform
+        </p>
+      </div>
+
       {marketNavItems.map(({ href, label, icon: Icon }) => {
         const active = pathname === href;
         return (
