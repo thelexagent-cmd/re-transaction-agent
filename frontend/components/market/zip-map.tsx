@@ -94,8 +94,8 @@ export function ZipMap({
               'fill-color': [
                 'case',
                 ['in', ['get', 'ZCTA5CE10'], ['literal', trackedZips]],
-                'rgba(59,130,246,0.18)',
-                'rgba(255,255,255,0.02)',
+                'rgba(59,130,246,0.22)',
+                'rgba(120,160,255,0.05)',
               ],
               'fill-opacity': 1,
             }}
@@ -117,14 +117,14 @@ export function ZipMap({
               'line-color': [
                 'case',
                 ['in', ['get', 'ZCTA5CE10'], ['literal', trackedZips]],
-                'rgba(59,130,246,0.75)',
-                'rgba(255,255,255,0.14)',
+                'rgba(59,130,246,0.9)',
+                'rgba(148,163,184,0.45)',
               ],
               'line-width': [
                 'case',
                 ['in', ['get', 'ZCTA5CE10'], ['literal', trackedZips]],
-                1.5,
-                0.7,
+                2,
+                1,
               ],
             }}
           />
