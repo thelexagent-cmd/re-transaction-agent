@@ -808,3 +808,17 @@ export async function updateAlertStatus(id: number, alertStatus: string): Promis
   });
   return res.json();
 }
+
+export type ZipInfo = {
+  zip: string;
+  city: string;
+  county: string;
+  state: string;
+  state_abbr: string;
+  median_home_value: number | null;
+};
+
+export async function getZipInfo(zip: string): Promise<ZipInfo> {
+  const res = await authFetch(`/market/zip-info/${zip}`);
+  return res.json();
+}

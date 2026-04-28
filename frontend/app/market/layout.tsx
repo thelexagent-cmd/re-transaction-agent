@@ -8,12 +8,14 @@ import { TopBar } from '@/components/layout/top-bar';
 export default function MarketLayout({ children }: { children: ReactNode }) {
   return (
     <AuthGuard>
-      <div className="flex h-full min-h-screen">
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
         <Sidebar />
-        <main className="ml-64 flex-1 min-h-screen bg-[var(--bg)]">
+        <div style={{ marginLeft: 256, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <TopBar />
-          {children}
-        </main>
+          <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            {children}
+          </div>
+        </div>
       </div>
     </AuthGuard>
   );

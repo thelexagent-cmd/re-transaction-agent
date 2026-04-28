@@ -14,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.logging_config import configure_logging, log_requests_middleware
 from app.routers import auth, compliance, documents, inspection, invites, tasks, transactions
-from app.routers import market, portal, reports, templates
+from app.routers import market, portal, reports, templates, zip_info
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -101,6 +101,7 @@ app.include_router(portal.router)
 app.include_router(reports.router)
 app.include_router(templates.router)
 app.include_router(market.router)
+app.include_router(zip_info.router)
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
