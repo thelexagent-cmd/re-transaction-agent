@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import useSWR from 'swr';
 import { MarketSearch, type GeocodingResult } from '@/components/market/market-search';
 import { ZipPanel } from '@/components/market/zip-panel';
 import { getWatchlist, type WatchlistEntry } from '@/lib/api';
@@ -25,11 +26,7 @@ export default function MarketPage() {
   const [view, setView]               = useState<ViewState>({ mode: 'globe' });
   const [mapVisible, setMapVisible]   = useState(false);
   const [selectedZip, setSelectedZip] = useState<string | null>(null);
-  const [watchlist, setWatchlist]     = useState<WatchlistEntry[]>([]);
-
-  useEffect(() => {
-    getWatchlist().then(setWatchlist).catch(() => {});
-  }, []);
+  const { data: watchlist = [], mutate: mutateWatchlist } = useSWR('/market/watchlist', getWatchlist);
 
   function handleSearchResult(result: GeocodingResult) {
     setMapVisible(false);
@@ -44,10 +41,8 @@ export default function MarketPage() {
     setTimeout(() => setView({ mode: 'globe' }), 320);
   }
 
-  function handleTracked(entry: WatchlistEntry) {
-    setWatchlist((prev) =>
-      prev.find((e) => e.zip_code === entry.zip_code) ? prev : [...prev, entry]
-    );
+  function handleTracked(_entry: WatchlistEntry) {
+    mutateWatchlist();
   }
 
   return (
