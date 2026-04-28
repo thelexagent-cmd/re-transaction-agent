@@ -1,0 +1,98 @@
+<h2>Market Intelligence — Layout Approach</h2>
+<p class="subtitle">How should the globe and search be arranged on the main market screen?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="A" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0f1a;padding:16px;height:200px;position:relative;overflow:hidden;border-radius:8px;">
+      <!-- Option A: Full-screen globe, search overlaid on top -->
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+        <div style="width:140px;height:140px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#1e3a5f,#0a1628);border:1px solid rgba(59,130,246,0.4);box-shadow:0 0 40px rgba(59,130,246,0.2);position:relative;">
+          <div style="position:absolute;inset:0;border-radius:50%;background:repeating-linear-gradient(0deg,transparent,transparent 12px,rgba(59,130,246,0.07) 12px,rgba(59,130,246,0.07) 13px),repeating-linear-gradient(90deg,transparent,transparent 12px,rgba(59,130,246,0.07) 12px,rgba(59,130,246,0.07) 13px);"></div>
+          <!-- pulse dot -->
+          <div style="position:absolute;top:35%;left:60%;width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 12px #3b82f6;"></div>
+        </div>
+      </div>
+      <!-- Search bar overlaid at bottom -->
+      <div style="position:absolute;bottom:12px;left:12px;right:12px;background:rgba(14,20,32,0.9);border:1px solid rgba(59,130,246,0.3);border-radius:12px;padding:8px 12px;backdrop-filter:blur(12px);">
+        <div style="font-size:11px;color:#8b95a8;font-family:monospace;">⌕  Enter ZIP code — e.g. 33101</div>
+      </div>
+      <!-- subtle particle dots -->
+      <div style="position:absolute;top:20px;left:30px;width:3px;height:3px;border-radius:50%;background:rgba(59,130,246,0.5);"></div>
+      <div style="position:absolute;top:50px;right:25px;width:2px;height:2px;border-radius:50%;background:rgba(99,102,241,0.4);"></div>
+      <div style="position:absolute;bottom:60px;left:20px;width:2px;height:2px;border-radius:50%;background:rgba(59,130,246,0.3);"></div>
+    </div>
+    <div class="card-body">
+      <h3>A — Immersive Globe</h3>
+      <p>Globe fills the screen. Search bar floats over it at the bottom. Maximum cinematic impact. Clicking the globe or typing a ZIP triggers the analysis panels to slide in from the sides.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="B" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0f1a;padding:16px;height:200px;position:relative;overflow:hidden;border-radius:8px;">
+      <!-- Option B: Split — globe left, command panel right -->
+      <div style="display:flex;height:100%;gap:10px;">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;">
+          <div style="width:110px;height:110px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#1e3a5f,#0a1628);border:1px solid rgba(59,130,246,0.4);box-shadow:0 0 30px rgba(59,130,246,0.2);">
+            <div style="width:100%;height:100%;border-radius:50%;background:repeating-linear-gradient(0deg,transparent,transparent 10px,rgba(59,130,246,0.06) 10px,rgba(59,130,246,0.06) 11px),repeating-linear-gradient(90deg,transparent,transparent 10px,rgba(59,130,246,0.06) 10px,rgba(59,130,246,0.06) 11px);"></div>
+          </div>
+        </div>
+        <div style="width:130px;display:flex;flex-direction:column;gap:6px;padding:8px 0;justify-content:center;">
+          <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:6px 8px;">
+            <div style="font-size:9px;color:#64748b;margin-bottom:2px;">SEARCH ZIP</div>
+            <div style="font-size:10px;color:#8b95a8;font-family:monospace;">33101 — Miami</div>
+          </div>
+          <div style="background:rgba(14,20,32,0.8);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px 8px;">
+            <div style="font-size:9px;color:#64748b;margin-bottom:2px;">SCORE</div>
+            <div style="font-size:13px;color:#f59e0b;font-weight:700;">73 / 100</div>
+          </div>
+          <div style="background:rgba(14,20,32,0.8);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px 8px;">
+            <div style="font-size:9px;color:#64748b;margin-bottom:2px;">LISTINGS</div>
+            <div style="font-size:13px;color:#3b82f6;font-weight:700;">24 active</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Split Command</h3>
+      <p>Globe on the left, data command panel on the right. Permanent split — analysis results always visible alongside the globe. More dashboard-like, less cinematic but more usable for repeated analysis sessions.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="C" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0f1a;padding:16px;height:200px;position:relative;overflow:hidden;border-radius:8px;">
+      <!-- Option C: Globe centered top, search below, results grid at bottom -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+          <div style="width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#1e3a5f,#0a1628);border:1px solid rgba(59,130,246,0.4);box-shadow:0 0 25px rgba(59,130,246,0.25);">
+            <div style="width:100%;height:100%;border-radius:50%;background:repeating-linear-gradient(0deg,transparent,transparent 8px,rgba(59,130,246,0.06) 8px,rgba(59,130,246,0.06) 9px);"></div>
+          </div>
+        </div>
+        <div style="width:100%;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.25);border-radius:20px;padding:5px 10px;text-align:center;">
+          <div style="font-size:10px;color:#8b95a8;font-family:monospace;">⌕  33101</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;width:100%;">
+          <div style="background:rgba(14,20,32,0.8);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:4px;text-align:center;">
+            <div style="font-size:8px;color:#64748b;">LISTINGS</div>
+            <div style="font-size:11px;color:#3b82f6;font-weight:700;">24</div>
+          </div>
+          <div style="background:rgba(14,20,32,0.8);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:4px;text-align:center;">
+            <div style="font-size:8px;color:#64748b;">AVG SCORE</div>
+            <div style="font-size:11px;color:#f59e0b;font-weight:700;">61</div>
+          </div>
+          <div style="background:rgba(14,20,32,0.8);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:4px;text-align:center;">
+            <div style="font-size:8px;color:#64748b;">ALERTS</div>
+            <div style="font-size:11px;color:#34d399;font-weight:700;">3</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Stacked Command</h3>
+      <p>Globe centered top, search bar below it, stats/results in a grid at the bottom. Vertical flow — most natural on widescreen. Globe shrinks as you scroll down into results.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;font-size:12px;">Click your preferred layout. You can change your mind — just click again.</p>
