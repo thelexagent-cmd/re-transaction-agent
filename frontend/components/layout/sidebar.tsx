@@ -179,8 +179,7 @@ export function Sidebar() {
         {/* Take a Tour */}
         <button
           onClick={() => {
-            localStorage.removeItem('lex_onboarding_dismissed');
-            localStorage.setItem('lex_show_tour', 'true');
+            resetGuide();
             router.push('/transactions');
           }}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 transition-colors"

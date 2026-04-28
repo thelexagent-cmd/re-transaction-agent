@@ -181,10 +181,13 @@ export default function TransactionsPage() {
     return () => window.removeEventListener('keydown', handleKeydown);
   }, [router]);
 
-  // Auto-start dashboard guide on first visit
+  // Auto-start dashboard guide on first visit only — not if user has dismissed
   useEffect(() => {
     const t = setTimeout(() => {
-      if (!localStorage.getItem('lex_dashboard_guide_done')) {
+      if (
+        !localStorage.getItem('lex_dashboard_guide_done') &&
+        !localStorage.getItem('lex_onboarding_dismissed')
+      ) {
         setDashboardStep(1);
       }
     }, 1000);
@@ -432,7 +435,10 @@ export default function TransactionsPage() {
                 setDashboardStep(dashboardStep + 1);
               }
             }}
-            onDismiss={() => setDashboardStep(5)}
+            onDismiss={() => {
+              localStorage.setItem('lex_onboarding_dismissed', 'true');
+              setDashboardStep(5);
+            }}
           />
         );
       })()}

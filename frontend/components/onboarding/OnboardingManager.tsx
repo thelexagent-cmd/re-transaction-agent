@@ -66,6 +66,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const resetGuide = useCallback(() => {
     localStorage.removeItem('lex_dashboard_guide_done');
     localStorage.removeItem('lex_newtx_guide_done');
+    localStorage.removeItem('lex_onboarding_dismissed');
     setDashboardStepState(1);
     setNewTxGuideShown(false);
   }, []);
