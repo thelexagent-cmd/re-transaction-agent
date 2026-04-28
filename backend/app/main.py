@@ -40,6 +40,7 @@ app.add_middleware(
         "http://localhost:3000",
         "https://frontend-rose-ten-64.vercel.app",
         "https://lex-transaction-agent.vercel.app",
+        "https://re-transaction-agent.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
