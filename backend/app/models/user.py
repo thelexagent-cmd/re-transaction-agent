@@ -31,9 +31,6 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    brokerage: Mapped["Brokerage | None"] = relationship(  # noqa: F821
-        "Brokerage", back_populates="users"
-    )
     transactions: Mapped[list["Transaction"]] = relationship(  # noqa: F821
         "Transaction", back_populates="user", lazy="select"
     )

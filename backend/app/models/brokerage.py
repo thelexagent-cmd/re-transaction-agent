@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, String, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
@@ -17,9 +17,3 @@ class Brokerage(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    users: Mapped[list["User"]] = relationship(  # noqa: F821
-        "User", back_populates="brokerage", lazy="select"
-    )
-    invites: Mapped[list["Invite"]] = relationship(  # noqa: F821
-        "Invite", back_populates="brokerage", lazy="select"
-    )
