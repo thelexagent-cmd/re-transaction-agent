@@ -34,6 +34,7 @@ export default function WatchlistPage() {
       const cached = JSON.parse(localStorage.getItem('lex-market-zips') ?? '[]') as string[];
       if (!cached.includes(zip)) {
         localStorage.setItem('lex-market-zips', JSON.stringify([zip, ...cached].slice(0, 20)));
+        window.dispatchEvent(new Event('storage'));
       }
     } catch {
       setError('Failed to add ZIP. It may already be on your watchlist.');

@@ -48,11 +48,9 @@ export default function OnboardingTooltip({
   const [visible, setVisible] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // Inject highlight style once and highlight target element
+  // Inject highlight style once; highlight is added by the retry-capable effect below
   useEffect(() => {
     injectHighlightStyle();
-    const el = document.querySelector(targetSelector);
-    if (el) el.classList.add('lex-tour-highlight');
     return () => {
       const target = document.querySelector(targetSelector);
       if (target) target.classList.remove('lex-tour-highlight');

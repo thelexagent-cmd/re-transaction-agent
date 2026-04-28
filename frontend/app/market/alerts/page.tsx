@@ -51,9 +51,13 @@ const NEXT_STATUS: Record<string, string> = {
 
 export default function AlertsPage() {
   const { data: alerts = [], isLoading } = useSWR('/market/alerts', getMarketAlerts);
-  const [enabledTypes, setEnabledTypes] = useState<Set<string>>(
-    () => new Set(ALERT_TYPES.map((t) => t.id))
-  );
+  const [enabledTypes, setEnabledTypes] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('lex-market-alert-types');
+      if (stored) return new Set(JSON.parse(stored) as string[]);
+    } catch { /* ignore */ }
+    return new Set(ALERT_TYPES.map((t) => t.id));
+  });
 
   function toggleType(id: string) {
     setEnabledTypes((prev) => {
@@ -63,6 +67,9 @@ export default function AlertsPage() {
       } else {
         next.add(id);
       }
+      try {
+        localStorage.setItem('lex-market-alert-types', JSON.stringify([...next]));
+      } catch { /* ignore */ }
       return next;
     });
   }

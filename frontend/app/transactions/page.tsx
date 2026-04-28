@@ -146,13 +146,6 @@ export default function TransactionsPage() {
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<string>('all');
   const [showTour, setShowTour] = useState(false);
 
-  useEffect(() => {
-    if (localStorage.getItem('lex_show_tour') === 'true') {
-      localStorage.removeItem('lex_show_tour');
-      setShowTour(true);
-    }
-  }, []);
-
   const totalDeals       = transactions?.length ?? 0;
   const activeDeals      = transactions?.filter((t) => t.status !== 'closed' && t.status !== 'cancelled').length ?? 0;
   const closingThisMonth = transactions ? countClosingThisMonth(transactions) : 0;
