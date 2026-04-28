@@ -1,24 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Building2, MapPin } from 'lucide-react';
 
+// Mode is derived entirely from the current URL — no localStorage state.
+// This prevents contamination: if you're on /transactions, mode is always CRM.
+// If you're on /market/*, mode is always Market.
 type Mode = 'crm' | 'market';
+
+function useCurrentMode(): Mode {
+  const pathname = usePathname();
+  return pathname.startsWith('/market') ? 'market' : 'crm';
+}
 
 export function ModeSwitcher() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>('crm');
-
-  useEffect(() => {
-    const stored = localStorage.getItem('lex-mode') as Mode | null;
-    setMode(stored ?? 'crm');
-  }, []);
+  const mode = useCurrentMode();
 
   function switchMode(next: Mode) {
-    setMode(next);
-    localStorage.setItem('lex-mode', next);
-    if (next === 'market') router.push('/market/watchlist');
+    if (next === 'market') router.push('/market');
     else router.push('/transactions');
   }
 
@@ -32,8 +32,8 @@ export function ModeSwitcher() {
       }}
     >
       {([
-        { id: 'crm' as Mode,    label: 'Lex CRM',    icon: Building2 },
-        { id: 'market' as Mode, label: 'Lex Market',  icon: MapPin },
+        { id: 'crm' as Mode,    label: 'Lex CRM',   icon: Building2 },
+        { id: 'market' as Mode, label: 'Lex Market', icon: MapPin },
       ]).map(({ id, label, icon: Icon }) => (
         <button
           key={id}
@@ -56,19 +56,8 @@ export function ModeSwitcher() {
   );
 }
 
+// Hook for other components that need to know the current mode.
+// Always URL-derived — never stale.
 export function useMode(): Mode {
-  const [mode, setMode] = useState<Mode>('crm');
-
-  useEffect(() => {
-    const stored = localStorage.getItem('lex-mode') as Mode | null;
-    setMode(stored ?? 'crm');
-
-    function onStorage(e: StorageEvent) {
-      if (e.key === 'lex-mode') setMode((e.newValue as Mode) ?? 'crm');
-    }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-
-  return mode;
+  return useCurrentMode();
 }

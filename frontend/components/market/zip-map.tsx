@@ -1,34 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import Map, {
-  Source,
-  Layer,
-} from 'react-map-gl';
+import Map, { Source, Layer } from 'react-map-gl';
 import type { MapRef, MapLayerMouseEvent } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { WatchlistEntry } from '@/lib/api';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? '';
 
-// Census TIGER ZCTA GeoJSON per state — jsDelivr CDN (faster/more reliable than raw GitHub)
-const ZCTA_BASE = 'https://cdn.jsdelivr.net/gh/OpenDataDE/State-zip-code-GeoJSON@master';
-
-const STATE_ABBR_TO_SLUG: Record<string, string> = {
-  AL:'al',AK:'ak',AZ:'az',AR:'ar',CA:'ca',CO:'co',CT:'ct',DE:'de',FL:'fl',
-  GA:'ga',HI:'hi',ID:'id',IL:'il',IN:'in',IA:'ia',KS:'ks',KY:'ky',LA:'la',
-  ME:'me',MD:'md',MA:'ma',MI:'mi',MN:'mn',MS:'ms',MO:'mo',MT:'mt',NE:'ne',
-  NV:'nv',NH:'nh',NJ:'nj',NM:'nm',NY:'ny',NC:'nc',ND:'nd',OH:'oh',OK:'ok',
-  OR:'or',PA:'pa',RI:'ri',SC:'sc',SD:'sd',TN:'tn',TX:'tx',UT:'ut',VT:'vt',
-  VA:'va',WA:'wa',WV:'wv',WI:'wi',WY:'wy',DC:'dc',
-};
+// Uses Mapbox Streets v8 vector tiles — postal_code layer is built into the
+// map tiles, no external GeoJSON fetch needed. Loads instantly, works for all states.
+const STREETS_SOURCE = 'mapbox://mapbox.mapbox-streets-v8';
+const POSTAL_LAYER   = 'postal_code';
 
 interface ZipMapProps {
-  center: [number, number];           // [lng, lat]
-  bbox?: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
-  stateAbbr: string;
+  center: [number, number];
+  bbox?: [number, number, number, number];
   watchlist: WatchlistEntry[];
-  panelOpen: boolean;
   onZipClick: (zip: string) => void;
   onBackToGlobe: () => void;
 }
@@ -36,18 +24,14 @@ interface ZipMapProps {
 export function ZipMap({
   center,
   bbox,
-  stateAbbr,
   watchlist,
-  panelOpen,
   onZipClick,
   onBackToGlobe,
 }: ZipMapProps) {
   const mapRef = useRef<MapRef>(null);
-  const slug = STATE_ABBR_TO_SLUG[stateAbbr.toUpperCase()] ?? 'fl';
-  const geoJsonUrl = `${ZCTA_BASE}/${slug}_zip_codes_geo.min.json`;
   const trackedZips = watchlist.map((e) => e.zip_code);
 
-  // Fly to location once map loads or center changes
+  // Fly to searched location once map loads or location changes
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!map) return;
@@ -61,13 +45,12 @@ export function ZipMap({
     }
   }, [center, bbox]);
 
+  // Click: read ZIP from the Mapbox Streets postal_code layer (property: name)
   const handleClick = useCallback(
     (e: MapLayerMouseEvent) => {
       const features = e.features;
       if (!features?.length) return;
-      const props = features[0].properties ?? {};
-      // The ZCTA GeoJSON from OpenDataDE uses ZCTA5CE10
-      const zip = props.ZCTA5CE10 ?? props.ZCTA5 ?? props.zip ?? null;
+      const zip = features[0].properties?.name ?? null;
       if (zip) onZipClick(String(zip));
     },
     [onZipClick]
@@ -85,62 +68,64 @@ export function ZipMap({
         onClick={handleClick}
         cursor="pointer"
       >
-        <Source key={geoJsonUrl} id="zcta" type="geojson" data={geoJsonUrl} generateId>
-          {/* Clickable fill */}
+        {/*
+          Source: Mapbox Streets v8 vector tileset (same data the map style uses).
+          postal_code source-layer contains ZIP code polygon boundaries.
+          These tiles are already being fetched for the base map — zero extra cost.
+        */}
+        <Source id="postal-codes" type="vector" url={STREETS_SOURCE}>
+
+          {/* Clickable fill — tracked ZIPs get a blue tint */}
           <Layer
             id="zip-fill"
             type="fill"
+            source-layer={POSTAL_LAYER}
             paint={{
               'fill-color': [
                 'case',
-                ['in', ['get', 'ZCTA5CE10'], ['literal', trackedZips]],
+                ['in', ['get', 'name'], ['literal', trackedZips]],
                 'rgba(59,130,246,0.22)',
-                'rgba(120,160,255,0.05)',
+                'rgba(120,160,255,0.04)',
               ],
               'fill-opacity': 1,
             }}
           />
-          {/* Hover highlight — requires feature-state or a separate hover layer */}
-          <Layer
-            id="zip-fill-hover"
-            type="fill"
-            paint={{
-              'fill-color': 'rgba(255,255,255,0.06)',
-              'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0],
-            }}
-          />
-          {/* Border */}
+
+          {/* ZIP border lines */}
           <Layer
             id="zip-line"
             type="line"
+            source-layer={POSTAL_LAYER}
             paint={{
               'line-color': [
                 'case',
-                ['in', ['get', 'ZCTA5CE10'], ['literal', trackedZips]],
-                'rgba(59,130,246,0.9)',
-                'rgba(148,163,184,0.45)',
+                ['in', ['get', 'name'], ['literal', trackedZips]],
+                '#3b82f6',
+                'rgba(148,163,184,0.4)',
               ],
               'line-width': [
                 'case',
-                ['in', ['get', 'ZCTA5CE10'], ['literal', trackedZips]],
+                ['in', ['get', 'name'], ['literal', trackedZips]],
                 2,
-                1,
+                0.8,
               ],
             }}
           />
-          {/* ZIP label */}
+
+          {/* ZIP code labels */}
           <Layer
             id="zip-label"
             type="symbol"
+            source-layer={POSTAL_LAYER}
             layout={{
-              'text-field': ['get', 'ZCTA5CE10'],
+              'text-field': ['get', 'name'],
               'text-size': 11,
               'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
               'text-allow-overlap': false,
             }}
             paint={{
-              'text-color': 'rgba(148,163,184,0.65)',
-              'text-halo-color': 'rgba(0,0,0,0.6)',
+              'text-color': 'rgba(148,163,184,0.7)',
+              'text-halo-color': 'rgba(0,0,0,0.7)',
               'text-halo-width': 1,
             }}
           />

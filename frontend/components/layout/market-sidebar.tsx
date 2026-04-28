@@ -16,7 +16,7 @@ export function MarketSidebar() {
   return (
     <nav className="flex flex-col gap-1 px-3">
       {marketNavItems.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || (label === 'Watchlist' && pathname.startsWith('/market/') && !pathname.startsWith('/market/alerts'));
+        const active = pathname === href;
         return (
           <Link
             key={href}
