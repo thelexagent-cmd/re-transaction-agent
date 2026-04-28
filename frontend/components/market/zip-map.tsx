@@ -11,8 +11,8 @@ import type { WatchlistEntry } from '@/lib/api';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? '';
 
-// Census TIGER ZCTA GeoJSON per state (OpenDataDE mirror)
-const ZCTA_BASE = 'https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master';
+// Census TIGER ZCTA GeoJSON per state — jsDelivr CDN (faster/more reliable than raw GitHub)
+const ZCTA_BASE = 'https://cdn.jsdelivr.net/gh/OpenDataDE/State-zip-code-GeoJSON@master';
 
 const STATE_ABBR_TO_SLUG: Record<string, string> = {
   AL:'al',AK:'ak',AZ:'az',AR:'ar',CA:'ca',CO:'co',CT:'ct',DE:'de',FL:'fl',
@@ -85,7 +85,7 @@ export function ZipMap({
         onClick={handleClick}
         cursor="pointer"
       >
-        <Source id="zcta" type="geojson" data={geoJsonUrl}>
+        <Source key={geoJsonUrl} id="zcta" type="geojson" data={geoJsonUrl} generateId>
           {/* Clickable fill */}
           <Layer
             id="zip-fill"
