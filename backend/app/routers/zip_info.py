@@ -31,6 +31,7 @@ class ZipInfoResponse(BaseModel):
     state: str
     state_abbr: str
     median_home_value: int | None
+    price_per_sqft: int | None
 
 
 async def _fetch_zip_info(zip_code: str) -> dict | None:
@@ -63,12 +64,13 @@ async def _fetch_zip_info(zip_code: str) -> dict | None:
         except Exception:
             pass
 
-        # 2. Census ACS5 — median home value (B25077_001E)
+        # 2. Census ACS5 — median home value (B25077_001E) + median rooms (B25018_001E)
         median_value = None
+        median_rooms = None
         try:
             census_key = getattr(settings, "census_api_key", "") or getattr(settings, "CENSUS_API_KEY", "")
             acs_url = (
-                f"{CENSUS_BASE}?get=B25077_001E,NAME"
+                f"{CENSUS_BASE}?get=B25077_001E,B25018_001E,NAME"
                 f"&for=zip+code+tabulation+area:{zip_code}"
                 + (f"&key={census_key}" if census_key else "")
             )
@@ -79,13 +81,20 @@ async def _fetch_zip_info(zip_code: str) -> dict | None:
                     raw = rows[1][0]
                     if raw and raw != "-666666666":
                         median_value = int(raw)
-                    name_field = rows[1][1] if len(rows[1]) > 1 else ""
+                    raw_rooms = rows[1][1] if len(rows[1]) > 1 else None
+                    if raw_rooms and raw_rooms != "-666666666":
+                        median_rooms = float(raw_rooms)
+                    name_field = rows[1][2] if len(rows[1]) > 2 else ""
                     if not state and ", " in name_field:
                         state = name_field.split(", ")[-1]
                     if not city:
                         city = zip_code
         except Exception:
             pass
+
+    price_per_sqft = None
+    if median_value and median_rooms and median_rooms > 0:
+        price_per_sqft = round(median_value / (median_rooms * 250))
 
     if not state and not city:
         return None
@@ -97,6 +106,7 @@ async def _fetch_zip_info(zip_code: str) -> dict | None:
         "state": state or "",
         "state_abbr": state_abbr or "",
         "median_home_value": median_value,
+        "price_per_sqft": price_per_sqft,
     }
 
 

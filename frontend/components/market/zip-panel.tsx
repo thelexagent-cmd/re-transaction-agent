@@ -113,8 +113,8 @@ export function ZipPanel({ zip, onClose, onTracked, watchlist }: ZipPanelProps) 
       {/* Stats */}
       <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <StatRow
-          label="Median Home Value"
-          value={loading ? null : formatCurrency(info?.median_home_value)}
+          label="Price Per Sq Ft"
+          value={loading ? null : (info?.price_per_sqft ? `$${info.price_per_sqft} / sq ft` : '—')}
           highlight
         />
         <StatRow

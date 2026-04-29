@@ -816,6 +816,7 @@ export type ZipInfo = {
   state: string;
   state_abbr: string;
   median_home_value: number | null;
+  price_per_sqft: number | null;
 };
 
 export async function getZipInfo(zip: string): Promise<ZipInfo> {
