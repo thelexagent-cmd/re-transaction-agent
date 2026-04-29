@@ -39,10 +39,10 @@ function PropertyCard({ prop }: { prop: MarketProperty }) {
       className="rounded-2xl overflow-hidden"
       style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
     >
-      {/* House photo */}
+      {/* House photo — swap CDN suffix s→od for full resolution */}
       {prop.img_src ? (
         <img
-          src={prop.img_src}
+          src={prop.img_src.replace(/s\.jpg$/i, 'od.jpg')}
           alt={prop.address}
           style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }}
         />
