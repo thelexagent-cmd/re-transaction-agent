@@ -15,7 +15,7 @@ class MarketWatchlist(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     zip_code: Mapped[str] = mapped_column(String(10), nullable=False)
-    alert_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+    alert_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=40)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

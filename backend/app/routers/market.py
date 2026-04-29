@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class WatchlistCreate(BaseModel):
     zip_code: str
-    alert_threshold: int = 60
+    alert_threshold: int = 40
 
     @field_validator("zip_code")
     @classmethod
