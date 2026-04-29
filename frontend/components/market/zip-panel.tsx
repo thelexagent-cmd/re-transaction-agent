@@ -41,7 +41,7 @@ export function ZipPanel({ zip, onClose, onTracked, watchlist }: ZipPanelProps) 
       try {
         const cached = JSON.parse(localStorage.getItem('lex-market-zips') ?? '[]') as string[];
         if (!cached.includes(zip)) {
-          localStorage.setItem('lex-market-zips', JSON.stringify([zip, ...cached].slice(0, 20)));
+          localStorage.setItem('lex-market-zips', JSON.stringify([zip, ...cached].slice(0, 100)));
           window.dispatchEvent(new Event('storage'));
         }
       } catch { /* ignore */ }

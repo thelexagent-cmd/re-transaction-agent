@@ -16,7 +16,7 @@ import { useOnboarding } from '@/components/onboarding/OnboardingManager';
 import OnboardingTooltip from '@/components/onboarding/OnboardingTooltip';
 import {
   Plus, AlertCircle, TrendingUp,
-  Search, ChevronDown, Timer, Map,
+  Search, ChevronDown, Timer,
 } from 'lucide-react';
 import type { TransactionListItem } from '@/lib/api';
 
@@ -144,7 +144,7 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<string>('all');
-  const [showTour, setShowTour] = useState(false);
+
 
   const totalDeals       = transactions?.length ?? 0;
   const activeDeals      = transactions?.filter((t) => t.status !== 'closed' && t.status !== 'cancelled').length ?? 0;
@@ -208,21 +208,6 @@ export default function TransactionsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-        <button
-          onClick={() => { localStorage.removeItem('lex_onboarding_dismissed'); setShowTour(true); }}
-          className="inline-flex items-center gap-2 rounded-lg transition-all duration-150 active:scale-95"
-          style={{
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            padding: '0.5625rem 1rem',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <Map className="h-3.5 w-3.5" />
-          Take a Tour
-        </button>
         <Link
           href="/transactions/new"
           data-tour="new-transaction"
@@ -253,7 +238,7 @@ export default function TransactionsPage() {
       </div>
 
       {/* ── Onboarding Checklist ── */}
-      <OnboardingChecklist transactionCount={transactions?.length ?? 0} forceShow={showTour} onDismiss={() => setShowTour(false)} />
+      <OnboardingChecklist transactionCount={transactions?.length ?? 0} />
 
       {/* ── Closing Countdown ── */}
       {transactions && transactions.length > 0 && (

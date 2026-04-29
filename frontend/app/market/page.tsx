@@ -83,6 +83,7 @@ export default function MarketPage() {
             center={view.result.center}
             bbox={view.result.bbox}
             watchlist={watchlist}
+            selectedZip={selectedZip}
             onZipClick={setSelectedZip}
             onBackToGlobe={handleBackToGlobe}
           />

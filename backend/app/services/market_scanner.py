@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.market import MarketProperty
 from app.services.census_client import fetch_zip_stats
+from app.services.pa_client import fetch_parcel_info, is_individual_owner_occupied
 from app.services.permit_client import fetch_permits_near
 from app.services.property_scorer import ScoringInput, haversine_miles, score_property
 from app.services.zillow_client import ZillowListing, fetch_listings
@@ -43,6 +44,13 @@ async def scan_zip(zip_code: str, db: AsyncSession) -> list[tuple[int, int]]:
             except (ValueError, TypeError):
                 pass
 
+        # Check if individual owner occupies the property (motivated seller proxy)
+        individual_owner = False
+        if listing.latitude and listing.longitude:
+            parcel_attrs = await fetch_parcel_info(listing.latitude, listing.longitude)
+            if parcel_attrs:
+                individual_owner = is_individual_owner_occupied(parcel_attrs)
+
         score_result = score_property(
             ScoringInput(
                 price=listing.price,
@@ -53,6 +61,7 @@ async def scan_zip(zip_code: str, db: AsyncSession) -> list[tuple[int, int]]:
                 days_on_market=dom,
                 price_reduction_30d=listing.price_reduction_30d,
                 nearest_permit_distance_mi=nearest_distance,
+                individual_owner_occupied=individual_owner,
             )
         )
         claude_summary = None
@@ -105,6 +114,8 @@ async def _generate_summary(listing: ZillowListing, score_result, nearest_permit
     if score_result.signal_long_dom:
         dom_str = f"{listing.days_on_market}" if listing.days_on_market is not None else "unknown"
         signals.append(f"On market {dom_str} days -- motivated seller signal")
+    if score_result.signal_individual_owner:
+        signals.append("Individual owner-occupied -- not LLC/investor-owned")
     price_str = f"${listing.price:,}" if listing.price else "price unknown"
     year_str = str(listing.year_built) if listing.year_built else "unknown"
     prompt = (

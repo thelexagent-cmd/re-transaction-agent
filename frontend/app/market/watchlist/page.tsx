@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR, { mutate } from 'swr';
-import { Plus, Trash2, RefreshCw, MapPin } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, MapPin, ArrowLeft } from 'lucide-react';
 import {
   getWatchlist,
   addWatchlistEntry,
@@ -33,7 +34,7 @@ export default function WatchlistPage() {
       // cache zip codes for sidebar
       const cached = JSON.parse(localStorage.getItem('lex-market-zips') ?? '[]') as string[];
       if (!cached.includes(zip)) {
-        localStorage.setItem('lex-market-zips', JSON.stringify([zip, ...cached].slice(0, 20)));
+        localStorage.setItem('lex-market-zips', JSON.stringify([zip, ...cached].slice(0, 100)));
         window.dispatchEvent(new Event('storage'));
       }
     } catch {
@@ -71,7 +72,27 @@ export default function WatchlistPage() {
   }
 
   return (
+    <div style={{ height: '100%', overflowY: 'auto' }}>
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <Link
+        href="/market"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          fontSize: '0.8125rem',
+          color: 'var(--text-muted)',
+          textDecoration: 'none',
+          marginBottom: '1.25rem',
+          transition: 'color 150ms',
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to Globe
+      </Link>
+
       <div className="mb-6">
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
           Market Watchlist
@@ -182,6 +203,7 @@ export default function WatchlistPage() {
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }

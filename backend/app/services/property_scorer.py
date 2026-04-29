@@ -1,11 +1,12 @@
-"""Property scoring engine — scores a listing 0–100 across 5 signals.
+"""Property scoring engine — scores a listing 0–100 across 6 signals.
 
-Signal weights (must sum to 100):
+Signal weights (max 100, can exceed with bonus):
   35 — near permitted development (tiered by distance)
   25 — price below ZIP median / Zestimate
   20 — old house in old neighborhood (pre-1980)
   10 — price reduction in last 30 days
   10 — days on market > 45
+  10 — individual owner-occupied (not LLC/corporate, mailing = site)
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ class ScoringInput:
     days_on_market: int | None
     price_reduction_30d: int | None
     nearest_permit_distance_mi: float | None
+    individual_owner_occupied: bool = False
 
 
 @dataclass
@@ -34,6 +36,7 @@ class ScoringResult:
     signal_old_house: bool
     signal_price_reduction: bool
     signal_long_dom: bool
+    signal_individual_owner: bool
     breakdown: dict[str, int]
 
 
@@ -44,8 +47,9 @@ def score_property(inp: ScoringInput) -> ScoringResult:
     pts_age = _score_age(inp.year_built, inp.zip_median_year_built)
     pts_reduction = 10 if inp.price_reduction_30d and inp.price_reduction_30d > 0 else 0
     pts_dom = 10 if inp.days_on_market and inp.days_on_market > 45 else 0
+    pts_owner = 10 if inp.individual_owner_occupied else 0
 
-    total = pts_permit + pts_value + pts_age + pts_reduction + pts_dom
+    total = pts_permit + pts_value + pts_age + pts_reduction + pts_dom + pts_owner
 
     return ScoringResult(
         score=min(total, 100),
@@ -54,12 +58,14 @@ def score_property(inp: ScoringInput) -> ScoringResult:
         signal_old_house=pts_age > 0,
         signal_price_reduction=pts_reduction > 0,
         signal_long_dom=pts_dom > 0,
+        signal_individual_owner=pts_owner > 0,
         breakdown={
             "near_permit": pts_permit,
             "undervalued": pts_value,
             "old_house": pts_age,
             "price_reduction": pts_reduction,
             "long_dom": pts_dom,
+            "owner_occupied": pts_owner,
         },
     )
 
