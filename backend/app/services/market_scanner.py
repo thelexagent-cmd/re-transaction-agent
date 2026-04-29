@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
@@ -34,6 +34,15 @@ async def scan_zip(zip_code: str, db: AsyncSession) -> list[tuple[int, int]]:
                 nearest_permit, nearest_distance = _find_nearest_permit(
                     listing.latitude, listing.longitude, raw_permits
                 )
+        # Compute DOM from list_date when the API returns null
+        dom = listing.days_on_market
+        if dom is None and listing.list_date:
+            try:
+                listed = datetime.fromisoformat(listing.list_date.replace("Z", "+00:00"))
+                dom = (datetime.now(timezone.utc) - listed).days
+            except (ValueError, TypeError):
+                pass
+
         score_result = score_property(
             ScoringInput(
                 price=listing.price,
@@ -41,7 +50,7 @@ async def scan_zip(zip_code: str, db: AsyncSession) -> list[tuple[int, int]]:
                 zip_median_value=zip_stats.median_home_value,
                 year_built=listing.year_built,
                 zip_median_year_built=zip_stats.median_year_built,
-                days_on_market=listing.days_on_market,
+                days_on_market=dom,
                 price_reduction_30d=listing.price_reduction_30d,
                 nearest_permit_distance_mi=nearest_distance,
             )
@@ -53,6 +62,7 @@ async def scan_zip(zip_code: str, db: AsyncSession) -> list[tuple[int, int]]:
             db=db, listing=listing, zip_code=zip_code,
             score_result=score_result, nearest_permit=nearest_permit,
             nearest_distance=nearest_distance, claude_summary=claude_summary,
+            computed_dom=dom,
         )
         results.append((prop_id, score_result.score))
     logger.info("Market scan complete for ZIP %s: %d properties processed", zip_code, len(results))
@@ -117,7 +127,7 @@ async def _generate_summary(listing: ZillowListing, score_result, nearest_permit
 
 async def _upsert_property(db: AsyncSession, listing: ZillowListing, zip_code: str,
                             score_result, nearest_permit: dict | None, nearest_distance: float | None,
-                            claude_summary: str | None) -> int:
+                            claude_summary: str | None, computed_dom: int | None = None) -> int:
     result = await db.execute(select(MarketProperty).where(MarketProperty.zillow_id == listing.zpid))
     prop = result.scalar_one_or_none()
     permit_type = nearest_permit.get("permit_type") if nearest_permit else None
@@ -128,7 +138,8 @@ async def _upsert_property(db: AsyncSession, listing: ZillowListing, zip_code: s
             zip_code=zip_code, zillow_id=listing.zpid, address=listing.address,
             price=listing.price, bedrooms=listing.bedrooms, bathrooms=listing.bathrooms,
             living_area=listing.living_area, year_built=listing.year_built,
-            days_on_market=listing.days_on_market, zestimate=listing.zestimate,
+            days_on_market=computed_dom if computed_dom is not None else listing.days_on_market,
+            zestimate=listing.zestimate,
             price_reduction_30d=listing.price_reduction_30d,
             latitude=listing.latitude, longitude=listing.longitude, img_src=listing.img_src,
             nearest_permit_distance_mi=nearest_distance, nearest_permit_type=permit_type,
@@ -139,7 +150,7 @@ async def _upsert_property(db: AsyncSession, listing: ZillowListing, zip_code: s
         db.add(prop)
     else:
         prop.price = listing.price
-        prop.days_on_market = listing.days_on_market
+        prop.days_on_market = computed_dom if computed_dom is not None else listing.days_on_market
         prop.zestimate = listing.zestimate
         prop.price_reduction_30d = listing.price_reduction_30d
         prop.nearest_permit_distance_mi = nearest_distance

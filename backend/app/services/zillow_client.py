@@ -41,6 +41,7 @@ class ZillowListing:
     latitude: float | None
     longitude: float | None
     img_src: str | None
+    list_date: str | None  # ISO date string e.g. "2026-01-15T00:00:00.000000Z"
 
 
 async def fetch_listings(zip_code: str, rapidapi_key: str) -> list[ZillowListing]:
@@ -106,6 +107,7 @@ async def fetch_listings(zip_code: str, rapidapi_key: str) -> list[ZillowListing
                 latitude=_to_float(coord.get("lat")),
                 longitude=_to_float(coord.get("lon")),
                 img_src=(p.get("primary_photo") or {}).get("href"),
+                list_date=p.get("list_date"),
             )
         )
 
