@@ -128,6 +128,7 @@ export default function ZipPage({ params }: { params: Promise<{ zip: string }> }
   const sorted = [...(properties as MarketProperty[])].sort((a, b) => (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0));
 
   return (
+    <div style={{ height: '100%', overflowY: 'auto' }}>
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '2rem 1.5rem' }}>
       <Link
         href="/market"
@@ -176,6 +177,7 @@ export default function ZipPage({ params }: { params: Promise<{ zip: string }> }
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }
