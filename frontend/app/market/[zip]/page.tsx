@@ -1,8 +1,9 @@
 'use client';
 
 import { use } from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
-import { MapPin, Home, TrendingDown, Calendar, Clock, Zap } from 'lucide-react';
+import { MapPin, Home, TrendingDown, Calendar, Clock, Zap, ArrowLeft } from 'lucide-react';
 import { getMarketProperties, type MarketProperty } from '@/lib/api';
 
 const SCORE_COLOR = (s: number) =>
@@ -38,14 +39,17 @@ function PropertyCard({ prop }: { prop: MarketProperty }) {
       className="rounded-2xl overflow-hidden"
       style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
     >
-      {/* Map embed */}
-      {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && prop.latitude && prop.longitude && (
-        <iframe
-          loading="lazy"
-          title={prop.address}
-          style={{ width: '100%', height: 180, display: 'block', border: 0 }}
-          src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${prop.latitude},${prop.longitude}&zoom=16`}
+      {/* House photo */}
+      {prop.img_src ? (
+        <img
+          src={prop.img_src}
+          alt={prop.address}
+          style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }}
         />
+      ) : (
+        <div style={{ width: '100%', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-surface)' }}>
+          <Home style={{ width: 32, height: 32, opacity: 0.2, color: 'var(--text-muted)' }} />
+        </div>
       )}
 
       <div className="p-4">
@@ -125,6 +129,25 @@ export default function ZipPage({ params }: { params: Promise<{ zip: string }> }
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <Link
+        href="/market"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          fontSize: '0.8125rem',
+          color: 'var(--text-muted)',
+          textDecoration: 'none',
+          marginBottom: '1.25rem',
+          transition: 'color 150ms',
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to Globe
+      </Link>
+
       <div className="flex items-center gap-2 mb-2">
         <MapPin className="h-5 w-5" style={{ color: '#60a5fa' }} />
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
