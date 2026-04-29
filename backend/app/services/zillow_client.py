@@ -1,25 +1,29 @@
-"""Realtor Data API client — fetches for-sale listings for a ZIP code.
+"""Realty US API client — fetches for-sale listings for a ZIP code.
 
-API: Realtor Data API on RapidAPI (realtor-data1.p.rapidapi.com)
-Endpoint: POST /property_list/
-Body: {"query": {"status": ["for_sale"], "postal_code": "<zip>"}, "limit": 50}
+API: Realty US by Things4u (ntd119) on RapidAPI (realty-us.p.rapidapi.com)
+Endpoint: GET /properties/search-buy?location=postal_code%3A<zip>&limit=50
+Free tier: check RapidAPI subscription
 
 Response shape (relevant fields):
-  results[]: property_id, price, beds, baths, sqft, year_built, days_on_market,
-             list_date, original_list_price, address{line, city, state, postal_code,
-             coordinate{lat, lon}}, primary_photo{href}
+  data.results[]: property_id, status, list_price, list_date, price_reduced_amount,
+                  description{beds, baths, sqft, type, year_built},
+                  flags{is_price_reduced, is_new_listing, is_foreclosure},
+                  estimate{estimate},
+                  location.address{line, city, postal_code, state_code, coordinate{lat,lon}},
+                  primary_photo{href}, days_on_market
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from urllib.parse import quote
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-REALTOR_BASE = "https://realtor-data1.p.rapidapi.com"
+REALTY_BASE = "https://realty-us.p.rapidapi.com"
 
 
 @dataclass
@@ -32,7 +36,7 @@ class ZillowListing:
     living_area: int | None
     year_built: int | None
     days_on_market: int | None
-    zestimate: int | None          # not available from Realtor; always None
+    zestimate: int | None
     price_reduction_30d: int | None
     latitude: float | None
     longitude: float | None
@@ -40,95 +44,78 @@ class ZillowListing:
 
 
 async def fetch_listings(zip_code: str, rapidapi_key: str) -> list[ZillowListing]:
-    """Return active for-sale house listings in the given ZIP code."""
+    """Return active for-sale listings in the given ZIP code.
+
+    Uses location format: postal_code:<zip> — no auto-complete call needed.
+    """
     headers = {
         "X-RapidAPI-Key": rapidapi_key,
-        "X-RapidAPI-Host": "realtor-data1.p.rapidapi.com",
-        "Content-Type": "application/json",
+        "X-RapidAPI-Host": "realty-us.p.rapidapi.com",
     }
-    body = {
-        "query": {
-            "status": ["for_sale"],
-            "postal_code": zip_code,
-            "type": ["single_family"],
-        },
-        "limit": 50,
-        "offset": 0,
-        "sort": {"direction": "desc", "field": "list_date"},
+    params = {
+        "location": f"postal_code:{zip_code}",
+        "limit": "50",
+        "offset": "0",
+        "sort": "newest",
+        "prop_type": "single_family",
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
-            resp = await client.post(
-                f"{REALTOR_BASE}/property_list/",
+            resp = await client.get(
+                f"{REALTY_BASE}/properties/search-buy",
                 headers=headers,
-                json=body,
+                params=params,
             )
             resp.raise_for_status()
         except httpx.HTTPError as exc:
-            logger.error("Realtor API search failed for ZIP %s: %s", zip_code, exc)
+            logger.error("Realty US API search failed for ZIP %s: %s", zip_code, exc)
             return []
 
     data = resp.json()
-    # Response is either {"results": [...]} or {"data": {"home_search": {"results": [...]}}}
-    results = (
-        data.get("results")
-        or (data.get("data", {}).get("home_search") or {}).get("results")
-        or []
-    )
+    results = (data.get("data") or {}).get("results") or []
 
     listings: list[ZillowListing] = []
     for p in results:
-        addr_obj = p.get("location", {}).get("address") or p.get("address") or {}
+        if p.get("status") != "for_sale":
+            continue
+
+        addr_obj = (p.get("location") or {}).get("address") or {}
         coord = addr_obj.get("coordinate") or {}
+        desc = p.get("description") or {}
+        flags = p.get("flags") or {}
+        estimate_obj = p.get("estimate") or {}
 
         address_str = _build_address(addr_obj)
-        price = _to_int(p.get("list_price") or p.get("price"))
-        original_price = _to_int(p.get("original_list_price"))
-        price_reduction = (
-            original_price - price
-            if price and original_price and original_price > price
-            else None
-        )
+        price = _to_int(p.get("list_price"))
+        zestimate = _to_int(estimate_obj.get("estimate"))
+        price_reduction = _to_int(p.get("price_reduced_amount"))
 
         listings.append(
             ZillowListing(
-                zpid=str(p.get("property_id") or p.get("zpid") or ""),
+                zpid=str(p.get("property_id") or ""),
                 address=address_str,
                 price=price,
-                bedrooms=_to_int(p.get("description", {}).get("beds") or p.get("beds")),
-                bathrooms=_to_float(
-                    p.get("description", {}).get("baths_consolidated")
-                    or p.get("description", {}).get("baths")
-                    or p.get("baths")
-                ),
-                living_area=_to_int(
-                    p.get("description", {}).get("sqft") or p.get("sqft")
-                ),
-                year_built=_to_int(
-                    p.get("description", {}).get("year_built") or p.get("year_built")
-                ),
-                days_on_market=_to_int(
-                    p.get("list_date_delta") or p.get("days_on_market")
-                ),
-                zestimate=None,  # Realtor.com doesn't provide Zestimate
+                bedrooms=_to_int(desc.get("beds")),
+                bathrooms=_to_float(desc.get("baths")),
+                living_area=_to_int(desc.get("sqft")),
+                year_built=_to_int(desc.get("year_built")),
+                days_on_market=_to_int(p.get("days_on_market")),
+                zestimate=zestimate,
                 price_reduction_30d=price_reduction,
                 latitude=_to_float(coord.get("lat")),
                 longitude=_to_float(coord.get("lon")),
-                img_src=(
-                    (p.get("primary_photo") or {}).get("href")
-                    or p.get("img_src")
-                ),
+                img_src=(p.get("primary_photo") or {}).get("href"),
             )
         )
 
-    logger.info("Realtor API: %d listings fetched for ZIP %s", len(listings), zip_code)
+    logger.info("Realty US API: %d listings fetched for ZIP %s", len(listings), zip_code)
     return listings
 
 
 def _build_address(addr: dict) -> str:
     parts = [addr.get("line"), addr.get("city"), addr.get("state_code"), addr.get("postal_code")]
-    return ", ".join(p for p in parts if p) or addr.get("street_address", "")
+    return ", ".join(p for p in parts if p)
 
 
 def _to_int(val) -> int | None:
